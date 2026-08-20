@@ -1,0 +1,247 @@
+// Schema derivado de docs/specs/modelo-dados.md (ver esse documento para as decisões de modelagem).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MonitorStatus {
+  ATIVO
+  INATIVO
+}
+
+enum Semana {
+  A
+  B
+}
+
+enum BotSessaoStatus {
+  DESCONECTADO
+  CONECTANDO
+  CONECTADO
+}
+
+model Periodo {
+  id                    String   @id @default(cuid())
+  nome                  String
+  dataInicio            DateTime
+  dataFim               DateTime
+  dataReferenciaRodizio DateTime
+  ativo                 Boolean  @default(true)
+
+  turmas        Turma[]
+  gruposRevisao GrupoRevisao[]
+  monitores     Monitor[]
+  listas        Lista[]
+
+  @@unique([nome])
+}
+
+model Turma {
+  id              String @id @default(cuid())
+  periodoId       String
+  nome            String
+  nomeAbaPlanilha String
+
+  periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
+  alunos                   Aluno[]
+  mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
+
+  @@unique([periodoId, nome])
+}
+
+model GrupoRevisao {
+  id                String  @id @default(cuid())
+  periodoId         String
+  chefeId           String
+  nome              String
+  whatsappGrupoId   String?
+  whatsappGrupoNome String?
+
+  periodo Periodo @relation(fields: [periodoId], references: [id])
+  chefe   Monitor @relation("GrupoRevisaoChefe", fields: [chefeId], references: [id])
+  duplas  Dupla[]
+
+  @@unique([whatsappGrupoId])
+}
+
+model Dupla {
+  id               String  @id @default(cuid())
+  grupoRevisaoId   String
+  monitorSemanaAId String?
+  monitorSemanaBId String?
+  label            String
+
+  grupoRevisao   GrupoRevisao @relation(fields: [grupoRevisaoId], references: [id])
+  monitorSemanaA Monitor?     @relation("DuplaMonitorSemanaA", fields: [monitorSemanaAId], references: [id])
+  monitorSemanaB Monitor?     @relation("DuplaMonitorSemanaB", fields: [monitorSemanaBId], references: [id])
+  monitores      Monitor[]    @relation("DuplaMonitores")
+  alunos         Aluno[]
+  feedbacks      Feedback[]
+
+  @@unique([monitorSemanaAId])
+  @@unique([monitorSemanaBId])
+  @@unique([grupoRevisaoId, label])
+}
+
+model Monitor {
+  id             String        @id @default(cuid())
+  nome           String
+  whatsappNumero String        @unique
+  isChefe        Boolean       @default(false)
+  duplaId        String?
+  periodoId      String
+  status         MonitorStatus @default(ATIVO)
+
+  periodo              Periodo        @relation(fields: [periodoId], references: [id])
+  dupla                Dupla?         @relation("DuplaMonitores", fields: [duplaId], references: [id])
+  gruposComoChefe      GrupoRevisao[] @relation("GrupoRevisaoChefe")
+  duplaComoMonitorA    Dupla?         @relation("DuplaMonitorSemanaA")
+  duplaComoMonitorB    Dupla?         @relation("DuplaMonitorSemanaB")
+  feedbacksRegistrados Feedback[]
+  contaChefe           ContaChefe?
+}
+
+/// Credencial de acesso ao painel. Somente monitores marcados como chefes
+/// podem possuir uma conta; a regra é validada pela API de gestão.
+model ContaChefe {
+  id           String   @id @default(cuid())
+  monitorId    String   @unique
+  email        String   @unique
+  senhaHash    String
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  monitor  Monitor       @relation(fields: [monitorId], references: [id])
+  sessoes  SessaoChefe[]
+}
+
+/// Sessões revogáveis, armazenando somente o hash do token enviado ao cliente.
+model SessaoChefe {
+  id            String   @id @default(cuid())
+  contaChefeId  String
+  tokenHash     String   @unique
+  expiraEm      DateTime
+  criadoEm      DateTime @default(now())
+
+  contaChefe ContaChefe @relation(fields: [contaChefeId], references: [id], onDelete: Cascade)
+
+  @@index([contaChefeId])
+  @@index([expiraEm])
+}
+
+model Aluno {
+  id              String  @id @default(cuid())
+  nome            String
+  matricula       String  @unique
+  turmaId         String
+  duplaId         String
+  isPcd           Boolean @default(false)
+  qtdQuestoesMeta Int?
+
+  turma                      Turma                   @relation(fields: [turmaId], references: [id])
+  dupla                      Dupla                   @relation(fields: [duplaId], references: [id])
+  feedbacks                  Feedback[]
+  ocorrenciasPlagioEnvolvido FeedbackQuestaoPlagio[]
+}
+
+model Lista {
+  id                   String   @id @default(cuid())
+  periodoId            String
+  nome                 String
+  qtdQuestoesTotal     Int
+  prazoEntregaFeedback DateTime
+  semanaOverride       Semana?
+
+  periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
+  feedbacks                Feedback[]
+  mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
+
+  @@unique([periodoId, nome])
+}
+
+model Feedback {
+  id                   String   @id @default(cuid())
+  alunoId              String
+  monitorId            String
+  listaId              String
+  duplaId              String
+  semana               Semana
+  qtdQuestoesPontuadas Int
+  usouIa               Boolean  @default(false)
+  plagiou              Boolean  @default(false)
+  usouProibicao        Boolean  @default(false)
+  criadoEm             DateTime @default(now())
+  sincronizadoPlanilha Boolean  @default(false)
+  atualizadoEm         DateTime @updatedAt
+
+  aluno             Aluno                      @relation(fields: [alunoId], references: [id])
+  monitor           Monitor                    @relation(fields: [monitorId], references: [id])
+  lista             Lista                      @relation(fields: [listaId], references: [id])
+  dupla             Dupla                      @relation(fields: [duplaId], references: [id])
+  questoesIa        FeedbackQuestaoIA[]
+  questoesPlagio    FeedbackQuestaoPlagio[]
+  questoesProibicao FeedbackQuestaoProibicao[]
+
+  @@index([alunoId])
+  @@index([monitorId])
+  @@index([listaId])
+}
+
+model FeedbackQuestaoIA {
+  id            String @id @default(cuid())
+  feedbackId    String
+  numeroQuestao Int
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([feedbackId, numeroQuestao])
+}
+
+model FeedbackQuestaoPlagio {
+  id               String @id @default(cuid())
+  feedbackId       String
+  numeroQuestao    Int
+  alunoEnvolvidoId String
+
+  feedback       Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  alunoEnvolvido Aluno    @relation(fields: [alunoEnvolvidoId], references: [id])
+
+  @@unique([feedbackId, numeroQuestao, alunoEnvolvidoId])
+}
+
+model FeedbackQuestaoProibicao {
+  id            String @id @default(cuid())
+  feedbackId    String
+  numeroQuestao Int
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([feedbackId, numeroQuestao])
+}
+
+model MapeamentoPlanilhaLista {
+  id                     String   @id @default(cuid())
+  listaId                String
+  turmaId                String
+  colunaQuestoesCorretas String?
+  atualizadoEm           DateTime @updatedAt
+
+  lista Lista @relation(fields: [listaId], references: [id])
+  turma Turma @relation(fields: [turmaId], references: [id])
+
+  @@unique([listaId, turmaId])
+}
+
+/// Tabela singleton: uma única linha reflete o estado de conexão do bot no dashboard
+/// (ver docs/specs/modelo-dados.md e ADR-0003). Mantida por upsert com id fixo pela aplicação.
+model BotSessao {
+  id              String          @id @default(cuid())
+  status          BotSessaoStatus @default(DESCONECTADO)
+  numeroConectado String?
+  atualizadoEm    DateTime        @updatedAt
+}

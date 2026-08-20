@@ -1,0 +1,2898 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Feedbot — Protótipo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0d1421;
+        --surface: #141d30;
+        --surface-2: #1b2740;
+        --surface-3: #22304e;
+        --border: #28365a;
+        --border-strong: #37497a;
+        --text: #edf2fc;
+        --text-2: #a7b4d6;
+        --text-3: #6b7ca8;
+        --gold: #e7b65c;
+        --gold-dim: #332811;
+        --gold-line: #4a3b1c;
+        --rose: #e5938a;
+        --rose-dim: #33201f;
+        --rose-line: #4a2a28;
+        --sage: #8fc29b;
+        --sage-dim: #182b20;
+        --sage-line: #264032;
+        --plum: #b79ee0;
+        --plum-dim: #241d40;
+        --plum-line: #33285a;
+        --sky: #7fb8e0;
+        --sky-dim: #17293d;
+        --display: "Fraunces", serif;
+        --sans: "Nunito", sans-serif;
+        --r-lg: 20px;
+        --r-md: 14px;
+        --r-sm: 10px;
+        --r-pill: 999px;
+        --shadow: 0 10px 30px rgba(3, 7, 18, 0.45);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 14px;
+      }
+      ::selection {
+        background: var(--gold-dim);
+        color: var(--gold);
+      }
+      button,
+      input,
+      select {
+        font-family: inherit;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 246px 1fr;
+        min-height: 100vh;
+      }
+      svg.icon {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+
+      /* SIDEBAR */
+      .sidebar {
+        background: var(--surface);
+        padding: 22px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 2px 8px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .brand .mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        background: linear-gradient(160deg, var(--gold), #c98f3a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 15px;
+        color: #241a05;
+      }
+      .brand-txt strong {
+        display: block;
+        font-family: var(--display);
+        font-size: 15.5px;
+        font-weight: 600;
+      }
+      .brand-txt span {
+        display: block;
+        font-size: 11px;
+        color: var(--text-3);
+        font-weight: 600;
+      }
+      .nav-group-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-3);
+        padding: 0 12px;
+        margin: 4px 0 6px;
+        font-weight: 800;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 9px 12px;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        color: var(--text-2);
+        font-size: 13.5px;
+        font-weight: 700;
+        margin-bottom: 2px;
+        position: relative;
+      }
+      .nav-item:hover {
+        background: var(--surface-2);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--gold-dim);
+        color: var(--gold);
+      }
+      .nav-item.active svg {
+        stroke: var(--gold);
+      }
+      .sidebar-foot {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--surface-2);
+        border-radius: var(--r-md);
+      }
+      .sidebar-foot .av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--sky-dim);
+        color: var(--sky);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 12px;
+      }
+      .sidebar-foot .who strong {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 800;
+      }
+      .sidebar-foot .who span {
+        display: block;
+        font-size: 11px;
+        color: var(--text-3);
+        font-weight: 600;
+      }
+
+      /* HEADER */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 16px 32px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text-3);
+        font-weight: 700;
+      }
+      .breadcrumb b {
+        color: var(--text);
+      }
+      .breadcrumb .sep {
+        opacity: 0.5;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-pill);
+        padding: 8px 14px;
+        min-width: 220px;
+      }
+      .search-box svg {
+        color: var(--text-3);
+      }
+      .search-box input {
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-size: 12.5px;
+        font-weight: 600;
+        width: 100%;
+      }
+      .search-box input::placeholder {
+        color: var(--text-3);
+      }
+      select.periodo {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: var(--r-pill);
+      }
+
+      .content {
+        padding: 28px 32px 60px;
+        flex: 1;
+      }
+      .page {
+        display: none;
+      }
+      .page.active {
+        display: block;
+      }
+      .page-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 22px;
+        gap: 16px;
+      }
+      h1 {
+        font-family: var(--display);
+        font-size: 25px;
+        font-weight: 600;
+      }
+      .subtitle {
+        color: var(--text-2);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .head-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      /* BUTTONS */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        color: var(--text);
+        font-size: 12.5px;
+        padding: 9px 16px;
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        font-weight: 700;
+        transition: border-color 0.15s;
+      }
+      .btn:hover {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .btn:hover svg {
+        stroke: var(--gold);
+      }
+      .btn.primary {
+        background: var(--gold);
+        color: #241a05;
+        border-color: transparent;
+      }
+      .btn.primary:hover {
+        background: #efc172;
+        color: #241a05;
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: var(--border);
+      }
+      .btn.danger-solid {
+        background: var(--rose);
+        color: #3a1512;
+        border-color: transparent;
+      }
+      .btn.danger-solid:hover {
+        background: #eda69e;
+        color: #3a1512;
+      }
+      .btn.sm {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+
+      /* FILTER BAR */
+      .filterbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 12px 14px;
+        background: var(--surface);
+        border-radius: var(--r-md);
+        border: 1px solid var(--border);
+      }
+      .filterbar .flag {
+        color: var(--text-3);
+        font-size: 11.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .filterbar select {
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        color: var(--text);
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 7px 12px;
+        border-radius: var(--r-pill);
+      }
+      .filterbar .search-box {
+        padding: 6px 12px;
+        min-width: 190px;
+        margin-left: auto;
+      }
+
+      /* STAT CARDS */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .stat-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .stat .label {
+        font-size: 11.5px;
+        color: var(--text-3);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .stat .icon-wrap {
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .stat .value {
+        font-family: var(--display);
+        font-size: 27px;
+        font-weight: 600;
+      }
+      .stat .sub {
+        font-size: 11.5px;
+        color: var(--text-3);
+        font-weight: 700;
+      }
+
+      /* PANEL / CHART */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        padding: 20px 22px;
+        margin-bottom: 20px;
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .panel h3 {
+        font-family: var(--display);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .panel .tag {
+        font-size: 11px;
+        color: var(--text-3);
+        font-weight: 700;
+      }
+      .legend-row {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--text-2);
+        font-weight: 700;
+      }
+      .legend-row span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend-row i {
+        width: 9px;
+        height: 9px;
+        border-radius: 3px;
+        display: inline-block;
+      }
+      .chart-wrap {
+        position: relative;
+        height: 270px;
+      }
+      .chart-wrap.sm {
+        height: 190px;
+      }
+      .chart-wrap.md {
+        height: 245px;
+      }
+      .panel-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 18px;
+      }
+      .panel-grid .panel {
+        margin-bottom: 0;
+      }
+      .panel-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        height: 100%;
+      }
+      .panel-stack .panel {
+        margin-bottom: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .panel-stack .panel-fit {
+        flex: 0 0 auto;
+      }
+      .panel-stack .panel .chart-wrap {
+        flex: 1;
+        height: auto;
+        min-height: 210px;
+      }
+      @media (max-width: 980px) {
+        .panel-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* HEATMAP */
+      .heatmap {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 4px;
+      }
+      .heatmap th {
+        background: none;
+        font-size: 10.5px;
+        color: var(--text-3);
+        font-weight: 800;
+        padding: 2px 4px;
+        text-align: center;
+      }
+      .heatmap th.row-h {
+        text-align: left;
+        padding-left: 6px;
+      }
+      .heatmap td {
+        text-align: center;
+        border-radius: 8px;
+        padding: 8px 5px 7px;
+        cursor: default;
+        background: var(--surface-2);
+      }
+      .heat-total {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--text);
+        margin-bottom: 5px;
+      }
+      .heat-total.z {
+        color: var(--text-3);
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .heat-mini {
+        display: flex;
+        width: 100%;
+        height: 5px;
+        border-radius: var(--r-pill);
+        overflow: hidden;
+        background: var(--border);
+      }
+      .heat-mini span {
+        height: 100%;
+      }
+      .heatmap-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        font-size: 11px;
+        color: var(--text-3);
+        font-weight: 700;
+      }
+      .heatmap-legend .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 3px;
+        display: inline-block;
+      }
+
+      /* TABLE */
+      .table-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+      }
+      .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 32px 0 16px;
+        color: var(--text-3);
+        font-size: 11.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .section-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* SEARCH DROPDOWN */
+      .search-wrap {
+        position: relative;
+        margin-left: auto;
+      }
+      .search-wrap .search-box {
+        margin-left: 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+      }
+      thead th {
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-3);
+        font-weight: 800;
+        padding: 13px 16px;
+        background: var(--surface-2);
+        user-select: none;
+      }
+      th.sortable {
+        cursor: pointer;
+      }
+      th.sortable:hover {
+        color: var(--text);
+      }
+      th .arrow {
+        opacity: 0.5;
+        margin-left: 3px;
+        font-size: 10px;
+      }
+      tbody td {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        vertical-align: middle;
+      }
+      tbody tr {
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: var(--surface-2);
+      }
+      .person-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11.5px;
+        font-weight: 800;
+        flex-shrink: 0;
+      }
+      .person-name {
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .nd-icon {
+        color: var(--sky);
+        font-size: 13px;
+        opacity: 0.9;
+      }
+      .mono-cell {
+        font-size: 12.5px;
+        color: var(--text-2);
+        font-weight: 700;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: var(--r-pill);
+      }
+      .chip.ok {
+        color: var(--sage);
+        background: var(--sage-dim);
+      }
+      .chip.warn {
+        color: var(--gold);
+        background: var(--gold-dim);
+      }
+      .chip.danger {
+        color: var(--rose);
+        background: var(--rose-dim);
+      }
+      .chip.info {
+        color: var(--plum);
+        background: var(--plum-dim);
+      }
+      .chip.off {
+        color: var(--text-3);
+        background: var(--surface-2);
+      }
+      .flags-cell {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .progress {
+        width: 86px;
+        height: 7px;
+        background: var(--surface-2);
+        border-radius: var(--r-pill);
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .progress div {
+        height: 100%;
+        border-radius: var(--r-pill);
+      }
+      .empty {
+        padding: 46px 20px;
+        text-align: center;
+        color: var(--text-3);
+      }
+      .empty b {
+        display: block;
+        color: var(--text-2);
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
+      /* GESTAO */
+      .grupo-grid {
+        display: grid;
+        gap: 14px;
+      }
+      .grupo-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+      }
+      .grupo-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        cursor: pointer;
+      }
+      .grupo-head .left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .grupo-head .av {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        background: var(--gold-dim);
+        color: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .grupo-head strong {
+        font-family: var(--display);
+        font-size: 15.5px;
+        font-weight: 600;
+        display: block;
+      }
+      .grupo-head .chefe {
+        font-size: 11.5px;
+        color: var(--text-3);
+        font-weight: 700;
+      }
+      .grupo-head .right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .grupo-stats {
+        font-size: 12px;
+        color: var(--text-2);
+        font-weight: 700;
+        display: flex;
+        gap: 14px;
+      }
+      .chevron {
+        transition: transform 0.15s;
+        color: var(--text-3);
+      }
+      .grupo-card.open .chevron {
+        transform: rotate(180deg);
+      }
+      .grupo-body {
+        padding: 0 20px 18px;
+        display: none;
+      }
+      .grupo-card.open .grupo-body {
+        display: block;
+      }
+      .dupla-row {
+        padding: 13px 0;
+        border-top: 1px solid var(--border);
+      }
+      .dupla-top {
+        display: grid;
+        grid-template-columns: 88px 1fr 1fr 70px 30px;
+        gap: 12px;
+        align-items: center;
+      }
+      .dupla-label {
+        font-size: 12px;
+        color: var(--text-3);
+        font-weight: 800;
+      }
+      .monitor-slot {
+        font-size: 12.5px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .monitor-slot .m-av {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--sky-dim);
+        color: var(--sky);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9.5px;
+        font-weight: 800;
+        flex-shrink: 0;
+      }
+      .monitor-slot .wk {
+        font-size: 9px;
+        color: var(--text-3);
+        text-transform: uppercase;
+        padding: 2px 6px;
+        background: var(--surface-2);
+        border-radius: var(--r-pill);
+        font-weight: 800;
+      }
+      .monitor-slot.vago {
+        color: var(--text-3);
+        font-style: italic;
+      }
+      .aluno-count {
+        font-size: 12px;
+        color: var(--sage);
+        text-align: right;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        justify-content: flex-end;
+      }
+      .aluno-list {
+        display: none;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+      }
+      .aluno-list.open {
+        display: flex;
+      }
+      .aluno-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface-2);
+        padding: 5px 6px 5px 10px;
+        border-radius: var(--r-pill);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .x-btn {
+        background: none;
+        border: none;
+        color: var(--text-3);
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .x-btn:hover {
+        color: var(--rose);
+        background: var(--rose-dim);
+      }
+      .dupla-body-actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 8px;
+      }
+
+      /* MODAL */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 10, 20, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 20px;
+      }
+      .overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        width: 100%;
+        max-width: 420px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+      .modal h4 {
+        font-family: var(--display);
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .modal p {
+        font-size: 13px;
+        color: var(--text-2);
+        line-height: 1.6;
+        margin-bottom: 6px;
+      }
+      .modal .field {
+        margin-top: 14px;
+      }
+      .modal label {
+        display: block;
+        font-size: 11.5px;
+        font-weight: 800;
+        color: var(--text-3);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 6px;
+      }
+      .modal input,
+      .modal select {
+        width: 100%;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        color: var(--text);
+        font-size: 13.5px;
+        padding: 9px 12px;
+        border-radius: var(--r-sm);
+        outline: none;
+      }
+      .modal input:focus,
+      .modal select:focus {
+        border-color: var(--gold);
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      /* DRAWER */
+      .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 10, 20, 0.5);
+        display: none;
+        z-index: 90;
+      }
+      .drawer-overlay.open {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 420px;
+        max-width: 92vw;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        z-index: 95;
+        transform: translateX(100%);
+        transition: transform 0.2s ease;
+        padding: 26px;
+        overflow-y: auto;
+        box-shadow: var(--shadow);
+      }
+      .drawer.open {
+        transform: translateX(0);
+      }
+      .drawer-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+      }
+      .drawer-head .who {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .drawer-head .av {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 15px;
+      }
+      .drawer-head h4 {
+        font-family: var(--display);
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .drawer-head .sub {
+        font-size: 12px;
+        color: var(--text-3);
+        font-weight: 700;
+        margin-top: 2px;
+      }
+      .drawer-close {
+        background: var(--surface-2);
+        border: none;
+        color: var(--text-2);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .drawer-section {
+        margin-bottom: 20px;
+      }
+      .drawer-section h5 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-3);
+        font-weight: 800;
+        margin-bottom: 10px;
+      }
+      .mini-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 0;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .mini-row:first-child {
+        border-top: none;
+      }
+      .mini-row .l {
+        color: var(--text-2);
+        font-weight: 700;
+      }
+
+      /* BOT PHONE */
+      .phone {
+        width: 340px;
+        margin: 0 auto;
+        background: #080d18;
+        border-radius: 28px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      /* BOT CONEXÃO */
+      .connect-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-3);
+      }
+      .status-dot.on {
+        background: var(--sage);
+        box-shadow: 0 0 0 3px var(--sage-dim);
+      }
+      .status-dot.mid {
+        background: var(--gold);
+        box-shadow: 0 0 0 3px var(--gold-dim);
+      }
+      .connected-card {
+        background: var(--surface-2);
+        border-radius: var(--r-md);
+        padding: 18px;
+        text-align: center;
+      }
+      .connected-card .num {
+        font-family: var(--display);
+        font-size: 19px;
+        font-weight: 600;
+        margin: 8px 0 2px;
+      }
+      .field-block {
+        margin-bottom: 14px;
+      }
+      .field-block label {
+        display: block;
+        font-size: 11.5px;
+        font-weight: 800;
+        color: var(--text-3);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 6px;
+      }
+      .field-block input {
+        width: 100%;
+        background: var(--surface-2);
+        border: 1px solid var(--border-strong);
+        color: var(--text);
+        font-size: 13.5px;
+        padding: 9px 12px;
+        border-radius: var(--r-sm);
+        outline: none;
+      }
+      .field-block input:focus {
+        border-color: var(--gold);
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 11px 0;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .info-row:first-child {
+        border-top: none;
+      }
+      .info-row .l {
+        color: var(--text-2);
+        font-weight: 700;
+      }
+      .phone-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 6px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .phone-head .av {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--sage-dim);
+        color: var(--sage);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 12px;
+      }
+      .phone-head .nm {
+        font-size: 13.5px;
+        font-weight: 800;
+      }
+      .phone-head .st {
+        font-size: 10.5px;
+        color: var(--sage);
+        font-weight: 700;
+      }
+      .msgs {
+        padding: 14px 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        max-height: 560px;
+        overflow: auto;
+      }
+      .msg {
+        max-width: 82%;
+        padding: 9px 13px;
+        border-radius: 16px;
+        font-size: 12.5px;
+        line-height: 1.55;
+        font-weight: 600;
+      }
+      .msg.bot {
+        background: var(--surface-2);
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+      }
+      .msg.opts {
+        align-self: flex-start;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        max-width: 100%;
+      }
+      .msg.opts button {
+        background: var(--surface-3);
+        border: 1px solid var(--sky);
+        color: var(--sky);
+        font-size: 11.5px;
+        font-weight: 800;
+        padding: 6px 12px;
+        border-radius: var(--r-pill);
+        cursor: pointer;
+      }
+      .msg.opts button:hover {
+        background: var(--sky-dim);
+      }
+      .msg.user {
+        background: var(--sage-dim);
+        color: #ddf2e4;
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+        font-weight: 800;
+      }
+      .bot-note {
+        font-size: 11px;
+        color: var(--text-3);
+        text-align: center;
+        margin: 6px 0;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">F</div>
+          <div class="brand-txt"><strong>Feedbot</strong><span>Introdução à programação</span></div>
+        </div>
+        <div>
+          <div class="nav-group-label">Dashboards</div>
+          <div class="nav-item active" data-page="alunos">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg
+            >Alunos
+          </div>
+          <div class="nav-item" data-page="monitores">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="9" cy="8" r="3.2" />
+              <path d="M2.5 20c0-3.3 3-5.2 6.5-5.2s6.5 1.9 6.5 5.2" />
+              <path d="M16 4.5c1.7.4 3 1.9 3 3.7s-1.3 3.3-3 3.7" />
+              <path d="M17.5 14.9c2.5.5 4 2.2 4 5.1" /></svg
+            >Monitores
+          </div>
+        </div>
+        <div>
+          <div class="nav-group-label">Diretório</div>
+          <div class="nav-item" data-page="diretorio-alunos">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" /></svg
+            >Alunos
+          </div>
+          <div class="nav-item" data-page="diretorio-monitores">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" /></svg
+            >Monitores
+          </div>
+        </div>
+        <div>
+          <div class="nav-group-label">Gestão</div>
+          <div class="nav-item" data-page="gestao">
+            <svg class="icon" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" /></svg
+            >Grupos &amp; duplas
+          </div>
+        </div>
+        <div>
+          <div class="nav-group-label">Bot</div>
+          <div class="nav-item" data-page="bot">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path
+                d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H8l-5 4z"
+              /></svg
+            >Simulação WhatsApp
+          </div>
+        </div>
+        <div class="sidebar-foot">
+          <div class="av">VC</div>
+          <div class="who"><strong>Você</strong><span>chefe de monitoria</span></div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <div class="topbar">
+          <div class="breadcrumb">
+            Período <span class="sep">›</span><b id="periodo-label">2026.2</b>
+          </div>
+          <div class="topbar-right">
+            <select class="periodo" id="periodo-select">
+              <option>2026.2</option>
+              <option>2026.1</option>
+              <option>2025.2</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- ALUNOS -->
+          <section class="page active" id="page-alunos">
+            <div class="page-head">
+              <div>
+                <h1>Alunos</h1>
+                <div class="subtitle">
+                  Desempenho, ocorrências e acompanhamento por turma, grupo e lista.
+                </div>
+              </div>
+            </div>
+
+            <div class="filterbar">
+              <span class="flag">Turma</span
+              ><select id="f-turma"></select>
+              <span class="flag">Grupo</span
+              ><select id="f-grupo"></select>
+              <span class="flag">Dupla</span
+              ><select id="f-dupla"></select>
+              <span class="flag">Lista</span
+              ><select id="f-lista"></select>
+            </div>
+
+            <div class="stats" id="alunos-stats"></div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Ocorrências por lista</h3>
+                <div class="legend-row">
+                  <span><i style="background: var(--plum)"></i>uso de IA</span>
+                  <span><i style="background: var(--rose)"></i>plágio</span>
+                  <span><i style="background: var(--gold)"></i>proibição</span>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <canvas
+                  id="chart-alunos"
+                  role="img"
+                  aria-label="Ocorrências de IA, plágio e proibição por lista"
+                ></canvas>
+              </div>
+            </div>
+
+            <div class="panel-grid">
+              <div class="panel-stack">
+                <div class="panel panel-fit">
+                  <div class="panel-head">
+                    <h3>Questões mais afetadas</h3>
+                    <span class="tag">lista × questão</span>
+                  </div>
+                  <div id="heatmap-wrap"></div>
+                  <div class="heatmap-legend">
+                    <span class="dot" style="background: var(--plum)"></span>IA
+                    <span class="dot" style="background: var(--rose)"></span>plágio
+                    <span class="dot" style="background: var(--gold)"></span>proibição
+                    <span style="margin-left: auto; color: var(--text-3)"
+                      >a barrinha mostra a proporção de cada tipo naquela questão</span
+                    >
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head">
+                    <h3>Ranking de questões problemáticas</h3>
+                    <span class="tag">por lista · top 10</span>
+                  </div>
+                  <div class="chart-wrap md">
+                    <canvas
+                      id="chart-questoes-rank"
+                      role="img"
+                      aria-label="Questões com mais ocorrências de IA, plágio e proibição somadas"
+                    ></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-stack">
+                <div class="panel">
+                  <div class="panel-head"><h3>Composição das ocorrências</h3></div>
+                  <div class="chart-wrap md">
+                    <canvas
+                      id="chart-alunos-donut"
+                      role="img"
+                      aria-label="Proporção de ocorrências por tipo: IA, plágio e proibição"
+                    ></canvas>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head">
+                    <h3>Questões corretas por lista</h3>
+                    <span class="tag">média informada pelos monitores</span>
+                  </div>
+                  <div class="chart-wrap md">
+                    <canvas
+                      id="chart-alunos-qtd"
+                      role="img"
+                      aria-label="Média de questões corretas por lista"
+                    ></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- DIRETÓRIO DE ALUNOS -->
+          <section class="page" id="page-diretorio-alunos">
+            <div class="page-head">
+              <div>
+                <h1>Alunos</h1>
+                <div class="subtitle">
+                  Diretório completo — encontre um aluno por turma, grupo ou busca direta.
+                </div>
+              </div>
+            </div>
+
+            <div class="filterbar">
+              <span class="flag">Turma</span
+              ><select id="fd-turma"></select>
+              <span class="flag">Grupo</span
+              ><select id="fd-grupo"></select>
+              <div class="search-wrap">
+                <div class="search-box">
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" /></svg
+                  ><input
+                    id="search-diretorio"
+                    placeholder="Buscar por nome ou matrícula"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="padding-left: 20px">Aluno</th>
+                    <th>Matrícula</th>
+                    <th>Turma</th>
+                    <th>Grupo de revisão</th>
+                    <th style="padding-right: 20px">Dupla</th>
+                  </tr>
+                </thead>
+                <tbody id="diretorio-tbody"></tbody>
+              </table>
+              <div class="empty" id="diretorio-empty" style="display: none">
+                <b>Nenhum aluno encontrado</b>Ajuste os filtros ou a busca acima.
+              </div>
+            </div>
+          </section>
+
+          <!-- DIRETÓRIO DE MONITORES -->
+          <section class="page" id="page-diretorio-monitores">
+            <div class="page-head">
+              <div>
+                <h1>Monitores</h1>
+                <div class="subtitle">
+                  Diretório completo — encontre um monitor por grupo de revisão ou busca direta.
+                </div>
+              </div>
+            </div>
+
+            <div class="filterbar">
+              <span class="flag">Grupo</span
+              ><select id="fdm-grupo"></select>
+              <div class="search-wrap">
+                <div class="search-box">
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" /></svg
+                  ><input
+                    id="search-diretorio-monitor"
+                    placeholder="Buscar por nome"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="padding-left: 20px">Monitor</th>
+                    <th>Grupo de revisão</th>
+                    <th>Dupla</th>
+                    <th>Semana</th>
+                    <th style="padding-right: 20px">Papel</th>
+                  </tr>
+                </thead>
+                <tbody id="diretorio-monitores-tbody"></tbody>
+              </table>
+              <div class="empty" id="diretorio-monitores-empty" style="display: none">
+                <b>Nenhum monitor encontrado</b>Ajuste os filtros ou a busca acima.
+              </div>
+            </div>
+          </section>
+
+          <!-- MONITORES -->
+          <section class="page" id="page-monitores">
+            <div class="page-head">
+              <div>
+                <h1>Monitores</h1>
+                <div class="subtitle">
+                  Entregas de feedback, prazos e volume por grupo de revisão e lista.
+                </div>
+              </div>
+            </div>
+
+            <div class="filterbar">
+              <span class="flag">Grupo</span
+              ><select id="f-grupo-mon"></select>
+              <span class="flag">Lista</span
+              ><select id="f-lista-mon"></select>
+            </div>
+
+            <div class="stats" id="monitores-stats"></div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Entregas por grupo de revisão</h3>
+                <div class="legend-row">
+                  <span><i style="background: var(--sage)"></i>no prazo</span>
+                  <span><i style="background: var(--rose)"></i>atrasado</span>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <canvas
+                  id="chart-monitores"
+                  role="img"
+                  aria-label="Entregas no prazo e atrasadas por grupo de revisão"
+                ></canvas>
+              </div>
+            </div>
+
+            <div class="panel-grid">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>Ranking de volume</h3>
+                  <span class="tag">top monitores por registros</span>
+                </div>
+                <div class="chart-wrap md">
+                  <canvas
+                    id="chart-monitores-rank"
+                    role="img"
+                    aria-label="Monitores com mais registros de feedback"
+                  ></canvas>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><h3>Entregas no prazo — geral</h3></div>
+                <div class="chart-wrap md">
+                  <canvas
+                    id="chart-monitores-donut"
+                    role="img"
+                    aria-label="Proporção geral de entregas no prazo versus atrasadas"
+                  ></canvas>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- GESTAO -->
+          <section class="page" id="page-gestao">
+            <div class="page-head">
+              <div>
+                <h1>Grupos &amp; duplas</h1>
+                <div class="subtitle">
+                  Estrutura de supervisão do período — crie, edite e remova grupos, duplas,
+                  monitores e alunos.
+                </div>
+              </div>
+              <div class="head-actions">
+                <button class="btn primary" onclick="openNovoGrupoModal()">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>Novo
+                  grupo
+                </button>
+              </div>
+            </div>
+            <div class="grupo-grid" id="grupos-list"></div>
+          </section>
+
+          <!-- BOT -->
+          <section class="page" id="page-bot">
+            <div class="page-head">
+              <div>
+                <h1>Bot do WhatsApp</h1>
+                <div class="subtitle">
+                  Registre o número na WhatsApp Business Platform (API oficial) e visualize o fluxo
+                  de conversa com o monitor.
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-grid" style="grid-template-columns: 0.9fr 1.1fr">
+              <div class="panel" id="panel-bot-conexao"></div>
+              <div class="panel" id="panel-bot-status"></div>
+            </div>
+
+            <div class="section-divider">Pré-visualização da conversa</div>
+
+            <div class="phone">
+              <div class="phone-head">
+                <div class="av">F</div>
+                <div>
+                  <div class="nm">Feedbot · Introdução à Programação</div>
+                  <div class="st">bot ativo</div>
+                </div>
+              </div>
+              <div class="msgs">
+                <div class="msg bot">
+                  Oi, Rafael 👋 Identifiquei você como monitor da <b>Dupla 2 · Grupo Bruno</b>.
+                </div>
+                <div class="msg bot">Qual lista você vai registrar?</div>
+                <div class="msg opts">
+                  <button>Lista 1</button><button>Lista 2</button><button>Lista 3</button
+                  ><button>Lista 4</button>
+                </div>
+                <div class="msg user">Lista 3</div>
+                <div class="msg bot">
+                  Quem você quer registrar? (mostrando só os alunos da sua dupla)
+                </div>
+                <div class="msg opts">
+                  <button>Ana Beatriz</button><button>Cauã Ribeiro</button
+                  ><button>Isadora Leão</button>
+                </div>
+                <div class="msg user">Cauã Ribeiro</div>
+                <div class="msg bot">Quantas questões corretas?</div>
+                <div class="msg user">7</div>
+                <div class="msg bot">Usou IA?</div>
+                <div class="msg opts"><button>Sim</button><button>Não</button></div>
+                <div class="msg user">Sim</div>
+                <div class="msg bot">Em quais questões?</div>
+                <div class="msg opts">
+                  <button>Q1</button><button>Q2</button><button>Q3 ✓</button><button>Q4</button>
+                </div>
+                <div class="msg user">Q3</div>
+                <div class="msg bot">Plagiou?</div>
+                <div class="msg opts"><button>Sim</button><button>Não ✓</button></div>
+                <div class="msg user">Não</div>
+                <div class="msg bot">Usou alguma proibição da lista?</div>
+                <div class="msg opts"><button>Sim</button><button>Não ✓</button></div>
+                <div class="msg user">Não</div>
+                <div class="msg bot">
+                  <b>Confirma:</b><br />Cauã Ribeiro · Lista 3<br />7 questões corretas<br />IA: Q3
+                  · Plágio: não · Proibição: não
+                </div>
+                <div class="msg opts"><button>Confirmar ✓</button><button>Corrigir</button></div>
+                <div class="msg user">Confirmar</div>
+                <div class="msg bot">
+                  Registrado ✅ Escrevi 7 na coluna "Questões corretas" da Lista 3, aba CC/IA.
+                </div>
+                <div class="bot-note">— sincronizado com a planilha automaticamente —</div>
+                <div class="msg bot">Próximo aluno da Lista 3, ou trocar de lista?</div>
+                <div class="msg opts">
+                  <button>Próximo aluno</button><button>Trocar lista</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay"><div class="modal" id="modal-box"></div></div>
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+    <div class="drawer" id="drawer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script>
+      /* ---------------- DATA ---------------- */
+      const turmas = ["CC/IA", "EC", "SI"];
+      let grupos = [
+        { id: "g1", nome: "Grupo Bruno", chefe: "Bruno Andrade" },
+        { id: "g2", nome: "Grupo Ana", chefe: "Ana Ferreira" },
+        { id: "g3", nome: "Grupo Carla", chefe: "Carla Nunes" },
+        { id: "g4", nome: "Grupo Diego", chefe: "Diego Salles" },
+        { id: "g5", nome: "Grupo Elis", chefe: "Elis Prado" },
+        { id: "g6", nome: "Grupo Fábio", chefe: "Fábio Rocha" },
+      ];
+      const monitorNomes = [
+        "Rafael Souza",
+        "Marina Dias",
+        "Thiago Lima",
+        "Beatriz Cunha",
+        "Pedro Alves",
+        "Larissa Melo",
+        "Gustavo Reis",
+        "Camila Torres",
+        "Vinícius Braga",
+        "Júlia Matos",
+        "Leandro Faria",
+        "Nicole Barros",
+        "Rodrigo Peixoto",
+        "Amanda Vieira",
+        "Bruno Castro",
+        "Débora Lopes",
+        "Felipe Nogueira",
+        "Renata Costa",
+        "Igor Teixeira",
+        "Paula Ramos",
+        "Otávio Freitas",
+        "Sabrina Duarte",
+        "Caio Monteiro",
+        "Vera Siqueira",
+      ];
+      let mi = 0,
+        gIdCounter = 7,
+        dIdCounter = 1000,
+        aIdCounter = 1000;
+      let duplas = [];
+      grupos.forEach((g) => {
+        for (let d = 1; d <= 2; d++) {
+          duplas.push({
+            id: `${g.id}-d${d}`,
+            grupoId: g.id,
+            label: `Dupla ${d}`,
+            monitorA: monitorNomes[mi++ % monitorNomes.length],
+            monitorB: monitorNomes[mi++ % monitorNomes.length],
+          });
+        }
+      });
+      const listas = ["Lista 1", "Lista 2", "Lista 3", "Lista 4", "Lista 5", "Lista 6"];
+      const alunoNomesBase = [
+        "Beatriz Costa",
+        "Arthur Morais",
+        "Bianca Almeida",
+        "Caio Silva",
+        "Camila Ribeiro",
+        "Carlos Cavalcante",
+        "Cauã Ribeiro",
+        "Clarice Florêncio",
+        "Cláudia Xavier",
+        "Cristiano Pereira",
+        "Daniel Nascimento",
+        "Davi Cezar",
+        "Ednaldo Junior",
+        "Eduardo Valença",
+        "Erick Silvério",
+        "Felipe Oliveira",
+        "Fernanda Leite",
+        "Flávio Santana",
+        "Gabriel Hara",
+        "Guilherme Nóbrega",
+        "Heitor Ximenes",
+        "Isabel Maia",
+        "Isadora Leão",
+        "Jakson Amorim",
+        "João Apolinário",
+        "Josiel Junior",
+        "Juliana Neves",
+        "Júlio Barros",
+        "Ana Beatriz",
+        "Marcos Vinícius",
+        "Natália Prado",
+        "Otávio Lins",
+        "Paula Regina",
+        "Renan Duarte",
+        "Sofia Andrade",
+        "Tales Moreira",
+      ];
+      let alunos = alunoNomesBase.map((nome, i) => {
+        const turma = turmas[i % 3];
+        const dupla = duplas[i % duplas.length];
+        const seed = (i * 13) % 100;
+        return {
+          id: i,
+          nome,
+          matricula: "202600" + (1000 + i * 7),
+          turma,
+          duplaId: dupla.id,
+          grupoId: dupla.grupoId,
+          is_neurodivergente: seed % 17 === 0,
+          entregues: 3 + (seed % 4),
+        };
+      });
+
+      const numQuestoes = 6; // questões por lista, usado para o registro granular de ocorrências
+      const dificuldadeQuestao = [0.92, 0.83, 0.55, 0.78, 0.6, 0.88]; // probabilidade-base de acerto por questão (Q3 e Q5 são as mais difíceis)
+
+      let feedbacks = [];
+      function rebuildFeedbacks() {
+        feedbacks = [];
+        alunos.forEach((a) => {
+          const dupla = duplas.find((d) => d.id === a.duplaId);
+          if (!dupla) return;
+          for (let li = 0; li < a.entregues; li++) {
+            const lista = listas[li];
+            const seed = (a.id * 31 + li * 17) % 100;
+            const semana = li % 2 === 0 ? "A" : "B";
+            const monitor = semana === "A" ? dupla.monitorA : dupla.monitorB;
+            if (!monitor) continue;
+            const ia = seed % 6 === 0,
+              plagio = seed % 11 === 0,
+              proibicao = seed % 8 === 0;
+
+            const iaQuestoes = ia
+              ? [
+                  (seed % numQuestoes) + 1,
+                  ...(seed % 3 === 0 ? [((seed * 2) % numQuestoes) + 1] : []),
+                ]
+              : [];
+            let plagioDetalhe = [];
+            if (plagio) {
+              const parceirosPossiveis = alunos.filter(
+                (x) => x.id !== a.id && x.duplaId === a.duplaId,
+              );
+              const parceiro = (
+                parceirosPossiveis.length ? parceirosPossiveis : alunos.filter((x) => x.id !== a.id)
+              )[seed % Math.max(parceirosPossiveis.length || alunos.length - 1, 1)];
+              plagioDetalhe = [
+                {
+                  questao: (seed % numQuestoes) + 1,
+                  comId: parceiro?.id,
+                  comNome: parceiro?.nome || "colega não identificado",
+                },
+              ];
+            }
+            const proibicaoQuestoes = proibicao
+              ? [
+                  ((seed * 3) % numQuestoes) + 1,
+                  ...(seed % 4 === 0 ? [((seed * 5) % numQuestoes) + 1] : []),
+                ]
+              : [];
+
+            const questoesCorretas = Array.from({ length: numQuestoes }, (_, qi) => {
+              const roll = ((seed * 7 + qi * 53 + li * 11) % 100) / 100;
+              return roll < dificuldadeQuestao[qi];
+            });
+
+            feedbacks.push({
+              alunoId: a.id,
+              lista,
+              grupoId: a.grupoId,
+              duplaId: a.duplaId,
+              monitor,
+              semana,
+              ia,
+              plagio,
+              proibicao,
+              noPrazo: seed % 5 !== 0,
+              iaQuestoes: [...new Set(iaQuestoes)],
+              plagioDetalhe,
+              proibicaoQuestoes: [...new Set(proibicaoQuestoes)],
+              questoesCorretas,
+            });
+          }
+        });
+      }
+      rebuildFeedbacks();
+
+      /* ---------------- HELPERS ---------------- */
+      const grupoNome = (id) => grupos.find((g) => g.id === id)?.nome || "—";
+      const duplaLabel = (id) => {
+        const d = duplas.find((x) => x.id === id);
+        return d ? `${grupoNome(d.grupoId)} · ${d.label}` : "—";
+      };
+      const initials = (nome) =>
+        nome
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase();
+      const avatarPalette = [
+        ["var(--gold)", "var(--gold-dim)"],
+        ["var(--sage)", "var(--sage-dim)"],
+        ["var(--plum)", "var(--plum-dim)"],
+        ["var(--rose)", "var(--rose-dim)"],
+        ["var(--sky)", "var(--sky-dim)"],
+      ];
+      function avatarColor(seedStr) {
+        let h = 0;
+        for (const c of seedStr) h = (h * 31 + c.charCodeAt(0)) % avatarPalette.length;
+        return avatarPalette[h];
+      }
+      function avatarHtml(nome, size) {
+        const [fg, bg] = avatarColor(nome);
+        return `<div class="avatar" style="width:${size}px;height:${size}px;color:${fg};background:${bg};">${initials(nome)}</div>`;
+      }
+
+      /* ---------------- FILTERS ---------------- */
+      function fillSelect(sel, items, emptyLabel) {
+        const prev = sel.value;
+        sel.innerHTML = "";
+        const first = document.createElement("option");
+        first.value = "";
+        first.textContent = emptyLabel;
+        sel.appendChild(first);
+        items.forEach((it) => {
+          const o = document.createElement("option");
+          o.value = it.value;
+          o.textContent = it.label;
+          sel.appendChild(o);
+        });
+        if (prev && items.some((i) => i.value === prev)) sel.value = prev;
+      }
+      function refreshAllFilters() {
+        fillSelect(
+          document.getElementById("f-turma"),
+          turmas.map((t) => ({ value: t, label: t })),
+          "todas as turmas",
+        );
+        fillSelect(
+          document.getElementById("f-grupo"),
+          grupos.map((g) => ({ value: g.id, label: g.nome })),
+          "todos os grupos",
+        );
+        fillSelect(
+          document.getElementById("f-grupo-mon"),
+          grupos.map((g) => ({ value: g.id, label: g.nome })),
+          "todos os grupos",
+        );
+        fillSelect(
+          document.getElementById("f-lista"),
+          listas.map((l) => ({ value: l, label: l })),
+          "todas as listas",
+        );
+        fillSelect(
+          document.getElementById("f-lista-mon"),
+          listas.map((l) => ({ value: l, label: l })),
+          "todas as listas",
+        );
+        fillSelect(
+          document.getElementById("fd-turma"),
+          turmas.map((t) => ({ value: t, label: t })),
+          "todas as turmas",
+        );
+        fillSelect(
+          document.getElementById("fd-grupo"),
+          grupos.map((g) => ({ value: g.id, label: g.nome })),
+          "todos os grupos",
+        );
+        fillSelect(
+          document.getElementById("fdm-grupo"),
+          grupos.map((g) => ({ value: g.id, label: g.nome })),
+          "todos os grupos",
+        );
+        refreshDuplaFilter();
+      }
+      function refreshDuplaFilter() {
+        const sel = document.getElementById("f-dupla");
+        const grupoSel = document.getElementById("f-grupo").value;
+        fillSelect(
+          sel,
+          duplas
+            .filter((d) => !grupoSel || d.grupoId === grupoSel)
+            .map((d) => ({ value: d.id, label: `${grupoNome(d.grupoId)} · ${d.label}` })),
+          "todas as duplas",
+        );
+      }
+      refreshAllFilters();
+
+      /* ---------------- SORT STATE ---------------- */
+      let sortAluno = { key: "nome", dir: 1 };
+      let sortMonitor = { key: "nome", dir: 1 };
+
+      /* ---------------- CHARTS ---------------- */
+      let chartAlunos,
+        chartMonitores,
+        chartAlunosDonut,
+        chartAlunosQtd,
+        chartQuestoesRank,
+        chartMonitoresDonut,
+        chartMonitoresRank;
+      const CHART_TEXT = "#A7B4D6",
+        CHART_GRID = "#1F2C48";
+      Chart.defaults.font.family = "Nunito";
+      Chart.defaults.color = CHART_TEXT;
+
+      /* ---------------- RENDER ALUNOS ---------------- */
+      function renderAlunos() {
+        const turma = document.getElementById("f-turma").value,
+          grupo = document.getElementById("f-grupo").value;
+        const dupla = document.getElementById("f-dupla").value,
+          lista = document.getElementById("f-lista").value;
+
+        let filtrados = alunos.filter(
+          (a) =>
+            (!turma || a.turma === turma) &&
+            (!grupo || a.grupoId === grupo) &&
+            (!dupla || a.duplaId === dupla),
+        );
+
+        const alunoIds = new Set(filtrados.map((a) => a.id));
+        const fb = feedbacks.filter(
+          (f) => alunoIds.has(f.alunoId) && (!lista || f.lista === lista),
+        );
+
+        const comIA = new Set(fb.filter((f) => f.ia).map((f) => f.alunoId)).size;
+        const comPlagio = new Set(fb.filter((f) => f.plagio).map((f) => f.alunoId)).size;
+        const comProib = new Set(fb.filter((f) => f.proibicao).map((f) => f.alunoId)).size;
+        const nd = filtrados.filter((a) => a.is_neurodivergente).length;
+        const total = filtrados.length || 1;
+
+        document.getElementById("alunos-stats").innerHTML = `
+    <div class="stat"><div class="stat-top"><span class="label">Alunos filtrados</span><div class="icon-wrap" style="background:var(--sky-dim);"><svg class="icon" style="stroke:var(--sky)" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div></div><div class="value">${filtrados.length}</div><div class="sub">${nd} neurodivergentes</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Uso de IA</span><div class="icon-wrap" style="background:var(--plum-dim);"><svg class="icon" style="stroke:var(--plum)" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div></div><div class="value">${comIA}</div><div class="sub">${Math.round((comIA / total) * 100)}% dos alunos</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Plágio</span><div class="icon-wrap" style="background:var(--rose-dim);"><svg class="icon" style="stroke:var(--rose)" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div></div><div class="value">${comPlagio}</div><div class="sub">${Math.round((comPlagio / total) * 100)}% dos alunos</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Uso de proibição</span><div class="icon-wrap" style="background:var(--gold-dim);"><svg class="icon" style="stroke:var(--gold)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8"/></svg></div></div><div class="value">${comProib}</div><div class="sub">${Math.round((comProib / total) * 100)}% dos alunos</div></div>`;
+
+        const listasChart = lista ? [lista] : listas;
+        const dIA = [],
+          dPL = [],
+          dPR = [];
+        listasChart.forEach((l) => {
+          const fl = feedbacks.filter((f) => alunoIds.has(f.alunoId) && f.lista === l);
+          dIA.push(fl.filter((f) => f.ia).length);
+          dPL.push(fl.filter((f) => f.plagio).length);
+          dPR.push(fl.filter((f) => f.proibicao).length);
+        });
+        if (chartAlunos) chartAlunos.destroy();
+        chartAlunos = new Chart(document.getElementById("chart-alunos"), {
+          type: "bar",
+          data: {
+            labels: listasChart,
+            datasets: [
+              {
+                label: "IA",
+                data: dIA,
+                backgroundColor: "#B79EE0",
+                borderRadius: 4,
+                maxBarThickness: 22,
+              },
+              {
+                label: "Plágio",
+                data: dPL,
+                backgroundColor: "#E5938A",
+                borderRadius: 4,
+                maxBarThickness: 22,
+              },
+              {
+                label: "Proibição",
+                data: dPR,
+                backgroundColor: "#E7B65C",
+                borderRadius: 4,
+                maxBarThickness: 22,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0, color: CHART_TEXT },
+                grid: { color: CHART_GRID },
+              },
+            },
+          },
+        });
+
+        /* Donut — composição das ocorrências por tipo */
+        const totIA = dIA.reduce((s, v) => s + v, 0),
+          totPL = dPL.reduce((s, v) => s + v, 0),
+          totPR = dPR.reduce((s, v) => s + v, 0);
+        if (chartAlunosDonut) chartAlunosDonut.destroy();
+        chartAlunosDonut = new Chart(document.getElementById("chart-alunos-donut"), {
+          type: "doughnut",
+          data: {
+            labels: ["IA", "Plágio", "Proibição"],
+            datasets: [
+              {
+                data: [totIA, totPL, totPR],
+                backgroundColor: ["#B79EE0", "#E5938A", "#E7B65C"],
+                borderColor: "#141D30",
+                borderWidth: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "68%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  color: CHART_TEXT,
+                  font: { weight: 700, size: 11.5 },
+                  boxWidth: 10,
+                  padding: 14,
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                },
+              },
+            },
+          },
+        });
+
+        /* Questões corretas por lista — dado que o bot recebe diretamente do monitor */
+        const qtdMedia = listasChart.map((l) => {
+          const relev = fb.filter((f) => f.lista === l && f.questoesCorretas);
+          if (!relev.length) return 0;
+          const soma = relev.reduce((s, f) => s + f.questoesCorretas.filter(Boolean).length, 0);
+          return +(soma / relev.length).toFixed(1);
+        });
+        if (chartAlunosQtd) chartAlunosQtd.destroy();
+        chartAlunosQtd = new Chart(document.getElementById("chart-alunos-qtd"), {
+          type: "bar",
+          data: {
+            labels: listasChart.map((l) => l.replace("Lista ", "L")),
+            datasets: [
+              { data: qtdMedia, backgroundColor: "#7FB8E0", borderRadius: 5, maxBarThickness: 34 },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.parsed.y} de ${numQuestoes} questões, em média`,
+                },
+              },
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+              y: {
+                beginAtZero: true,
+                max: numQuestoes,
+                ticks: { color: CHART_TEXT, stepSize: 1 },
+                grid: { color: CHART_GRID },
+              },
+            },
+          },
+        });
+
+        /* Heatmap — questões mais afetadas por lista, com nível de cada tipo */
+        const matriz = {};
+        listasChart.forEach(
+          (l) =>
+            (matriz[l] = Array.from({ length: numQuestoes }, () => ({
+              ia: 0,
+              plagio: 0,
+              proibicao: 0,
+            }))),
+        );
+        fb.forEach((f) => {
+          if (!matriz[f.lista]) return;
+          f.iaQuestoes.forEach((q) => matriz[f.lista][q - 1].ia++);
+          f.plagioDetalhe.forEach((p) => matriz[f.lista][p.questao - 1].plagio++);
+          f.proibicaoQuestoes.forEach((q) => matriz[f.lista][q - 1].proibicao++);
+        });
+        const qHeaders = Array.from({ length: numQuestoes }, (_, i) => `<th>Q${i + 1}</th>`).join(
+          "",
+        );
+        const heatRows = listasChart
+          .map((l) => {
+            const cells = matriz[l]
+              .map((c, qi) => {
+                const t = c.ia + c.plagio + c.proibicao;
+                if (!t)
+                  return `<td title="${l} · Q${qi + 1}: sem ocorrências"><div class="heat-total z">–</div></td>`;
+                const iaW = ((c.ia / t) * 100).toFixed(1),
+                  plW = ((c.plagio / t) * 100).toFixed(1),
+                  prW = ((c.proibicao / t) * 100).toFixed(1);
+                const parts = [];
+                if (c.ia) parts.push(`IA ${c.ia}`);
+                if (c.plagio) parts.push(`Plágio ${c.plagio}`);
+                if (c.proibicao) parts.push(`Proibição ${c.proibicao}`);
+                return `<td title="${l} · Q${qi + 1}: ${parts.join(" · ")}">
+        <div class="heat-total">${t}</div>
+        <div class="heat-mini">
+          ${c.ia ? `<span style="width:${iaW}%; background:var(--plum)"></span>` : ""}
+          ${c.plagio ? `<span style="width:${plW}%; background:var(--rose)"></span>` : ""}
+          ${c.proibicao ? `<span style="width:${prW}%; background:var(--gold)"></span>` : ""}
+        </div>
+      </td>`;
+              })
+              .join("");
+            return `<tr><th class="row-h">${l.replace("Lista ", "L")}</th>${cells}</tr>`;
+          })
+          .join("");
+        document.getElementById("heatmap-wrap").innerHTML =
+          `<table class="heatmap"><thead><tr><th></th>${qHeaders}</tr></thead><tbody>${heatRows}</tbody></table>`;
+
+        /* Ranking de questões problemáticas — cada barra é uma lista+questão específica (ex: L1·Q1 é diferente de L2·Q1) */
+        const paresListaQuestao = [];
+        listasChart.forEach((l) => {
+          matriz[l].forEach((c, qi) => {
+            const t = c.ia + c.plagio + c.proibicao;
+            if (t > 0)
+              paresListaQuestao.push({ label: `${l.replace("Lista ", "L")}·Q${qi + 1}`, v: t });
+          });
+        });
+        const ranking = paresListaQuestao.sort((a, b) => b.v - a.v).slice(0, 10);
+        if (chartQuestoesRank) chartQuestoesRank.destroy();
+        chartQuestoesRank = new Chart(document.getElementById("chart-questoes-rank"), {
+          type: "bar",
+          data: {
+            labels: ranking.map((r) => r.label),
+            datasets: [
+              {
+                data: ranking.map((r) => r.v),
+                backgroundColor: "#E5938A",
+                borderRadius: 4,
+                maxBarThickness: 16,
+              },
+            ],
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.x} ocorrências` } },
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { precision: 0, color: CHART_TEXT },
+                grid: { color: CHART_GRID },
+              },
+              y: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+            },
+          },
+        });
+      }
+
+      /* ---------------- RENDER MONITORES ---------------- */
+      function renderMonitores() {
+        const grupo = document.getElementById("f-grupo-mon").value,
+          lista = document.getElementById("f-lista-mon").value;
+        const fb = feedbacks.filter(
+          (f) => (!grupo || f.grupoId === grupo) && (!lista || f.lista === lista),
+        );
+
+        const byMonitor = {};
+        fb.forEach((f) => {
+          if (!byMonitor[f.monitor])
+            byMonitor[f.monitor] = {
+              nome: f.monitor,
+              grupoId: f.grupoId,
+              duplaLabel: duplas.find((d) => d.id === f.duplaId)?.label,
+              semana: f.semana,
+              total: 0,
+              noPrazo: 0,
+            };
+          byMonitor[f.monitor].total++;
+          if (f.noPrazo) byMonitor[f.monitor].noPrazo++;
+        });
+        let arr = Object.values(byMonitor).map((m) => ({
+          ...m,
+          pct: Math.round((m.noPrazo / m.total) * 100),
+        }));
+
+        const totalEntregas = fb.length,
+          totalPrazo = fb.filter((f) => f.noPrazo).length;
+        const pct = totalEntregas ? Math.round((totalPrazo / totalEntregas) * 100) : 0;
+        const atrasados = arr.filter((m) => m.noPrazo / m.total < 0.7).length;
+
+        document.getElementById("monitores-stats").innerHTML = `
+    <div class="stat"><div class="stat-top"><span class="label">Monitores com registro</span><div class="icon-wrap" style="background:var(--sky-dim);"><svg class="icon" style="stroke:var(--sky)" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.3 3-5.2 6.5-5.2s6.5 1.9 6.5 5.2"/></svg></div></div><div class="value">${arr.length}</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Entregas no prazo</span><div class="icon-wrap" style="background:var(--sage-dim);"><svg class="icon" style="stroke:var(--sage)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg></div></div><div class="value">${pct}%</div><div class="sub">${totalPrazo}/${totalEntregas} registros</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Atraso recorrente</span><div class="icon-wrap" style="background:var(--rose-dim);"><svg class="icon" style="stroke:var(--rose)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div></div><div class="value">${atrasados}</div></div>
+    <div class="stat"><div class="stat-top"><span class="label">Grupos na visão</span><div class="icon-wrap" style="background:var(--gold-dim);"><svg class="icon" style="stroke:var(--gold)" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div></div><div class="value">${grupo ? 1 : grupos.length}</div></div>`;
+
+        const porGrupo = grupos
+          .filter((g) => !grupo || g.id === grupo)
+          .map((g) => {
+            const gfb = fb.filter((f) => f.grupoId === g.id);
+            return {
+              nome: g.nome.replace("Grupo ", ""),
+              prazo: gfb.filter((f) => f.noPrazo).length,
+              atraso: gfb.filter((f) => !f.noPrazo).length,
+            };
+          });
+        if (chartMonitores) chartMonitores.destroy();
+        chartMonitores = new Chart(document.getElementById("chart-monitores"), {
+          type: "bar",
+          data: {
+            labels: porGrupo.map((g) => g.nome),
+            datasets: [
+              {
+                label: "No prazo",
+                data: porGrupo.map((g) => g.prazo),
+                backgroundColor: "#8FC29B",
+                borderRadius: 4,
+                maxBarThickness: 26,
+              },
+              {
+                label: "Atrasado",
+                data: porGrupo.map((g) => g.atraso),
+                backgroundColor: "#E5938A",
+                borderRadius: 4,
+                maxBarThickness: 26,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: CHART_TEXT, font: { weight: 700 } },
+                stacked: true,
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0, color: CHART_TEXT },
+                grid: { color: CHART_GRID },
+                stacked: true,
+              },
+            },
+          },
+        });
+
+        /* Donut — entregas no prazo vs atrasadas (geral) */
+        if (chartMonitoresDonut) chartMonitoresDonut.destroy();
+        chartMonitoresDonut = new Chart(document.getElementById("chart-monitores-donut"), {
+          type: "doughnut",
+          data: {
+            labels: ["No prazo", "Atrasado"],
+            datasets: [
+              {
+                data: [totalPrazo, totalEntregas - totalPrazo],
+                backgroundColor: ["#8FC29B", "#E5938A"],
+                borderColor: "#141D30",
+                borderWidth: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "68%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  color: CHART_TEXT,
+                  font: { weight: 700, size: 11.5 },
+                  boxWidth: 10,
+                  padding: 14,
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                },
+              },
+            },
+          },
+        });
+
+        /* Ranking — top monitores por volume de registros */
+        const ranking = [...arr].sort((a, b) => b.total - a.total).slice(0, 8);
+        if (chartMonitoresRank) chartMonitoresRank.destroy();
+        chartMonitoresRank = new Chart(document.getElementById("chart-monitores-rank"), {
+          type: "bar",
+          data: {
+            labels: ranking.map((m) => m.nome.split(" ")[0]),
+            datasets: [
+              {
+                data: ranking.map((m) => m.total),
+                backgroundColor: "#7FB8E0",
+                borderRadius: 4,
+                maxBarThickness: 16,
+              },
+            ],
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { precision: 0, color: CHART_TEXT },
+                grid: { color: CHART_GRID },
+              },
+              y: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+            },
+          },
+        });
+
+        arr = arr.sort((a, b) => {
+          let av = a[sortMonitor.key],
+            bv = b[sortMonitor.key];
+          if (typeof av === "string") return av.localeCompare(bv) * sortMonitor.dir;
+          return (av - bv) * sortMonitor.dir;
+        });
+      }
+
+      /* ---------------- SORT HANDLERS ---------------- */
+      document.querySelectorAll("#page-alunos th.sortable").forEach((th) =>
+        th.addEventListener("click", () => {
+          const key = th.dataset.sort;
+          sortAluno.dir = sortAluno.key === key ? -sortAluno.dir : 1;
+          sortAluno.key = key;
+          renderAlunos();
+        }),
+      );
+      document.querySelectorAll("#page-monitores th.sortable").forEach((th) =>
+        th.addEventListener("click", () => {
+          const key = th.dataset.sort;
+          sortMonitor.dir = sortMonitor.key === key ? -sortMonitor.dir : 1;
+          sortMonitor.key = key;
+          renderMonitores();
+        }),
+      );
+
+      /* ---------------- DIRETÓRIO DE ALUNOS ---------------- */
+      function renderDiretorio() {
+        const turma = document.getElementById("fd-turma").value,
+          grupo = document.getElementById("fd-grupo").value;
+        const q = document.getElementById("search-diretorio").value.trim().toLowerCase();
+        const filtrados = alunos
+          .filter(
+            (a) =>
+              (!turma || a.turma === turma) &&
+              (!grupo || a.grupoId === grupo) &&
+              (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
+          )
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+        document.getElementById("diretorio-empty").style.display = filtrados.length
+          ? "none"
+          : "block";
+        document.getElementById("diretorio-tbody").innerHTML = filtrados
+          .map(
+            (a) => `
+    <tr onclick="openAlunoDrawer(${a.id})">
+      <td style="padding-left:20px;"><div class="person-cell">${avatarHtml(a.nome, 30)}<span class="person-name">${a.nome}${a.is_neurodivergente ? '<span class="nd-icon" title="Neurodivergente">∞</span>' : ""}</span></div></td>
+      <td class="mono-cell">${a.matricula}</td><td>${a.turma}</td><td>${grupoNome(a.grupoId)}</td>
+      <td class="mono-cell" style="padding-right:20px;">${duplas.find((d) => d.id === a.duplaId)?.label || "—"}</td>
+    </tr>`,
+          )
+          .join("");
+      }
+
+      /* ---------------- DIRETÓRIO DE MONITORES ---------------- */
+      function listaTodosMonitores() {
+        const out = [];
+        duplas.forEach((d) => {
+          if (d.monitorA)
+            out.push({
+              nome: d.monitorA,
+              grupoId: d.grupoId,
+              duplaId: d.id,
+              duplaLabel: d.label,
+              semana: "A",
+            });
+          if (d.monitorB)
+            out.push({
+              nome: d.monitorB,
+              grupoId: d.grupoId,
+              duplaId: d.id,
+              duplaLabel: d.label,
+              semana: "B",
+            });
+        });
+        return out;
+      }
+      function renderDiretorioMonitores() {
+        const grupo = document.getElementById("fdm-grupo").value;
+        const q = document.getElementById("search-diretorio-monitor").value.trim().toLowerCase();
+        const filtrados = listaTodosMonitores()
+          .filter(
+            (m) => (!grupo || m.grupoId === grupo) && (!q || m.nome.toLowerCase().includes(q)),
+          )
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+        document.getElementById("diretorio-monitores-empty").style.display = filtrados.length
+          ? "none"
+          : "block";
+        document.getElementById("diretorio-monitores-tbody").innerHTML = filtrados
+          .map((m) => {
+            const ehChefe = grupos.some((g) => g.id === m.grupoId && g.chefe === m.nome);
+            return `<tr onclick="openMonitorDrawer('${m.nome}','${m.duplaId}','${m.semana}')">
+      <td style="padding-left:20px;"><div class="person-cell">${avatarHtml(m.nome, 30)}<span class="person-name">${m.nome}</span></div></td>
+      <td>${grupoNome(m.grupoId)}</td><td class="mono-cell">${m.duplaLabel}</td>
+      <td><span class="chip off">semana ${m.semana}</span></td>
+      <td style="padding-right:20px;">${ehChefe ? '<span class="chip warn">chefe</span>' : '<span class="chip off">monitor</span>'}</td>
+    </tr>`;
+          })
+          .join("");
+      }
+
+      /* ---------------- BOT: REGISTRO DO NÚMERO (WhatsApp Business Platform oficial) ---------------- */
+      let botStep = "idle"; // idle -> aguardando_codigo -> conectado
+      let botTelefone = "";
+      const nomeExibicao = "Feedbot · Introdução à Programação";
+      const politicaUrl = "https://[dominio-da-disciplina]/feedbot/politica-privacidade";
+
+      function renderBotConexao() {
+        const el = document.getElementById("panel-bot-conexao");
+        if (botStep === "idle") {
+          el.innerHTML = `
+      <div class="panel-head"><h3>Registrar número</h3></div>
+      <div class="connect-status"><span class="status-dot"></span><span class="mono-cell">nenhum número registrado</span></div>
+      <div class="field-block"><label>Número de telefone (com DDI e DDD)</label><input id="input-telefone" placeholder="+55 81 9XXXX-XXXX" value="${botTelefone}"></div>
+      <p style="font-size:12px; color:var(--text-3); font-weight:600; margin-bottom:16px;">Esse número precisa estar ativo (chip pré-pago funciona) e ainda não pode ter o WhatsApp comum instalado nele.</p>
+      <button class="btn primary" style="width:100%; justify-content:center;" onclick="solicitarCodigo()"><svg class="icon" viewBox="0 0 24 24"><path d="M22 6 12 13 2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>Enviar código de verificação</button>
+    `;
+        } else if (botStep === "aguardando_codigo") {
+          el.innerHTML = `
+      <div class="panel-head"><h3>Registrar número</h3></div>
+      <div class="connect-status"><span class="status-dot mid"></span><span class="mono-cell">código enviado para ${botTelefone}</span></div>
+      <div class="field-block"><label>Código de verificação (SMS ou ligação)</label><input id="input-codigo" placeholder="000000" maxlength="6"></div>
+      <button class="btn primary" style="width:100%; justify-content:center;" onclick="confirmarCodigo()"><svg class="icon" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>Confirmar código</button>
+      <button class="btn ghost" style="width:100%; justify-content:center; margin-top:8px;" onclick="botStep='idle'; renderBotConexao();">Voltar</button>
+    `;
+        } else {
+          el.innerHTML = `
+      <div class="panel-head"><h3>Registrar número</h3></div>
+      <div class="connected-card">
+        <div class="connect-status"><span class="status-dot on"></span><span class="mono-cell" style="color:var(--sage);">registrado na WhatsApp Business Platform</span></div>
+        <div class="num">${botTelefone}</div>
+        <div class="mono-cell">${nomeExibicao}</div>
+      </div>
+      <button class="btn" style="width:100%; justify-content:center; margin-top:14px;" onclick="botStep='idle'; botTelefone=''; renderBotConexao(); renderBotStatus();">Remover registro</button>
+    `;
+        }
+      }
+      function solicitarCodigo() {
+        const val = document.getElementById("input-telefone").value.trim();
+        if (!val) {
+          document.getElementById("input-telefone").focus();
+          return;
+        }
+        botTelefone = val;
+        botStep = "aguardando_codigo";
+        renderBotConexao();
+      }
+      function confirmarCodigo() {
+        const val = document.getElementById("input-codigo").value.trim();
+        if (val.length < 4) {
+          document.getElementById("input-codigo").focus();
+          return;
+        }
+        botStep = "conectado";
+        renderBotConexao();
+        renderBotStatus();
+      }
+
+      function renderBotStatus() {
+        const el = document.getElementById("panel-bot-status");
+        const conectado = botStep === "conectado";
+        el.innerHTML = `
+    <div class="panel-head"><h3>Status da conta</h3><span class="tag">WhatsApp Business Platform</span></div>
+    <div class="info-row"><span class="l">Nome de exibição</span><span>${nomeExibicao}</span></div>
+    <div class="info-row"><span class="l">Verificação de empresa</span><span class="chip off">não verificado</span></div>
+    <div class="info-row"><span class="l">Limite de mensagens</span><span class="chip warn">250 conversas / 24h</span></div>
+    <div class="info-row"><span class="l">Política de privacidade</span><span class="mono-cell" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${politicaUrl}</span></div>
+    <p style="font-size:12px; color:var(--text-3); font-weight:600; margin-top:14px;">${
+      conectado
+        ? "Esse limite é mais que suficiente para os monitores da disciplina. Verificar a empresa (exige CNPJ) aumenta o limite, mas não é necessário para operar."
+        : "Registre o número ao lado para ativar o envio de mensagens. Sem verificação de empresa, o número começa com um limite de 250 conversas por dia — o suficiente para a equipe de monitoria."
+    }</p>
+  `;
+      }
+
+      /* ---------------- GESTAO ---------------- */
+      function renderGestao() {
+        document.getElementById("grupos-list").innerHTML = grupos
+          .map((g) => {
+            const gd = duplas.filter((d) => d.grupoId === g.id);
+            const alunoCount = alunos.filter((a) => a.grupoId === g.id).length;
+            return `<div class="grupo-card" id="grupo-${g.id}">
+      <div class="grupo-head" onclick="document.getElementById('grupo-${g.id}').classList.toggle('open')">
+        <div class="left"><div class="av">${initials(g.chefe)}</div><div><strong>${g.nome}</strong><span class="chefe">chefe: ${g.chefe}</span></div></div>
+        <div class="right">
+          <div class="grupo-stats"><span>${gd.length} duplas</span><span>${alunoCount} alunos</span></div>
+          <button class="btn sm" onclick="event.stopPropagation(); confirmDeleteGrupo('${g.id}')"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <svg class="icon chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+      <div class="grupo-body">
+        ${gd
+          .map((d) => {
+            const dAlunos = alunos.filter((a) => a.duplaId === d.id);
+            return `<div class="dupla-row">
+          <div class="dupla-top">
+            <div class="dupla-label">${d.label}</div>
+            ${monitorSlotHtml(d.id, "A", d.monitorA)}
+            ${monitorSlotHtml(d.id, "B", d.monitorB)}
+            <div class="aluno-count" onclick="this.nextElementSibling.classList.toggle('open')">${dAlunos.length} al. <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+            <button class="x-btn" onclick="confirmDeleteDupla('${d.id}')" title="Excluir dupla"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="aluno-list">
+            ${dAlunos.map((a) => `<span class="aluno-tag">${a.nome}<button class="x-btn" onclick="confirmDeleteAluno(${a.id})" title="Remover aluno"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>`).join("") || '<span class="mono-cell">sem alunos vinculados</span>'}
+          </div>
+        </div>`;
+          })
+          .join("")}
+        <div class="dupla-body-actions">
+          <button class="btn sm" onclick="openNovaDuplaModal('${g.id}')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova dupla</button>
+          <button class="btn sm" onclick="openVincularAlunoModal('${g.id}')"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Vincular aluno</button>
+        </div>
+      </div>
+    </div>`;
+          })
+          .join("");
+      }
+      function monitorSlotHtml(duplaId, semana, nome) {
+        if (!nome)
+          return `<div class="monitor-slot vago"><span class="wk">sem ${semana}</span>vago</div>`;
+        return `<div class="monitor-slot"><span class="wk">sem ${semana}</span><span class="m-av" style="background:var(--sky-dim); color:var(--sky);">${initials(nome)}</span>${nome}<button class="x-btn" onclick="confirmRemoveMonitor('${duplaId}','${semana}')" title="Remover monitor"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`;
+      }
+
+      /* ---------------- MUTATIONS ---------------- */
+      function afterMutation() {
+        refreshAllFilters();
+        renderGestao();
+        renderAlunos();
+        renderMonitores();
+        renderDiretorio();
+        renderDiretorioMonitores();
+      }
+      function deleteGrupo(id) {
+        const duplaIds = duplas.filter((d) => d.grupoId === id).map((d) => d.id);
+        alunos = alunos.filter((a) => !duplaIds.includes(a.duplaId));
+        duplas = duplas.filter((d) => d.grupoId !== id);
+        grupos = grupos.filter((g) => g.id !== id);
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+      }
+      function deleteDupla(id) {
+        alunos = alunos.filter((a) => a.duplaId !== id);
+        duplas = duplas.filter((d) => d.id !== id);
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+      }
+      function removeMonitor(duplaId, semana) {
+        const d = duplas.find((x) => x.id === duplaId);
+        if (!d) return;
+        if (semana === "A") d.monitorA = null;
+        else d.monitorB = null;
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+      }
+      function deleteAluno(id) {
+        alunos = alunos.filter((a) => a.id !== id);
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+      }
+
+      /* ---------------- MODAL ---------------- */
+      function openModal(html) {
+        document.getElementById("modal-box").innerHTML = html;
+        document.getElementById("overlay").classList.add("open");
+      }
+      function closeModal() {
+        document.getElementById("overlay").classList.remove("open");
+      }
+      document.getElementById("overlay").addEventListener("click", (e) => {
+        if (e.target.id === "overlay") closeModal();
+      });
+
+      function confirmDeleteGrupo(id) {
+        const g = grupos.find((x) => x.id === id);
+        openModal(`<h4>Excluir ${g.nome}?</h4><p>As duplas e os alunos vinculados a este grupo também serão removidos do acompanhamento. Essa ação não pode ser desfeita.</p>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn danger-solid" onclick="deleteGrupo('${id}')">Excluir grupo</button></div>`);
+      }
+      function confirmDeleteDupla(id) {
+        openModal(`<h4>Excluir dupla?</h4><p>Os alunos vinculados a esta dupla ficarão sem acompanhamento e serão removidos da lista. Essa ação não pode ser desfeita.</p>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn danger-solid" onclick="deleteDupla('${id}')">Excluir dupla</button></div>`);
+      }
+      function confirmRemoveMonitor(duplaId, semana) {
+        openModal(`<h4>Remover monitor?</h4><p>O monitor da semana ${semana} será removido desta dupla. Você pode vincular outro monitor depois.</p>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn danger-solid" onclick="removeMonitor('${duplaId}','${semana}')">Remover</button></div>`);
+      }
+      function confirmDeleteAluno(id) {
+        const a = alunos.find((x) => x.id === id);
+        openModal(`<h4>Remover ${a.nome}?</h4><p>O aluno será removido do acompanhamento deste período.</p>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn danger-solid" onclick="deleteAluno(${id})">Remover</button></div>`);
+      }
+      function openNovoGrupoModal() {
+        openModal(`<h4>Novo grupo de revisão</h4><p>Crie um grupo e defina o chefe responsável.</p>
+  <div class="field"><label>Nome do grupo</label><input id="ng-nome" placeholder="Ex: Grupo Helena"></div>
+  <div class="field"><label>Chefe responsável</label><input id="ng-chefe" placeholder="Nome do chefe"></div>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="criarGrupo()">Criar grupo</button></div>`);
+      }
+      function criarGrupo() {
+        const nome = document.getElementById("ng-nome").value.trim(),
+          chefe = document.getElementById("ng-chefe").value.trim();
+        if (!nome || !chefe) return;
+        grupos.push({ id: "g" + gIdCounter++, nome, chefe });
+        afterMutation();
+        closeModal();
+      }
+      function openNovaDuplaModal(grupoId) {
+        openModal(`<h4>Nova dupla</h4><p>Informe os monitores da semana A e B. Você pode deixar em branco e vincular depois.</p>
+  <div class="field"><label>Monitor · semana A</label><input id="nd-a" placeholder="Nome do monitor"></div>
+  <div class="field"><label>Monitor · semana B</label><input id="nd-b" placeholder="Nome do monitor"></div>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="criarDupla('${grupoId}')">Criar dupla</button></div>`);
+      }
+      function criarDupla(grupoId) {
+        const a = document.getElementById("nd-a").value.trim() || null,
+          b = document.getElementById("nd-b").value.trim() || null;
+        const count = duplas.filter((d) => d.grupoId === grupoId).length + 1;
+        duplas.push({
+          id: "d" + dIdCounter++,
+          grupoId,
+          label: `Dupla ${count}`,
+          monitorA: a,
+          monitorB: b,
+        });
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+        document.getElementById("grupo-" + grupoId)?.classList.add("open");
+      }
+      function openVincularAlunoModal(grupoId) {
+        const opts = duplas
+          .filter((d) => d.grupoId === grupoId)
+          .map((d) => `<option value="${d.id}">${d.label}</option>`)
+          .join("");
+        openModal(`<h4>Vincular aluno</h4><p>Adicione um aluno a uma dupla deste grupo.</p>
+  <div class="field"><label>Nome</label><input id="va-nome" placeholder="Nome completo"></div>
+  <div class="field"><label>Matrícula</label><input id="va-matricula" placeholder="Ex: 20260099999"></div>
+  <div class="field"><label>Turma</label><select id="va-turma">${turmas.map((t) => `<option>${t}</option>`).join("")}</select></div>
+  <div class="field"><label>Dupla</label><select id="va-dupla">${opts}</select></div>
+  <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="criarAluno()">Vincular aluno</button></div>`);
+      }
+      function criarAluno() {
+        const nome = document.getElementById("va-nome").value.trim(),
+          matricula = document.getElementById("va-matricula").value.trim();
+        const turma = document.getElementById("va-turma").value,
+          duplaId = document.getElementById("va-dupla").value;
+        if (!nome || !matricula) return;
+        const dupla = duplas.find((d) => d.id === duplaId);
+        alunos.push({
+          id: aIdCounter++,
+          nome,
+          matricula,
+          turma,
+          duplaId,
+          grupoId: dupla.grupoId,
+          is_neurodivergente: false,
+          entregues: 0,
+        });
+        rebuildFeedbacks();
+        afterMutation();
+        closeModal();
+      }
+
+      /* ---------------- DRAWER (detalhe do aluno) ---------------- */
+      function openAlunoDrawer(id) {
+        const a = alunos.find((x) => x.id === id);
+        if (!a) return;
+        const afb = feedbacks.filter((f) => f.alunoId === id);
+        const [fg, bg] = avatarColor(a.nome);
+        const rows = listas
+          .map((l) => {
+            const f = afb.find((x) => x.lista === l);
+            if (!f)
+              return `<div class="mini-row"><span class="l">${l}</span><span class="mono-cell">não entregue</span></div>`;
+            if (!f.ia && !f.plagio && !f.proibicao)
+              return `<div class="mini-row"><span class="l">${l}</span><span class="chip off">sem ocorrências</span></div>`;
+            const detalhes = [];
+            if (f.ia)
+              detalhes.push(`<span class="chip info">IA · Q${f.iaQuestoes.join(", Q")}</span>`);
+            if (f.plagio)
+              detalhes.push(
+                ...f.plagioDetalhe.map(
+                  (p) => `<span class="chip danger">plágio · Q${p.questao} com ${p.comNome}</span>`,
+                ),
+              );
+            if (f.proibicao)
+              detalhes.push(
+                `<span class="chip warn">proibição · Q${f.proibicaoQuestoes.join(", Q")}</span>`,
+              );
+            return `<div class="mini-row" style="align-items:flex-start; flex-direction:column; gap:6px;"><span class="l">${l}</span><div class="flags-cell">${detalhes.join("")}</div></div>`;
+          })
+          .join("");
+        document.getElementById("drawer").innerHTML = `
+    <div class="drawer-head">
+      <div class="who"><div class="av" style="color:${fg}; background:${bg};">${initials(a.nome)}</div>
+        <div><h4>${a.nome}${a.is_neurodivergente ? ' <span class="nd-icon" title="Neurodivergente">∞</span>' : ""}</h4><div class="sub">${a.matricula} · ${a.turma}</div></div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-section"><h5>Vínculo</h5>
+      <div class="mini-row"><span class="l">Grupo de revisão</span><span>${grupoNome(a.grupoId)}</span></div>
+      <div class="mini-row"><span class="l">Dupla</span><span>${duplas.find((d) => d.id === a.duplaId)?.label || "—"}</span></div>
+      <div class="mini-row"><span class="l">Listas entregues</span><span>${a.entregues}/6</span></div>
+    </div>
+    <div class="drawer-section"><h5>Histórico por lista</h5>${rows}</div>
+    <div class="modal-actions" style="margin-top:6px;"><button class="btn ghost" style="width:100%; justify-content:center;" onclick="closeDrawer(); confirmDeleteAluno(${a.id})">Remover aluno do acompanhamento</button></div>
+  `;
+        document.getElementById("drawer").classList.add("open");
+        document.getElementById("drawer-overlay").classList.add("open");
+      }
+      function closeDrawer() {
+        document.getElementById("drawer").classList.remove("open");
+        document.getElementById("drawer-overlay").classList.remove("open");
+      }
+
+      function openMonitorDrawer(nome, duplaId, semana) {
+        const dupla = duplas.find((d) => d.id === duplaId);
+        if (!dupla) return;
+        const ehChefe = grupos.some((g) => g.id === dupla.grupoId && g.chefe === nome);
+        const mfb = feedbacks.filter((f) => f.monitor === nome && f.duplaId === duplaId);
+        const total = mfb.length,
+          noPrazo = mfb.filter((f) => f.noPrazo).length;
+        const pct = total ? Math.round((noPrazo / total) * 100) : null;
+        const [fg, bg] = avatarColor(nome);
+        const rows = listas
+          .map((l) => {
+            const f = mfb.find((x) => x.lista === l);
+            if (!f)
+              return `<div class="mini-row"><span class="l">${l}</span><span class="mono-cell">sem registro</span></div>`;
+            return `<div class="mini-row"><span class="l">${l}</span><span class="chip ${f.noPrazo ? "ok" : "danger"}">${f.noPrazo ? "no prazo" : "atrasado"}</span></div>`;
+          })
+          .join("");
+        document.getElementById("drawer").innerHTML = `
+    <div class="drawer-head">
+      <div class="who"><div class="av" style="color:${fg}; background:${bg};">${initials(nome)}</div>
+        <div><h4>${nome}</h4><div class="sub">${grupoNome(dupla.grupoId)} · ${dupla.label} · semana ${semana}${ehChefe ? " · chefe" : ""}</div></div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-section"><h5>Desempenho no período</h5>
+      <div class="mini-row"><span class="l">Registros feitos</span><span>${total}</span></div>
+      <div class="mini-row"><span class="l">Entregas no prazo</span><span>${pct === null ? "—" : pct + "%"}</span></div>
+      <div class="mini-row"><span class="l">Papel</span><span>${ehChefe ? "Chefe de monitoria" : "Monitor"}</span></div>
+    </div>
+    <div class="drawer-section"><h5>Histórico por lista</h5>${rows}</div>
+    <div class="modal-actions" style="margin-top:6px;"><button class="btn ghost" style="width:100%; justify-content:center;" onclick="closeDrawer(); confirmRemoveMonitor('${duplaId}','${semana}')">Remover monitor desta dupla</button></div>
+  `;
+        document.getElementById("drawer").classList.add("open");
+        document.getElementById("drawer-overlay").classList.add("open");
+      }
+
+      /* ---------------- NAV / EVENTS ---------------- */
+      document.querySelectorAll(".nav-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          document.querySelectorAll(".nav-item").forEach((i) => i.classList.remove("active"));
+          item.classList.add("active");
+          document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+          document.getElementById("page-" + item.dataset.page).classList.add("active");
+        });
+      });
+      document.getElementById("periodo-select").addEventListener("change", (e) => {
+        document.getElementById("periodo-label").textContent = e.target.value;
+      });
+      ["f-turma", "f-grupo", "f-dupla", "f-lista"].forEach((id) =>
+        document.getElementById(id).addEventListener("change", () => {
+          if (id === "f-grupo") refreshDuplaFilter();
+          renderAlunos();
+        }),
+      );
+      ["f-grupo-mon", "f-lista-mon"].forEach((id) =>
+        document.getElementById(id).addEventListener("change", renderMonitores),
+      );
+
+      ["fd-turma", "fd-grupo"].forEach((id) =>
+        document.getElementById(id).addEventListener("change", renderDiretorio),
+      );
+      document.getElementById("search-diretorio").addEventListener("input", renderDiretorio);
+      document.getElementById("fdm-grupo").addEventListener("change", renderDiretorioMonitores);
+      document
+        .getElementById("search-diretorio-monitor")
+        .addEventListener("input", renderDiretorioMonitores);
+
+      renderAlunos();
+      renderMonitores();
+      renderGestao();
+      renderDiretorio();
+      renderDiretorioMonitores();
+      renderBotConexao();
+      renderBotStatus();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: feedbot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: feedbot
+      POSTGRES_PASSWORD: feedbot
+      POSTGRES_DB: feedbot
+    ports:
+      # host port 5435 to avoid clashing with other local Postgres instances/containers
+      - "5435:5432"
+    volumes:
+      - feedbot-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feedbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  feedbot-db-data:
