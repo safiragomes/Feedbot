@@ -1,5 +1,7 @@
+import { access, chmod, mkdir, rm } from "node:fs/promises";
 import {
   DisconnectReason,
+  fetchLatestBaileysVersion,
   makeWASocket,
   useMultiFileAuthState,
   type WAMessage,
@@ -7,8 +9,12 @@ import {
 } from "@whiskeysockets/baileys";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { BotSessaoStatus } from "../generated/prisma/enums.js";
+import { calcularSemana } from "../domain/semana.js";
+import { semanasCobertasPorMonitor } from "../domain/monitorSemana.js";
+import { variantesWhatsapp } from "../domain/telefone.js";
 import { criarFeedback } from "./feedback.js";
 import { GoogleSheetsSync } from "./google-sheets.js";
+import { buscarPendenciasAtrasadas } from "./atrasos.js";
 
 type Etapa =
   | "lista"
@@ -18,19 +24,21 @@ type Etapa =
   | "questoesIa"
   | "plagio"
   | "questoesPlagio"
+  | "cursoEnvolvido"
   | "envolvido"
   | "proibicao"
   | "questoesProibicao"
   | "confirmar";
 type Conversa = {
   monitorId: string;
-  duplaId: string;
+  periodoId: string;
   etapa: Etapa;
   listaId?: string;
   alunoId?: string;
   pontuacao?: number;
   ia: number[];
   plagio: number[];
+  turmaEnvolvidoId?: string;
   envolvidoId?: string;
   proibicao: number[];
 };
@@ -39,9 +47,6 @@ const SESSION_ID = "feedbot";
 
 function numeroDoJid(jid: string) {
   return jid.split("@")[0]?.replace(/\D/g, "") ?? "";
-}
-function normalizarNumero(numero: string) {
-  return numero.replace(/\D/g, "");
 }
 function textoDaMensagem(
   message:
@@ -66,7 +71,11 @@ export class WhatsAppBot {
   private socket?: WASocket;
   private qr?: string;
   private conversas = new Map<string, Conversa>();
-  private reconnecting = false;
+  private devePermanecerConectado = false;
+  private reconnectTimer?: NodeJS.Timeout;
+  private tentativasReconexao = 0;
+  private quedaEm?: Date;
+  private lembretesEmExecucao = false;
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -84,12 +93,69 @@ export class WhatsAppBot {
     return Boolean(this.socket?.user);
   }
 
+  async restaurarSessao() {
+    try {
+      await access(`${this.authDir}/creds.json`);
+    } catch {
+      return false;
+    }
+    await this.conectar();
+    return true;
+  }
+
+  async enviarLembretesDeAtraso(agora = new Date()) {
+    if (!this.socket?.user || this.lembretesEmExecucao) return 0;
+    this.lembretesEmExecucao = true;
+    try {
+      const pendencias = await buscarPendenciasAtrasadas(this.prisma, agora);
+      if (!pendencias.length) return 0;
+      const enviados = await this.prisma.lembreteAtraso.findMany({
+        where: { OR: pendencias.map((p) => ({ alunoId: p.alunoId, listaId: p.listaId })) },
+      });
+      const jaEnviados = new Set(enviados.map((l) => `${l.alunoId}:${l.listaId}`));
+      const porMonitor = new Map<string, typeof pendencias>();
+      for (const p of pendencias) {
+        if (jaEnviados.has(`${p.alunoId}:${p.listaId}`)) continue;
+        const grupo = porMonitor.get(p.monitorId) ?? [];
+        grupo.push(p);
+        porMonitor.set(p.monitorId, grupo);
+      }
+      let total = 0;
+      for (const grupo of porMonitor.values()) {
+        const primeiro = grupo[0]!;
+        const numero = primeiro.whatsappNumero.replace(/\D/g, "");
+        if (!numero) continue;
+        const itens = grupo.map((p) => `• ${p.listaNome}: ${p.alunoNome}`).join("\n");
+        await this.enviar(
+          this.socket,
+          `${numero}@s.whatsapp.net`,
+          `Olá, ${primeiro.monitorNome}. O prazo do feedback passou e ainda faltam:\n${itens}\n\nSe houve prorrogação, peça ao chefe para registrá-la no perfil do aluno.`,
+        );
+        await this.prisma.lembreteAtraso.createMany({
+          data: grupo.map((p) => ({ alunoId: p.alunoId, listaId: p.listaId })),
+          skipDuplicates: true,
+        });
+        total += grupo.length;
+      }
+      return total;
+    } finally {
+      this.lembretesEmExecucao = false;
+    }
+  }
+
   async conectar() {
+    this.devePermanecerConectado = true;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
     if (this.socket) return;
+    await mkdir(this.authDir, { recursive: true, mode: 0o700 });
+    await chmod(this.authDir, 0o700);
     const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
+    const { version } = await fetchLatestBaileysVersion();
     await this.atualizarStatus(BotSessaoStatus.CONECTANDO);
     const socket = makeWASocket({
       auth: state,
+      version,
       markOnlineOnConnect: false,
       syncFullHistory: false,
     });
@@ -99,20 +165,35 @@ export class WhatsAppBot {
       if (qr) this.qr = qr;
       if (connection === "open") {
         this.qr = undefined;
-        this.reconnecting = false;
+        this.tentativasReconexao = 0;
         await this.atualizarStatus(BotSessaoStatus.CONECTADO, socket.user?.id?.split(":")[0]);
+        if (this.quedaEm) {
+          const minutos = Math.max(1, Math.round((Date.now() - this.quedaEm.getTime()) / 60_000));
+          this.quedaEm = undefined;
+          void this.avisarChefes(
+            `✅ O Feedbot recuperou a conexão com o WhatsApp após aproximadamente ${minutos} minuto${minutos === 1 ? "" : "s"} offline.`,
+          );
+        }
+        void this.enviarLembretesDeAtraso().catch((error) =>
+          console.error("[bot] lembretes:", error),
+        );
       }
       if (connection === "close") {
-        this.socket = undefined;
+        if (this.socket === socket) this.socket = undefined;
         this.qr = undefined;
         await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
         const code = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)
           ?.output?.statusCode;
-        if (code !== DisconnectReason.loggedOut && !this.reconnecting) {
-          this.reconnecting = true;
-          setTimeout(() => {
-            void this.conectar();
-          }, 2_000);
+        if (code === DisconnectReason.loggedOut) {
+          // O celular desvinculou o dispositivo (ou nós mesmos deslogamos) — as
+          // credenciais salvas em disco ficam inválidas, mas continuam presentes. Se não
+          // forem apagadas, a próxima tentativa de conectar tenta retomar essa sessão
+          // morta em vez de iniciar um pareamento novo, e nunca chega a gerar QR code.
+          this.devePermanecerConectado = false;
+          await this.limparAuth();
+        } else if (this.devePermanecerConectado) {
+          this.quedaEm ??= new Date();
+          this.agendarReconexao();
         }
       }
     });
@@ -122,17 +203,105 @@ export class WhatsAppBot {
     });
   }
 
+  private async limparAuth() {
+    await rm(this.authDir, { recursive: true, force: true });
+  }
+
+  private agendarReconexao() {
+    if (!this.devePermanecerConectado || this.reconnectTimer) return;
+    const atraso = Math.min(60_000, 2_000 * 2 ** Math.min(this.tentativasReconexao, 5));
+    this.tentativasReconexao += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      void this.conectar().catch((error) => {
+        console.error("[bot] reconexão:", error);
+        this.socket = undefined;
+        this.agendarReconexao();
+      });
+    }, atraso);
+    this.reconnectTimer.unref();
+  }
+
+  private async avisarChefes(texto: string) {
+    if (!this.socket?.user) return;
+    const chefes = await this.prisma.monitor.findMany({
+      where: { isChefe: true, status: "ATIVO", whatsappNumero: { not: "" } },
+      select: { whatsappNumero: true },
+    });
+    await Promise.allSettled(
+      chefes.map((chefe) => {
+        const numero = chefe.whatsappNumero.replace(/\D/g, "");
+        return numero
+          ? this.enviar(this.socket!, `${numero}@s.whatsapp.net`, texto)
+          : Promise.resolve();
+      }),
+    );
+  }
+
   async desconectar() {
-    this.reconnecting = false;
+    await this.avisarChefes(
+      "⚠️ O Feedbot será desconectado manualmente agora. Será necessário conectá-lo novamente pelo painel.",
+    );
+    this.devePermanecerConectado = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
     this.socket?.end(undefined);
     this.socket = undefined;
     this.qr = undefined;
+    // Desconectar aqui também é um logout (não só fechar a conexão) — sem limpar as
+    // credenciais salvas, o próximo "conectar" reaproveitaria a sessão antiga e nunca
+    // geraria um QR code novo (ver comentário equivalente em connection.update).
+    await this.limparAuth();
     await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
   }
 
-  async nomeDoGrupo(whatsappGrupoId: string) {
-    if (!this.socket) throw new Error("Bot não está conectado");
-    return (await this.socket.groupMetadata(whatsappGrupoId)).subject;
+  async encerrarParaReinicio() {
+    await this.avisarChefes(
+      "⚠️ O Feedbot ficará indisponível por alguns instantes para uma reinicialização. A conexão será restaurada automaticamente.",
+    );
+    this.devePermanecerConectado = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
+    this.socket?.end(undefined);
+    this.socket = undefined;
+  }
+
+  async comunidadesDisponiveis() {
+    if (!this.socket?.user) throw new Error("Bot não está conectado");
+    const snapshot = await this.socket.groupFetchAllParticipating();
+    // Reconsulta cada destino para eliminar grupos apagados/abandonados que ainda
+    // estejam no snapshot local da sessão do WhatsApp Web.
+    const atuais = await Promise.allSettled(
+      Object.keys(snapshot).map((id) => this.socket!.groupMetadata(id)),
+    );
+    const avisos = atuais
+      .filter(
+        (item): item is PromiseFulfilledResult<Awaited<ReturnType<WASocket["groupMetadata"]>>> =>
+          item.status === "fulfilled",
+      )
+      .map((item) => item.value)
+      .filter((grupo) => grupo.isCommunityAnnounce);
+    return Promise.all(
+      avisos.map(async (grupo) => {
+        const comunidade = grupo.linkedParent
+          ? await this.socket!.groupMetadata(grupo.linkedParent).catch(() => null)
+          : null;
+        return { id: grupo.id, nome: comunidade?.subject ?? grupo.subject };
+      }),
+    );
+  }
+
+  async enviarLinkDeAcesso(whatsappGrupoId: string) {
+    if (!this.socket?.user) throw new Error("Bot não está conectado");
+    const numero = this.socket.user.id.split(":")[0]?.replace(/\D/g, "") ?? "";
+    if (!numero) throw new Error("Não foi possível identificar o número do bot");
+    const link = `https://wa.me/${numero}?text=${encodeURIComponent("Registrar feedback")}`;
+    await this.enviar(
+      this.socket,
+      whatsappGrupoId,
+      `📝 *Registrar feedback*\n\nO Feedbot orienta o preenchimento passo a passo. Em cada lista, o monitor vê somente os alunos pelos quais é responsável naquela rodada de feedback.\n\nDurante o registro, o bot solicita a pontuação e verifica ocorrências de uso de IA, plágio e proibições da lista. Ao confirmar, o feedback é salvo e enviado para a planilha.\n\nToque para começar:\n${link}`,
+    );
+    return { link };
   }
 
   private async atualizarStatus(status: BotSessaoStatus, numeroConectado?: string) {
@@ -144,7 +313,98 @@ export class WhatsAppBot {
   }
 
   private async enviar(socket: WASocket, jid: string, text: string) {
-    await socket.sendMessage(jid, { text });
+    return socket.sendMessage(jid, { text });
+  }
+
+  /**
+   * Um monitor pertence a no máximo uma dupla (Monitor.duplaId), que tem no máximo 2
+   * monitores. O papel de cada aluno da dupla (semana A ou B) é definido por ALUNO:
+   * Aluno.monitorSemanaAId escolhe qual dos 2 monitores é o da semana A; o outro é
+   * implicitamente o da semana B (não armazenado). Por isso o fluxo não pode filtrar
+   * "as listas do monitor" de forma fixa: primeiro descobre em quais listas ele tem
+   * pelo menos um aluno elegível (para a etapa de escolher a lista); depois, já com a
+   * lista escolhida, filtra os alunos elegíveis especificamente para aquela lista.
+   *
+   * A decisão de quais semanas um monitor cobre por aluno (incluindo o caso de dupla
+   * com só 1 monitor) mora em domain/monitorSemana.ts — a mesma regra usada por
+   * services/feedback.ts, pra não ter duas implementações que podem divergir.
+   */
+  private async alunosDoMonitor(monitorId: string) {
+    const monitor = await this.prisma.monitor.findUnique({ where: { id: monitorId } });
+    if (!monitor?.duplaId) return { alunos: [], outroMonitorId: null };
+    const [alunos, parceiro] = await Promise.all([
+      this.prisma.aluno.findMany({ where: { duplaId: monitor.duplaId }, orderBy: { nome: "asc" } }),
+      this.prisma.monitor.findFirst({
+        where: { duplaId: monitor.duplaId, id: { not: monitorId } },
+      }),
+    ]);
+    return { alunos, outroMonitorId: parceiro?.id ?? null };
+  }
+
+  private async listasComSemana(periodoId: string) {
+    const listas = await this.prisma.lista.findMany({
+      where: { periodoId },
+      orderBy: { ordem: "asc" },
+    });
+    return listas.map((lista, index) => ({
+      lista,
+      semana: calcularSemana({ posicaoLista: index + 1, semanaOverride: lista.semanaOverride }),
+    }));
+  }
+
+  private async listasPermitidas(monitorId: string, periodoId: string) {
+    const [{ alunos, outroMonitorId }, listasComSemana] = await Promise.all([
+      this.alunosDoMonitor(monitorId),
+      this.listasComSemana(periodoId),
+    ]);
+    const papeisPossiveis = new Set<"A" | "B">();
+    for (const aluno of alunos)
+      for (const semana of semanasCobertasPorMonitor({ ...aluno, outroMonitorId }, monitorId))
+        papeisPossiveis.add(semana);
+    return listasComSemana
+      .filter(({ semana }) => papeisPossiveis.has(semana))
+      .map(({ lista }) => lista);
+  }
+
+  private async alunosElegiveis(monitorId: string, listaId: string, periodoId: string) {
+    const [{ alunos, outroMonitorId }, listasComSemana] = await Promise.all([
+      this.alunosDoMonitor(monitorId),
+      this.listasComSemana(periodoId),
+    ]);
+    const semanaLista = listasComSemana.find(({ lista }) => lista.id === listaId)?.semana;
+    if (!semanaLista) return [];
+    return alunos.filter((aluno) =>
+      semanasCobertasPorMonitor({ ...aluno, outroMonitorId }, monitorId).has(semanaLista),
+    );
+  }
+
+  private async iniciarConversa(
+    socket: WASocket,
+    jidPrivado: string,
+    chave: string,
+    monitor: { id: string; nome: string; periodoId: string },
+  ) {
+    const conversa: Conversa = {
+      monitorId: monitor.id,
+      periodoId: monitor.periodoId,
+      etapa: "lista",
+      ia: [],
+      plagio: [],
+      proibicao: [],
+    };
+    this.conversas.set(chave, conversa);
+    const listas = await this.listasPermitidas(monitor.id, monitor.periodoId);
+    if (!listas.length)
+      return this.enviar(
+        socket,
+        jidPrivado,
+        `Olá, ${monitor.nome}. No momento nenhuma lista está sob sua responsabilidade.`,
+      );
+    return this.enviar(
+      socket,
+      jidPrivado,
+      `Olá, ${monitor.nome}. Vamos continuar em privado. Qual lista você vai registrar?\n${listas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+    );
   }
 
   private async receber(socket: WASocket, message: WAMessage) {
@@ -152,64 +412,50 @@ export class WhatsAppBot {
     if (!jid || jid.endsWith("@g.us") || message.key.fromMe) return;
     const texto = textoDaMensagem(message.message).toLowerCase();
     if (!texto) return;
-    const chave = numeroDoJid(jid);
-    let conversa = this.conversas.get(chave);
+    // WhatsApp pode endereçar a conversa por "LID" (identificador de privacidade) em vez
+    // do número de telefone; nesse caso o número real vem em remoteJidAlt. As respostas
+    // continuam indo para `jid` (o remoteJid original) — só a identificação do monitor
+    // usa o número de telefone resolvido.
+    const jidTelefone = jid.endsWith("@lid") ? (message.key.remoteJidAlt ?? jid) : jid;
+    const chave = numeroDoJid(jidTelefone);
+    const conversa = this.conversas.get(chave);
     if (!conversa || ["oi", "menu", "cancelar"].includes(texto)) {
       const monitores = await this.prisma.monitor.findMany({
         where: { whatsappNumero: { not: "" }, status: "ATIVO" },
       });
-      const monitor = monitores.find((item) => normalizarNumero(item.whatsappNumero) === chave);
-      if (!monitor?.duplaId)
+      const monitor = monitores.find((item) =>
+        variantesWhatsapp(item.whatsappNumero).includes(chave),
+      );
+      if (!monitor) {
+        console.log(
+          `[bot] remetente não reconhecido — jid=${jid} chave=${chave} (nenhum de ${monitores.length} monitor(es) ativo(s) bateu)`,
+        );
         return this.enviar(
           socket,
           jid,
           "Seu número não está cadastrado em uma dupla ativa. Procure um chefe de monitoria.",
         );
-      conversa = {
-        monitorId: monitor.id,
-        duplaId: monitor.duplaId,
-        etapa: "lista",
-        ia: [],
-        plagio: [],
-        proibicao: [],
-      };
-      this.conversas.set(chave, conversa);
-      const listas = await this.prisma.lista.findMany({
-        where: { periodoId: monitor.periodoId },
-        orderBy: { prazoEntregaFeedback: "asc" },
-      });
-      return this.enviar(
-        socket,
-        jid,
-        `Olá, ${monitor.nome}. Qual lista você vai registrar?\n${listas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
-      );
+      }
+      return this.iniciarConversa(socket, jid, chave, monitor);
     }
     const responder = (text: string) => this.enviar(socket, jid, text);
     if (conversa.etapa === "lista") {
-      const listas = await this.prisma.lista.findMany({
-        where: {
-          periodoId: (await this.prisma.monitor.findUnique({ where: { id: conversa.monitorId } }))!
-            .periodoId,
-        },
-        orderBy: { prazoEntregaFeedback: "asc" },
-      });
+      const listas = await this.listasPermitidas(conversa.monitorId, conversa.periodoId);
       const lista = listas[Number(texto) - 1];
       if (!lista) return responder("Escolha o número de uma lista válida.");
       conversa.listaId = lista.id;
       conversa.etapa = "aluno";
-      const alunos = await this.prisma.aluno.findMany({
-        where: { duplaId: conversa.duplaId },
-        orderBy: { nome: "asc" },
-      });
+      const alunos = await this.alunosElegiveis(conversa.monitorId, lista.id, conversa.periodoId);
       return responder(
         `Qual aluno?\n${alunos.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
       );
     }
     if (conversa.etapa === "aluno") {
-      const alunos = await this.prisma.aluno.findMany({
-        where: { duplaId: conversa.duplaId },
-        orderBy: { nome: "asc" },
-      });
+      const alunos = await this.alunosElegiveis(
+        conversa.monitorId,
+        conversa.listaId!,
+        conversa.periodoId,
+      );
       const aluno = alunos[Number(texto) - 1];
       if (!aluno) return responder("Escolha o número de um aluno válido.");
       conversa.alunoId = aluno.id;
@@ -248,19 +494,40 @@ export class WhatsAppBot {
     }
     if (conversa.etapa === "questoesPlagio") {
       conversa.plagio = questoes(texto);
-      conversa.etapa = "envolvido";
+      conversa.etapa = "cursoEnvolvido";
+      const turmas = await this.prisma.turma.findMany({
+        where: { periodoId: conversa.periodoId },
+        orderBy: { nome: "asc" },
+      });
+      return responder(
+        `Qual o curso da pessoa envolvida?\n${turmas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+      );
+    }
+    if (conversa.etapa === "cursoEnvolvido") {
+      const turmas = await this.prisma.turma.findMany({
+        where: { periodoId: conversa.periodoId },
+        orderBy: { nome: "asc" },
+      });
+      const turma = turmas[Number(texto) - 1];
+      if (!turma) return responder("Escolha o número de um curso válido.");
       const alunos = await this.prisma.aluno.findMany({
-        where: { id: { not: conversa.alunoId } },
+        where: { turmaId: turma.id, id: { not: conversa.alunoId } },
         orderBy: { nome: "asc" },
         take: 30,
       });
+      if (!alunos.length)
+        return responder(
+          `Nenhum outro aluno encontrado no curso ${turma.nome}. Escolha outro curso:\n${turmas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+        );
+      conversa.turmaEnvolvidoId = turma.id;
+      conversa.etapa = "envolvido";
       return responder(
         `Com quem?\n${alunos.map((item, index) => `${index + 1}. ${item.nome} (${item.matricula})`).join("\n")}`,
       );
     }
     if (conversa.etapa === "envolvido") {
       const alunos = await this.prisma.aluno.findMany({
-        where: { id: { not: conversa.alunoId } },
+        where: { turmaId: conversa.turmaEnvolvidoId, id: { not: conversa.alunoId } },
         orderBy: { nome: "asc" },
         take: 30,
       });

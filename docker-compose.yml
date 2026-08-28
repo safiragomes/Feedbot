@@ -5,11 +5,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: feedbot
-      POSTGRES_PASSWORD: feedbot
+      # Banco restrito ao loopback abaixo; em ambientes compartilhados/produção,
+      # defina POSTGRES_PASSWORD e DATABASE_URL com um segredo próprio.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-feedbot}
       POSTGRES_DB: feedbot
     ports:
       # host port 5435 to avoid clashing with other local Postgres instances/containers
-      - "5435:5432"
+      - "127.0.0.1:5435:5432"
     volumes:
       - feedbot-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -18,5 +20,40 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: feedbot-api
+    init: true
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - apps/api/.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://feedbot:${POSTGRES_PASSWORD:-feedbot}@db:5432/feedbot?schema=public
+      BAILEYS_AUTH_DIR: /var/lib/feedbot/baileys-auth
+    ports:
+      - "127.0.0.1:3333:3333"
+    volumes:
+      # O pareamento multi-device sobrevive à recriação e ao reinício do container.
+      - feedbot-baileys-auth:/var/lib/feedbot/baileys-auth
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3333/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   feedbot-db-data:
+  feedbot-baileys-auth:
