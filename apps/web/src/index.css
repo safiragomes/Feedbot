@@ -5,6 +5,8 @@
   --surface: #141d30;
   --surface-2: #1b2740;
   --surface-3: #22304e;
+  --control-bg: rgba(20, 29, 48, 0.72);
+  --control-bg-hover: rgba(27, 39, 64, 0.82);
   --border: #28365a;
   --border-strong: #37497a;
   --text: #edf2fc;
@@ -47,15 +49,58 @@ body {
   background: var(--gold-dim);
   color: var(--gold);
 }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 180, 214, 0.25) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(167, 180, 214, 0.25);
+  border-radius: var(--r-pill);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 180, 214, 0.4);
+}
 button,
 input,
 select {
   font-family: inherit;
 }
+:where(input:not([type="checkbox"]):not([type="radio"]), select) {
+  color-scheme: dark;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 11px;
+  outline: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+:where(input:not([type="checkbox"]):not([type="radio"]), select):hover {
+  background: var(--control-bg-hover);
+  border-color: var(--border-strong);
+}
+:where(input:not([type="checkbox"]):not([type="radio"]), select):focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(231, 182, 92, 0.1);
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.72;
+  filter: invert(92%) sepia(9%) saturate(426%) hue-rotate(184deg) brightness(102%);
+}
 .app {
   display: grid;
   grid-template-columns: 246px 1fr;
-  min-height: 100vh;
+  height: 100vh;
 }
 svg.icon {
   width: 15px;
@@ -75,6 +120,8 @@ svg.icon {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  height: 100vh;
+  overflow-y: auto;
 }
 .brand {
   display: flex;
@@ -206,8 +253,9 @@ svg.icon {
 .main {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   min-width: 0;
+  overflow: hidden;
 }
 .topbar {
   display: flex;
@@ -258,12 +306,21 @@ svg.icon {
   font-size: 12.5px;
   font-weight: 600;
   width: 100%;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.search-box input:hover,
+.search-box input:focus {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 .search-box input::placeholder {
   color: var(--text-3);
 }
 select.periodo {
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 12.5px;
@@ -276,6 +333,7 @@ select.periodo {
   padding: 28px 32px 60px;
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
 }
 .page-head {
   display: flex;
@@ -372,7 +430,7 @@ h1 {
   letter-spacing: 0.03em;
 }
 .filterbar select {
-  background: var(--surface-2);
+  background: var(--control-bg);
   border: 1px solid var(--border-strong);
   color: var(--text);
   font-size: 12.5px;
@@ -893,6 +951,29 @@ tbody tr.clickable {
   font-size: 12px;
   font-weight: 700;
 }
+.papel-tag {
+  font-size: 9px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.select-papel {
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+}
+.select-papel.vago {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.select-papel:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .x-btn {
   background: none;
   border: none;
@@ -962,7 +1043,7 @@ tbody tr.clickable {
 .modal input,
 .modal select {
   width: 100%;
-  background: var(--surface-2);
+  background: var(--control-bg);
   border: 1px solid var(--border-strong);
   color: var(--text);
   font-size: 13.5px;
@@ -973,6 +1054,7 @@ tbody tr.clickable {
 .modal input:focus,
 .modal select:focus {
   border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(231, 182, 92, 0.1);
 }
 .modal-actions {
   display: flex;
@@ -1202,7 +1284,7 @@ tbody tr.clickable {
 }
 .login-card input {
   width: 100%;
-  background: var(--surface-2);
+  background: var(--control-bg);
   border: 1px solid var(--border-strong);
   color: var(--text);
   font-size: 13.5px;
@@ -1212,6 +1294,7 @@ tbody tr.clickable {
 }
 .login-card input:focus {
   border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(231, 182, 92, 0.1);
 }
 .login-card .error-banner {
   margin-bottom: 0;

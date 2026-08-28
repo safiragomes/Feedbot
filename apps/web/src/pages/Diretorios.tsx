@@ -1,20 +1,29 @@
 import { useMemo, useState } from "react";
-import type { Aluno, GrupoRevisao, Monitor } from "../lib/types";
-import { IconSearch } from "../components/icons";
-import { Avatar, Chip, EmptyState } from "../components/ui";
+import type { Aluno, Dupla, GrupoRevisao, Monitor } from "../lib/types";
+import { IconSearch, IconTrash } from "../components/icons";
+import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
+import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
+import { monitorSemanaB } from "../lib/dupla";
 
 export function DiretorioAlunos({
+  token,
   alunos,
   grupos,
   onOpenAluno,
+  onReload,
+  onRequestConfirm,
 }: {
+  token: string;
   alunos: Aluno[];
   grupos: GrupoRevisao[];
   onOpenAluno: (id: string) => void;
+  onReload: () => Promise<void>;
+  onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
   const [turma, setTurma] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [busca, setBusca] = useState("");
+  const [erro, setErro] = useState("");
 
   const turmas = useMemo(
     () => [...new Set(alunos.map((a) => a.turma.nome))].sort((a, b) => a.localeCompare(b)),
@@ -30,6 +39,11 @@ export function DiretorioAlunos({
         (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  function confirmarExclusao(aluno: Aluno, event: React.MouseEvent) {
+    event.stopPropagation();
+    solicitarRemocaoAluno({ aluno, token, onRequestConfirm, onReload, onErro: setErro });
+  }
 
   return (
     <>
@@ -72,6 +86,8 @@ export function DiretorioAlunos({
         </div>
       </div>
 
+      {erro && <div className="error-banner">{erro}</div>}
+
       <div className="table-wrap">
         <table>
           <thead>
@@ -80,7 +96,8 @@ export function DiretorioAlunos({
               <th>Matrícula</th>
               <th>Turma</th>
               <th>Grupo de revisão</th>
-              <th style={{ paddingRight: 20 }}>Dupla</th>
+              <th>Dupla</th>
+              <th style={{ paddingRight: 20 }} />
             </tr>
           </thead>
           <tbody>
@@ -92,7 +109,7 @@ export function DiretorioAlunos({
                     <span className="person-name">
                       {a.nome}
                       {a.isPcd && (
-                        <span className="nd-icon" title="PCD">
+                        <span className="nd-icon" title="PCD ou neurodivergente">
                           ∞
                         </span>
                       )}
@@ -102,8 +119,11 @@ export function DiretorioAlunos({
                 <td className="mono-cell">{a.matricula}</td>
                 <td>{a.turma.nome}</td>
                 <td>{grupos.find((g) => g.id === a.dupla.grupoRevisaoId)?.nome ?? "—"}</td>
-                <td className="mono-cell" style={{ paddingRight: 20 }}>
-                  {a.dupla.label}
+                <td className="mono-cell">{a.dupla.label}</td>
+                <td style={{ paddingRight: 20, textAlign: "right" }}>
+                  <button className="x-btn" title="Remover aluno" onClick={(event) => confirmarExclusao(a, event)}>
+                    <IconTrash />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -116,26 +136,42 @@ export function DiretorioAlunos({
 }
 
 export function DiretorioMonitores({
+  token,
   monitores,
   grupos,
+  duplas,
+  alunos,
   onOpenMonitor,
+  onReload,
+  onRequestConfirm,
 }: {
+  token: string;
   monitores: Monitor[];
   grupos: GrupoRevisao[];
+  duplas: Dupla[];
+  alunos: Aluno[];
   onOpenMonitor: (id: string) => void;
+  onReload: () => Promise<void>;
+  onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
   const [grupoId, setGrupoId] = useState("");
   const [busca, setBusca] = useState("");
+  const [erro, setErro] = useState("");
 
   const q = busca.trim().toLowerCase();
+  const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
+  const duplaPorId = new Map(duplas.map((d) => [d.id, d]));
   const filtrados = monitores
-    .filter((m) => m.dupla)
-    .filter(
-      (m) =>
-        (!grupoId || m.dupla?.grupoRevisao.id === grupoId) &&
-        (!q || m.nome.toLowerCase().includes(q)),
-    )
+    .filter((m) => {
+      const pertenceAoGrupo = !grupoId || (!!m.duplaId && grupoDaDupla.get(m.duplaId) === grupoId);
+      return pertenceAoGrupo && (!q || m.nome.toLowerCase().includes(q));
+    })
     .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  function confirmarExclusao(monitor: Monitor, event: React.MouseEvent) {
+    event.stopPropagation();
+    solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
+  }
 
   return (
     <>
@@ -169,37 +205,46 @@ export function DiretorioMonitores({
         </div>
       </div>
 
+      {erro && <div className="error-banner">{erro}</div>}
+
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th style={{ paddingLeft: 20 }}>Monitor</th>
-              <th>Grupo de revisão</th>
-              <th>Dupla</th>
-              <th>Semana</th>
-              <th style={{ paddingRight: 20 }}>Papel</th>
+              <th>Alunos · semana A</th>
+              <th>Alunos · semana B</th>
+              <th>Papel</th>
+              <th style={{ paddingRight: 20 }} />
             </tr>
           </thead>
           <tbody>
             {filtrados.map((m) => {
-              const semana = m.dupla?.monitorSemanaAId === m.id ? "A" : "B";
+              const alunosDaDupla = m.duplaId ? alunos.filter((a) => a.duplaId === m.duplaId) : [];
+              const monitoresDupla = (m.duplaId && duplaPorId.get(m.duplaId)?.monitores) || [];
+              const alunosA = alunosDaDupla.filter((a) => a.monitorSemanaAId === m.id).length;
+              const alunosB = alunosDaDupla.filter(
+                (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === m.id,
+              ).length;
               return (
-                <tr key={m.id} className="clickable" onClick={() => onOpenMonitor(m.id)}>
-                  <td style={{ paddingLeft: 20 }}>
-                    <div className="person-cell">
-                      <Avatar nome={m.nome} />
-                      <span className="person-name">{m.nome}</span>
-                    </div>
-                  </td>
-                  <td>{m.dupla?.grupoRevisao.nome ?? "—"}</td>
-                  <td className="mono-cell">{m.dupla?.label ?? "—"}</td>
-                  <td>
-                    <Chip>semana {semana}</Chip>
-                  </td>
-                  <td style={{ paddingRight: 20 }}>
-                    <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
-                  </td>
-                </tr>
+              <tr key={m.id} className="clickable" onClick={() => onOpenMonitor(m.id)}>
+                <td style={{ paddingLeft: 20 }}>
+                  <div className="person-cell">
+                    <Avatar nome={m.nome} />
+                    <span className="person-name">{m.nome}</span>
+                  </div>
+                </td>
+                <td className="mono-cell">{alunosA}</td>
+                <td className="mono-cell">{alunosB}</td>
+                <td>
+                  <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
+                </td>
+                <td style={{ paddingRight: 20, textAlign: "right" }}>
+                  <button className="x-btn" title="Excluir monitor" onClick={(event) => confirmarExclusao(m, event)}>
+                    <IconTrash />
+                  </button>
+                </td>
+              </tr>
               );
             })}
           </tbody>

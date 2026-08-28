@@ -5,6 +5,8 @@ export type Periodo = {
   dataFim: string;
   dataReferenciaRodizio: string;
   ativo: boolean;
+  whatsappAvisosId: string | null;
+  whatsappComunidadeNome: string | null;
 };
 
 export type Turma = {
@@ -19,11 +21,11 @@ export type Monitor = {
   nome: string;
   whatsappNumero: string;
   isChefe: boolean;
-  duplaId: string | null;
   periodoId: string;
+  duplaId: string | null;
   status: "ATIVO" | "INATIVO";
-  dupla: (Dupla & { grupoRevisao: GrupoRevisao }) | null;
   contaChefe: { email: string } | null;
+  dupla?: { id: string; label: string; grupoRevisaoId: string } | null;
 };
 
 export type GrupoRevisao = {
@@ -40,12 +42,8 @@ export type GrupoRevisao = {
 export type Dupla = {
   id: string;
   grupoRevisaoId: string;
-  monitorSemanaAId: string | null;
-  monitorSemanaBId: string | null;
   label: string;
   grupoRevisao?: GrupoRevisao;
-  monitorSemanaA?: Monitor | null;
-  monitorSemanaB?: Monitor | null;
   monitores?: Monitor[];
   _count?: { alunos: number };
 };
@@ -58,8 +56,11 @@ export type Aluno = {
   duplaId: string;
   isPcd: boolean;
   qtdQuestoesMeta: number | null;
+  monitorSemanaAId: string | null;
   turma: Turma;
   dupla: Dupla;
+  monitorSemanaA?: Monitor | null;
+  prazosIndividuais: { listaId: string; prazoEntregaFeedback: string }[];
 };
 
 export type Lista = {
@@ -67,8 +68,17 @@ export type Lista = {
   periodoId: string;
   nome: string;
   qtdQuestoesTotal: number;
-  prazoEntregaFeedback: string;
+  ordem: number;
   semanaOverride: "A" | "B" | null;
+  prazos: { turmaId: string; prazoEntregaFeedback: string }[];
+};
+
+export type PrazoListaItem = {
+  listaId: string;
+  listaNome: string;
+  ordem: number;
+  qtdQuestoesTotal: number;
+  prazoEntregaFeedback: string | null;
 };
 
 export type Feedback = {
@@ -84,6 +94,7 @@ export type Feedback = {
   usouProibicao: boolean;
   criadoEm: string;
   sincronizadoPlanilha: boolean;
+  prazoEntregaFeedback: string | null;
   aluno: { id: string; nome: string; turma: Turma };
   monitor: { id: string; nome: string };
   lista: Lista;
@@ -99,6 +110,11 @@ export type Feedback = {
 export type Bot = {
   sessao: { status: "DESCONECTADO" | "CONECTANDO" | "CONECTADO"; numeroConectado?: string } | null;
   qr?: string;
+};
+
+export type Atraso = {
+  alunoId: string; alunoNome: string; listaId: string; listaNome: string;
+  monitorId: string; monitorNome: string; duplaId: string; prazoEntregaFeedback: string;
 };
 
 export type Chefe = { id: string; nome: string; email: string };

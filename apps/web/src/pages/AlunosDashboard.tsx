@@ -288,7 +288,7 @@ export function AlunosDashboard({
       </div>
 
       <div className="stats">
-        <StatCard label="Alunos filtrados" value={filtrados.length} sub={`${pcd} PCD`} icon={<IconAluno />} color="sky" />
+        <StatCard label="Alunos filtrados" value={filtrados.length} sub={`${pcd} PCD/ND`} icon={<IconAluno />} color="sky" />
         <StatCard
           label="Uso de IA"
           value={comIA}

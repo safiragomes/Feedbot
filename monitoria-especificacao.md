@@ -64,13 +64,19 @@ ALUNO
 ├── is_pcd (bool)
 └── qtd_questoes_meta         -- nullable; uso informativo no dashboard (NÃO usado para calcular nota)
 
-LISTA
+LISTA                        -- sempre 6 por período, criadas automaticamente ao cadastrar o período
 ├── id (PK)
 ├── periodo_id (FK → PERIODO)
 ├── nome                      -- ex: "Lista 1"
 ├── qtd_questoes_total
-├── prazo_entrega_feedback
+├── ordem                     -- 1..6, único por período; define a semana A/B (não muda depois de criada)
 └── semana_override           -- nullable: 'A' | 'B' | null (null = calcula automático)
+
+PRAZO_LISTA                   -- prazo de entrega de feedback é por turma, não global da lista
+├── id (PK)
+├── lista_id (FK → LISTA)
+├── turma_id (FK → TURMA)
+└── prazo_entrega_feedback    -- linha só existe depois que o chefe configura o prazo daquela turma
 
 FEEDBACK                      -- criado a cada registro feito pelo monitor no bot
 ├── id (PK)
@@ -83,7 +89,7 @@ FEEDBACK                      -- criado a cada registro feito pelo monitor no bo
 ├── usou_ia (bool)
 ├── plagiou (bool)
 ├── usou_proibicao (bool)
-├── criado_em (timestamp)     -- usado para checar atraso vs. prazo_entrega_feedback
+├── criado_em (timestamp)     -- usado para checar atraso vs. PRAZO_LISTA(lista_id, aluno.turma_id)
 ├── sincronizado_planilha (bool)
 └── atualizado_em
 
@@ -119,6 +125,7 @@ MAPEAMENTO_PLANILHA_LISTA     -- resolve onde escrever na planilha (ver seção 
   ```
   `semana_override` permite ajuste manual por lista (ex: feriado, semana de prova) sem quebrar o cálculo automático das demais.
 - **Cada Turma tem exatamente uma aba própria na planilha** (não há aba compartilhada entre turmas).
+- **Todo período tem sempre exatamente 6 listas**, criadas automaticamente ao cadastrar o período. A lista em si (nome, quantidade de questões, ordem) é a mesma para todas as turmas do período, mas o prazo de entrega de feedback é definido por turma (`PRAZO_LISTA`) — a mesma lista pode ter prazos diferentes em turmas diferentes.
 
 ---
 

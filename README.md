@@ -14,7 +14,7 @@ Bot de WhatsApp + dashboard para a monitoria de Introdução à Programação re
 pnpm install
 cp apps/api/.env.example apps/api/.env   # ajuste DATABASE_URL se não usar o docker-compose
 
-docker compose up -d          # sobe Postgres local na porta 5435 (evita conflito com outros projetos)
+docker compose up -d db       # sobe Postgres local na porta 5435 (evita conflito com outros projetos)
 pnpm --filter @feedbot/api prisma:migrate
 pnpm --filter @feedbot/api prisma:seed
 ```
@@ -73,3 +73,22 @@ Fluxo fechado, ponta a ponta: **spec → red → green → refactor → change r
 ## Bot do WhatsApp
 
 O bot usa uma biblioteca não-oficial multi-device (ex. Baileys), pareada por QR code — ver [ADR-0003](docs/adr/0003-bot-whatsapp-biblioteca-nao-oficial.md). A sessão de autenticação nunca é versionada (`apps/api/.baileys-auth/` está no `.gitignore`).
+
+### Execução contínua (24/7)
+
+O painel pode ser fechado sem desconectar o bot: a conexão pertence à API, não ao
+navegador. Para manter API, bot e banco ativos com reinício automático, execute:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+O serviço `api` usa `restart: unless-stopped`. As credenciais do WhatsApp ficam no
+volume `feedbot-baileys-auth`, portanto reiniciar ou recriar o container não exige novo
+QR code. Um novo pareamento só é necessário quando o próprio WhatsApp revoga a sessão
+ou quando o usuário solicita **Desconectar** no painel.
+
+O computador/servidor e o Docker precisam permanecer ligados. Para disponibilidade
+real 24/7, execute o Compose em um servidor permanente e configure o Docker para iniciar
+com o sistema operacional.

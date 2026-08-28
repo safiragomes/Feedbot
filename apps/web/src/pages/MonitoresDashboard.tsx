@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChartConfiguration } from "chart.js/auto";
-import type { Dupla, Feedback, GrupoRevisao, Lista } from "../lib/types";
+import type { Atraso, Dupla, Feedback, GrupoRevisao, Lista } from "../lib/types";
 import { CHART_GRID, CHART_TEXT, ChartCanvas } from "../components/ChartCanvas";
 import { IconCheckCircle, IconClock, IconGrid, IconMonitor } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
@@ -11,11 +11,13 @@ export function MonitoresDashboard({
   duplas,
   listas,
   feedbacks,
+  atrasos,
 }: {
   grupos: GrupoRevisao[];
   duplas: Dupla[];
   listas: Lista[];
   feedbacks: Feedback[];
+  atrasos: Atraso[];
 }) {
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
@@ -33,28 +35,37 @@ export function MonitoresDashboard({
 
   const byMonitor = new Map<
     string,
-    { nome: string; total: number; noPrazo: number }
+    { nome: string; total: number; comPrazo: number; noPrazo: number }
   >();
   fb.forEach((f) => {
-    const atual = byMonitor.get(f.monitorId) ?? { nome: f.monitor.nome, total: 0, noPrazo: 0 };
+    const atual =
+      byMonitor.get(f.monitorId) ?? { nome: f.monitor.nome, total: 0, comPrazo: 0, noPrazo: 0 };
     atual.total += 1;
-    if (noPrazo(f.criadoEm, f.lista.prazoEntregaFeedback)) atual.noPrazo += 1;
+    if (f.prazoEntregaFeedback !== null) {
+      atual.comPrazo += 1;
+      if (noPrazo(f.criadoEm, f.prazoEntregaFeedback)) atual.noPrazo += 1;
+    }
     byMonitor.set(f.monitorId, atual);
   });
   const arr = [...byMonitor.values()];
 
   const totalEntregas = fb.length;
-  const totalPrazo = fb.filter((f) => noPrazo(f.criadoEm, f.lista.prazoEntregaFeedback)).length;
-  const pctPrazo = totalEntregas ? Math.round((totalPrazo / totalEntregas) * 100) : 0;
-  const atrasados = arr.filter((m) => m.noPrazo / m.total < 0.7).length;
+  const comPrazo = fb.filter((f) => f.prazoEntregaFeedback !== null);
+  const totalPrazo = comPrazo.filter((f) => noPrazo(f.criadoEm, f.prazoEntregaFeedback)).length;
+  const pctPrazo = comPrazo.length ? Math.round((totalPrazo / comPrazo.length) * 100) : 0;
+  const atrasosVisiveis = atrasos.filter((a) => (!grupoId || duplaGrupo.get(a.duplaId) === grupoId) && (!listaId || a.listaId === listaId));
+  const atrasados = new Set([
+    ...arr.filter((m) => m.comPrazo > 0 && m.noPrazo / m.comPrazo < 0.7).map((m) => m.nome),
+    ...atrasosVisiveis.map((a) => a.monitorNome),
+  ]).size;
 
   const gruposVisiveis = grupos.filter((g) => !grupoId || g.id === grupoId);
   const porGrupo = gruposVisiveis.map((g) => {
-    const gfb = fb.filter((f) => duplaGrupo.get(f.duplaId) === g.id);
+    const gfb = fb.filter((f) => duplaGrupo.get(f.duplaId) === g.id && f.prazoEntregaFeedback !== null);
     return {
       nome: g.nome.replace("Grupo ", ""),
-      prazo: gfb.filter((f) => noPrazo(f.criadoEm, f.lista.prazoEntregaFeedback)).length,
-      atraso: gfb.filter((f) => !noPrazo(f.criadoEm, f.lista.prazoEntregaFeedback)).length,
+      prazo: gfb.filter((f) => noPrazo(f.criadoEm, f.prazoEntregaFeedback)).length,
+      atraso: gfb.filter((f) => !noPrazo(f.criadoEm, f.prazoEntregaFeedback)).length,
     };
   });
   const entregasConfig: ChartConfiguration = {
@@ -193,9 +204,22 @@ export function MonitoresDashboard({
           icon={<IconCheckCircle />}
           color="sage"
         />
-        <StatCard label="Atraso recorrente" value={atrasados} icon={<IconClock />} color="rose" />
+        <StatCard label="Monitores atrasados" value={atrasados} sub={`${atrasosVisiveis.length} feedback(s) pendente(s)`} icon={<IconClock />} color="rose" />
         <StatCard label="Grupos na visão" value={grupoId ? 1 : grupos.length} icon={<IconGrid />} color="gold" />
       </div>
+
+      {atrasosVisiveis.length > 0 && (
+        <Panel title="Feedbacks pendentes após o prazo" tag={`${atrasosVisiveis.length} pendência(s)`}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {atrasosVisiveis.map((atraso) => (
+              <div className="mini-row" key={`${atraso.alunoId}:${atraso.listaId}`}>
+                <span className="l">{atraso.monitorNome}</span>
+                <span className="mono-cell">{atraso.listaNome} · falta {atraso.alunoNome}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       <Panel
         title="Entregas por grupo de revisão"

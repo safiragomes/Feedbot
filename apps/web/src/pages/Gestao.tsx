@@ -1,15 +1,21 @@
 import { useState } from "react";
 import { api, ApiError } from "../lib/api";
-import type { Aluno, Dupla, GrupoRevisao, Monitor, Turma } from "../lib/types";
+import type { Aluno, Dupla, GrupoRevisao, Lista, Monitor, Turma } from "../lib/types";
 import { IconChevronDown, IconPlus, IconTrash, IconX } from "../components/icons";
 import type { ConfirmRequest } from "../components/ui";
-import { Modal } from "../components/ui";
+import { Chip, Modal, Panel } from "../components/ui";
+import { fimDoDiaIso, validarWhatsapp } from "../lib/format";
+import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
+import { monitorSemanaB } from "../lib/dupla";
 
 type ModalState =
   | { type: "novoGrupo" }
   | { type: "novaDupla"; grupoId: string }
   | { type: "vincularAluno"; grupoId: string }
-  | { type: "atribuirMonitor"; duplaId: string; semana: "A" | "B" };
+  | { type: "atribuirMonitor"; duplaId: string }
+  | { type: "novoMonitor" }
+  | { type: "criarLogin"; monitor: Monitor }
+  | { type: "editarLista"; lista: Lista };
 
 export function Gestao({
   token,
@@ -19,6 +25,7 @@ export function Gestao({
   monitores,
   alunos,
   turmas,
+  listas,
   onReload,
   onRequestConfirm,
 }: {
@@ -29,6 +36,7 @@ export function Gestao({
   monitores: Monitor[];
   alunos: Aluno[];
   turmas: Turma[];
+  listas: Lista[];
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
@@ -60,16 +68,17 @@ export function Gestao({
       await action();
       await onReload();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível concluir a ação");
+      setErro(error instanceof Error ? error.message : "Não foi possível concluir a ação");
     }
   }
 
   function confirmarExclusaoGrupo(grupo: GrupoRevisao) {
     const gd = duplas.filter((d) => d.grupoRevisaoId === grupo.id);
+    const qtdAlunos = alunos.filter((a) => gd.some((d) => d.id === a.duplaId)).length;
     onRequestConfirm({
       title: `Excluir ${grupo.nome}?`,
       message: gd.length
-        ? "Este grupo tem duplas vinculadas — remova-as primeiro. Esta ação não pode ser desfeita."
+        ? `Isso também apaga ${gd.length} dupla(s) e ${qtdAlunos} aluno(s) vinculados, e todo o histórico de feedback deles. Os monitores não são excluídos, só ficam sem dupla. Esta ação não pode ser desfeita.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir grupo",
       onConfirm: () => run(() => api.excluirGrupo(token, grupo.id)),
@@ -80,32 +89,35 @@ export function Gestao({
     onRequestConfirm({
       title: "Excluir dupla?",
       message: qtdAlunos
-        ? "Esta dupla tem alunos vinculados — remova-os primeiro. Esta ação não pode ser desfeita."
+        ? `Isso também apaga ${qtdAlunos} aluno(s) vinculados e todo o histórico de feedback deles. Os monitores não são excluídos, só ficam sem dupla. Esta ação não pode ser desfeita.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir dupla",
       onConfirm: () => run(() => api.excluirDupla(token, dupla.id)),
     });
   }
-  function confirmarRemoverMonitor(dupla: Dupla, semana: "A" | "B") {
+  function confirmarRemoverMonitor(monitor: Monitor) {
     onRequestConfirm({
-      title: "Remover monitor?",
-      message: `O monitor da semana ${semana} será removido desta dupla. Você pode vincular outro monitor depois.`,
+      title: "Remover monitor da dupla?",
+      message:
+        "O monitor sai da dupla. Alunos que dependiam dele como semana A ficam sem monitor até uma nova escolha.",
       confirmLabel: "Remover",
-      onConfirm: () =>
-        run(() =>
-          api.atualizarDupla(token, dupla.id, {
-            [semana === "A" ? "monitorSemanaAId" : "monitorSemanaBId"]: null,
-          }),
-        ),
+      onConfirm: () => run(() => api.atualizarMonitor(token, monitor.id, { duplaId: null })),
     });
   }
   function confirmarExclusaoAluno(aluno: Aluno) {
-    onRequestConfirm({
-      title: `Remover ${aluno.nome}?`,
-      message: "O aluno será removido do acompanhamento deste período.",
-      confirmLabel: "Remover",
-      onConfirm: () => run(() => api.excluirAluno(token, aluno.id)),
-    });
+    solicitarRemocaoAluno({ aluno, token, onRequestConfirm, onReload, onErro: setErro });
+  }
+  function confirmarExclusaoMonitor(monitor: Monitor) {
+    if (monitor.duplaId) {
+      setErro(`${monitor.nome} está vinculado a uma dupla — desvincule antes de excluir.`);
+      return;
+    }
+    solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
+  }
+  async function escolherPapel(aluno: Aluno, monitoresDupla: Monitor[], slot: "A" | "B", monitorId: string) {
+    const monitorSemanaAId =
+      slot === "A" ? monitorId : (monitoresDupla.find((m) => m.id !== monitorId)?.id ?? null);
+    await run(() => api.atualizarAluno(token, aluno.id, { monitorSemanaAId }));
   }
 
   return (
@@ -126,6 +138,68 @@ export function Gestao({
       </div>
 
       {erro && <div className="error-banner">{erro}</div>}
+
+      <div className="panel-grid" style={{ marginBottom: 20 }}>
+        <Panel
+          title="Monitores"
+          tag={`${monitores.length} no período`}
+          legend={
+            <button className="btn sm" onClick={() => setModal({ type: "novoMonitor" })}>
+              <IconPlus />
+              Novo monitor
+            </button>
+          }
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+            {monitores.map((m) => (
+              <div key={m.id} className="mini-row">
+                <span className="l">
+                  {m.nome} {m.isChefe && <Chip tone="warn">chefe</Chip>}
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="mono-cell">
+                    {m.dupla ? `${m.dupla.label}` : "sem dupla"}
+                  </span>
+                  {m.isChefe &&
+                    (m.contaChefe ? (
+                      <Chip tone="ok">login: {m.contaChefe.email}</Chip>
+                    ) : (
+                      <button className="btn sm" onClick={() => setModal({ type: "criarLogin", monitor: m })}>
+                        Criar login
+                      </button>
+                    ))}
+                  <button
+                    className="x-btn"
+                    title="Excluir monitor (apaga o cadastro — não confundir com remover da dupla)"
+                    onClick={() => confirmarExclusaoMonitor(m)}
+                  >
+                    <IconTrash />
+                  </button>
+                </span>
+              </div>
+            ))}
+            {!monitores.length && <p className="mono-cell">Nenhum monitor cadastrado neste período.</p>}
+          </div>
+        </Panel>
+        <Panel title="Listas" tag={`${listas.length} no período`}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+            {[...listas]
+              .sort((a, b) => a.ordem - b.ordem)
+              .map((lista) => (
+                <div key={lista.id} className="mini-row">
+                  <span className="l">{lista.nome}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="mono-cell">{lista.qtdQuestoesTotal} questões</span>
+                    <button className="btn sm" onClick={() => setModal({ type: "editarLista", lista })}>
+                      Editar
+                    </button>
+                  </span>
+                </div>
+              ))}
+            {!listas.length && <p className="mono-cell">Nenhuma lista cadastrada neste período.</p>}
+          </div>
+        </Panel>
+      </div>
 
       <div className="grupo-grid">
         {grupos.map((grupo) => {
@@ -164,21 +238,21 @@ export function Gestao({
                   {gd.map((dupla) => {
                     const dAlunos = alunos.filter((a) => a.duplaId === dupla.id);
                     const alunosOpen = alunosAbertos.has(dupla.id);
+                    const monitoresDupla = dupla.monitores ?? [];
+                    const [membro1, membro2] = monitoresDupla;
                     return (
                       <div key={dupla.id} className="dupla-row">
                         <div className="dupla-top">
                           <div className="dupla-label">{dupla.label}</div>
-                          <MonitorSlot
-                            semana="A"
-                            monitor={dupla.monitorSemanaA ?? null}
-                            onAssign={() => setModal({ type: "atribuirMonitor", duplaId: dupla.id, semana: "A" })}
-                            onRemove={() => confirmarRemoverMonitor(dupla, "A")}
+                          <MembroSlot
+                            monitor={membro1 ?? null}
+                            onAssign={() => setModal({ type: "atribuirMonitor", duplaId: dupla.id })}
+                            onRemove={() => membro1 && confirmarRemoverMonitor(membro1)}
                           />
-                          <MonitorSlot
-                            semana="B"
-                            monitor={dupla.monitorSemanaB ?? null}
-                            onAssign={() => setModal({ type: "atribuirMonitor", duplaId: dupla.id, semana: "B" })}
-                            onRemove={() => confirmarRemoverMonitor(dupla, "B")}
+                          <MembroSlot
+                            monitor={membro2 ?? null}
+                            onAssign={() => setModal({ type: "atribuirMonitor", duplaId: dupla.id })}
+                            onRemove={() => membro2 && confirmarRemoverMonitor(membro2)}
                           />
                           <button className="aluno-count" onClick={() => toggleAlunos(dupla.id)}>
                             {dAlunos.length} al. <IconChevronDown />
@@ -190,18 +264,53 @@ export function Gestao({
                         {alunosOpen && (
                           <div className="aluno-list">
                             {dAlunos.length ? (
-                              dAlunos.map((aluno) => (
-                                <span className="aluno-tag" key={aluno.id}>
-                                  {aluno.nome}
-                                  <button
-                                    className="x-btn"
-                                    title="Remover aluno"
-                                    onClick={() => confirmarExclusaoAluno(aluno)}
-                                  >
-                                    <IconX />
-                                  </button>
-                                </span>
-                              ))
+                              dAlunos.map((aluno) => {
+                                const monitorAId = aluno.monitorSemanaAId;
+                                const monitorBId = monitorSemanaB(monitoresDupla, monitorAId)?.id ?? "";
+                                return (
+                                  <span className="aluno-tag" key={aluno.id}>
+                                    {aluno.nome}
+                                    <span className="papel-tag">A</span>
+                                    <select
+                                      className={`select-papel${monitorAId ? "" : " vago"}`}
+                                      value={monitorAId ?? ""}
+                                      onChange={(e) =>
+                                        e.target.value && escolherPapel(aluno, monitoresDupla, "A", e.target.value)
+                                      }
+                                    >
+                                      <option value="">vago</option>
+                                      {monitoresDupla.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                          {m.nome}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <span className="papel-tag">B</span>
+                                    <select
+                                      className={`select-papel${monitorBId ? "" : " vago"}`}
+                                      value={monitorBId}
+                                      disabled={monitoresDupla.length < 2}
+                                      onChange={(e) =>
+                                        e.target.value && escolherPapel(aluno, monitoresDupla, "B", e.target.value)
+                                      }
+                                    >
+                                      <option value="">vago</option>
+                                      {monitoresDupla.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                          {m.nome}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      className="x-btn"
+                                      title="Remover aluno"
+                                      onClick={() => confirmarExclusaoAluno(aluno)}
+                                    >
+                                      <IconX />
+                                    </button>
+                                  </span>
+                                );
+                              })
                             ) : (
                               <span className="mono-cell">sem alunos vinculados</span>
                             )}
@@ -260,10 +369,34 @@ export function Gestao({
           token={token}
           periodoId={periodoId}
           duplaId={modal.duplaId}
-          semana={modal.semana}
           monitoresDisponiveis={monitores.filter((m) => !m.duplaId)}
           onClose={() => setModal(null)}
           onAssigned={() => run(() => Promise.resolve())}
+        />
+      )}
+      {modal?.type === "novoMonitor" && (
+        <NovoMonitorModal
+          token={token}
+          periodoId={periodoId}
+          onClose={() => setModal(null)}
+          onCreated={() => run(() => Promise.resolve())}
+        />
+      )}
+      {modal?.type === "criarLogin" && (
+        <CriarLoginModal
+          token={token}
+          monitor={modal.monitor}
+          onClose={() => setModal(null)}
+          onCreated={() => run(() => Promise.resolve())}
+        />
+      )}
+      {modal?.type === "editarLista" && (
+        <EditarListaModal
+          token={token}
+          lista={modal.lista}
+          turmas={turmas}
+          onClose={() => setModal(null)}
+          onSaved={() => run(() => Promise.resolve())}
         />
       )}
     </>
@@ -280,13 +413,11 @@ function initialsOf(nome: string) {
     .toUpperCase();
 }
 
-function MonitorSlot({
-  semana,
+function MembroSlot({
   monitor,
   onAssign,
   onRemove,
 }: {
-  semana: "A" | "B";
   monitor: Monitor | null;
   onAssign: () => void;
   onRemove: () => void;
@@ -294,17 +425,16 @@ function MonitorSlot({
   if (!monitor)
     return (
       <button className="monitor-slot vago" onClick={onAssign}>
-        <span className="wk">sem {semana}</span>vago
+        vago
       </button>
     );
   return (
     <div className="monitor-slot">
-      <span className="wk">sem {semana}</span>
       <span className="m-av" style={{ background: "var(--sky-dim)", color: "var(--sky)" }}>
         {initialsOf(monitor.nome)}
       </span>
       {monitor.nome}
-      <button className="x-btn" title="Remover monitor" onClick={onRemove}>
+      <button className="x-btn" title="Remover monitor da dupla" onClick={onRemove}>
         <IconX />
       </button>
     </div>
@@ -341,6 +471,8 @@ function NovoGrupoModal({
       if (chefeId === "__novo__") {
         if (!novoChefeNome.trim() || !novoChefeWhats.trim())
           throw new ApiError("Informe nome e WhatsApp do novo chefe");
+        const erroWhats = validarWhatsapp(novoChefeWhats);
+        if (erroWhats) throw new ApiError(erroWhats);
         const criado = await api.criarMonitor(token, {
           nome: novoChefeNome.trim(),
           whatsappNumero: novoChefeWhats.trim(),
@@ -353,7 +485,7 @@ function NovoGrupoModal({
       onCreated();
       onClose();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível criar o grupo");
+      setErro(error instanceof Error ? error.message : "Não foi possível criar o grupo");
     } finally {
       setSalvando(false);
     }
@@ -391,6 +523,10 @@ function NovoGrupoModal({
               onChange={(e) => setNovoChefeWhats(e.target.value)}
               placeholder="+55 81 9XXXX-XXXX"
             />
+            <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
+              Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
+              WhatsApp.
+            </p>
           </div>
         </>
       )}
@@ -432,7 +568,7 @@ function NovaDuplaModal({
       onCreated();
       onClose();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível criar a dupla");
+      setErro(error instanceof Error ? error.message : "Não foi possível criar a dupla");
     } finally {
       setSalvando(false);
     }
@@ -488,7 +624,7 @@ function VincularAlunoModal({
       onCreated();
       onClose();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível vincular o aluno");
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular o aluno");
     } finally {
       setSalvando(false);
     }
@@ -543,7 +679,6 @@ function AtribuirMonitorModal({
   token,
   periodoId,
   duplaId,
-  semana,
   monitoresDisponiveis,
   onClose,
   onAssigned,
@@ -551,7 +686,6 @@ function AtribuirMonitorModal({
   token: string;
   periodoId: string;
   duplaId: string;
-  semana: "A" | "B";
   monitoresDisponiveis: Monitor[];
   onClose: () => void;
   onAssigned: () => void;
@@ -566,24 +700,24 @@ function AtribuirMonitorModal({
     setSalvando(true);
     setErro("");
     try {
-      let id = monitorId;
       if (monitorId === "__novo__") {
         if (!novoNome.trim() || !novoWhats.trim())
           throw new ApiError("Informe nome e WhatsApp do novo monitor");
-        const criado = await api.criarMonitor(token, {
+        const erroWhats = validarWhatsapp(novoWhats);
+        if (erroWhats) throw new ApiError(erroWhats);
+        await api.criarMonitor(token, {
           nome: novoNome.trim(),
           whatsappNumero: novoWhats.trim(),
           periodoId,
+          duplaId,
         });
-        id = criado.id;
+      } else {
+        await api.atualizarMonitor(token, monitorId, { duplaId });
       }
-      await api.atualizarDupla(token, duplaId, {
-        [semana === "A" ? "monitorSemanaAId" : "monitorSemanaBId"]: id,
-      });
       onAssigned();
       onClose();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível vincular o monitor");
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular o monitor");
     } finally {
       setSalvando(false);
     }
@@ -591,8 +725,11 @@ function AtribuirMonitorModal({
 
   return (
     <Modal onClose={onClose}>
-      <h4>Vincular monitor · semana {semana}</h4>
-      <p>Escolha um monitor sem dupla neste período, ou cadastre um novo.</p>
+      <h4>Vincular monitor à dupla</h4>
+      <p>
+        Escolha um monitor sem dupla neste período, ou cadastre um novo. Depois, escolha aluno a
+        aluno quem é a semana A e quem é a semana B entre os dois monitores da dupla.
+      </p>
       <div className="field">
         <label>Monitor</label>
         <select value={monitorId} onChange={(e) => setMonitorId(e.target.value)}>
@@ -613,6 +750,10 @@ function AtribuirMonitorModal({
           <div className="field">
             <label>WhatsApp</label>
             <input value={novoWhats} onChange={(e) => setNovoWhats(e.target.value)} placeholder="+55 81 9XXXX-XXXX" />
+            <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
+              Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
+              WhatsApp.
+            </p>
           </div>
         </>
       )}
@@ -623,6 +764,213 @@ function AtribuirMonitorModal({
         </button>
         <button className="btn primary" disabled={salvando} onClick={submit}>
           Vincular
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function NovoMonitorModal({
+  token,
+  periodoId,
+  onClose,
+  onCreated,
+}: {
+  token: string;
+  periodoId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [nome, setNome] = useState("");
+  const [whatsappNumero, setWhatsappNumero] = useState("");
+  const [isChefe, setIsChefe] = useState(false);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function submit() {
+    if (!nome.trim() || !whatsappNumero.trim()) return setErro("Preencha nome e WhatsApp");
+    const erroWhats = validarWhatsapp(whatsappNumero);
+    if (erroWhats) return setErro(erroWhats);
+    setSalvando(true);
+    try {
+      await api.criarMonitor(token, { nome: nome.trim(), whatsappNumero: whatsappNumero.trim(), periodoId, isChefe });
+      onCreated();
+      onClose();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível criar o monitor");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h4>Novo monitor</h4>
+      <p>Cadastre um monitor no período. Vincule a uma dupla depois, na tela de grupos.</p>
+      <div className="field">
+        <label>Nome</label>
+        <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
+      </div>
+      <div className="field">
+        <label>WhatsApp</label>
+        <input value={whatsappNumero} onChange={(e) => setWhatsappNumero(e.target.value)} placeholder="+55 81 9XXXX-XXXX" />
+        <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
+          Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
+          WhatsApp.
+        </p>
+      </div>
+      <div className="field">
+        <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none" }}>
+          <input
+            type="checkbox"
+            style={{ width: "auto" }}
+            checked={isChefe}
+            onChange={(e) => setIsChefe(e.target.checked)}
+          />
+          É chefe de monitoria
+        </label>
+      </div>
+      {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="btn primary" disabled={salvando} onClick={submit}>
+          Criar monitor
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function EditarListaModal({
+  token,
+  lista,
+  turmas,
+  onClose,
+  onSaved,
+}: {
+  token: string;
+  lista: Lista;
+  turmas: Turma[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [nome, setNome] = useState(lista.nome);
+  const [qtdQuestoesTotal, setQtdQuestoesTotal] = useState(String(lista.qtdQuestoesTotal));
+  const [prazos, setPrazos] = useState(
+    new Map(turmas.map((turma) => [turma.id, lista.prazos.find((p) => p.turmaId === turma.id)?.prazoEntregaFeedback.slice(0, 10) ?? ""])),
+  );
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function submit() {
+    const qtd = Number(qtdQuestoesTotal);
+    if (!nome.trim() || !Number.isInteger(qtd) || qtd <= 0)
+      return setErro("Informe um nome e uma quantidade de questões válida");
+    setSalvando(true);
+    try {
+      if ([...prazos.values()].some((valor) => !valor)) return setErro("Defina o prazo de todas as turmas");
+      await api.atualizarLista(token, lista.id, {
+        nome: nome.trim(),
+        qtdQuestoesTotal: qtd,
+        prazos: [...prazos].map(([turmaId, valor]) => ({ turmaId, prazoEntregaFeedback: fimDoDiaIso(valor) })),
+      });
+      onSaved();
+      onClose();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível salvar a lista");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h4>Editar {lista.nome}</h4>
+      <p>Defina a quantidade de questões e o prazo de feedback de cada turma.</p>
+      <div className="field">
+        <label>Nome</label>
+        <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Lista 1" />
+      </div>
+      {turmas.map((turma) => (
+        <div className="field" key={turma.id}>
+          <label>Prazo — {turma.nome}</label>
+          <input type="date" value={prazos.get(turma.id) ?? ""} onChange={(e) => setPrazos((prev) => new Map(prev).set(turma.id, e.target.value))} />
+        </div>
+      ))}
+      <div className="field">
+        <label>Quantidade de questões</label>
+        <input
+          type="number"
+          min={1}
+          value={qtdQuestoesTotal}
+          onChange={(e) => setQtdQuestoesTotal(e.target.value)}
+        />
+      </div>
+      {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="btn primary" disabled={salvando} onClick={submit}>
+          Salvar
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function CriarLoginModal({
+  token,
+  monitor,
+  onClose,
+  onCreated,
+}: {
+  token: string;
+  monitor: Monitor;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function submit() {
+    if (!email.trim() || senha.length < 12)
+      return setErro("E-mail válido e senha de ao menos 12 caracteres são obrigatórios");
+    setSalvando(true);
+    try {
+      await api.criarContaChefe(token, { monitorId: monitor.id, email: email.trim(), senha });
+      onCreated();
+      onClose();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível criar o login");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h4>Criar login para {monitor.nome}</h4>
+      <p>Cria uma conta de acesso ao dashboard para este chefe de monitoria.</p>
+      <div className="field">
+        <label>E-mail institucional</label>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="nome@instituicao.edu.br" />
+      </div>
+      <div className="field">
+        <label>Senha (mínimo 12 caracteres)</label>
+        <input value={senha} onChange={(e) => setSenha(e.target.value)} type="password" />
+      </div>
+      {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="btn primary" disabled={salvando} onClick={submit}>
+          Criar login
         </button>
       </div>
     </Modal>

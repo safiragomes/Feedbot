@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { api, ApiError } from "../lib/api";
-import type { Bot, GrupoRevisao } from "../lib/types";
+import { api } from "../lib/api";
+import type { Bot, Periodo } from "../lib/types";
 import { IconCheck, IconRefresh, IconWhatsapp, IconX } from "../components/icons";
 import { Chip, Panel } from "../components/ui";
 
@@ -31,12 +31,12 @@ const EXEMPLO_CONVERSA: { from: "bot" | "user"; text: string }[] = [
 export function BotPage({
   token,
   bot,
-  grupos,
+  periodo,
   onReload,
 }: {
   token: string;
   bot: Bot | null;
-  grupos: GrupoRevisao[];
+  periodo: Periodo;
   onReload: () => Promise<void>;
 }) {
   const [erro, setErro] = useState("");
@@ -68,7 +68,7 @@ export function BotPage({
       await api.conectarBot(token);
       await onReload();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível conectar o bot");
+      setErro(error instanceof Error ? error.message : "Não foi possível conectar o bot");
     } finally {
       setCarregando(false);
     }
@@ -80,7 +80,7 @@ export function BotPage({
       await api.desconectarBot(token);
       await onReload();
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível desconectar o bot");
+      setErro(error instanceof Error ? error.message : "Não foi possível desconectar o bot");
     } finally {
       setCarregando(false);
     }
@@ -93,7 +93,7 @@ export function BotPage({
           <h1>Bot do WhatsApp</h1>
           <div className="subtitle">
             Pareie o número dedicado por QR code (Baileys, biblioteca multi-device não-oficial — ADR-0003) e
-            gerencie os grupos do WhatsApp por grupo de revisão.
+            vincule o espaço de Avisos da comunidade correspondente a cada período.
           </div>
         </div>
       </div>
@@ -172,7 +172,7 @@ export function BotPage({
           </div>
           <div className="info-row">
             <span className="l">Escopo do fluxo</span>
-            <span>conversas 1:1 monitor ↔ bot</span>
+            <span>ativação no grupo e preenchimento privado monitor ↔ bot</span>
           </div>
           <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600, marginTop: 14 }}>
             Como o pareamento não é oficial, a sessão pode cair e exigir um novo QR code sem aviso — use um número
@@ -181,8 +181,8 @@ export function BotPage({
         </Panel>
       </div>
 
-      <div className="section-divider">Grupos do WhatsApp por grupo de revisão</div>
-      <GruposWhatsapp token={token} grupos={grupos} conectado={status === "CONECTADO"} onReload={onReload} />
+      <div className="section-divider">Comunidade do período</div>
+      <ComunidadeWhatsapp token={token} periodo={periodo} conectado={status === "CONECTADO"} onReload={onReload} />
 
       <div className="section-divider">Exemplo do fluxo de conversa</div>
       <div className="phone">
@@ -205,117 +205,79 @@ export function BotPage({
   );
 }
 
-function GruposWhatsapp({
-  token,
-  grupos,
-  conectado,
-  onReload,
-}: {
-  token: string;
-  grupos: GrupoRevisao[];
-  conectado: boolean;
-  onReload: () => Promise<void>;
+function ComunidadeWhatsapp({ token, periodo, conectado, onReload }: {
+  token: string; periodo: Periodo; conectado: boolean; onReload: () => Promise<void>;
 }) {
-  const [valores, setValores] = useState<Record<string, string>>({});
+  const [valor, setValor] = useState("");
+  const [disponiveis, setDisponiveis] = useState<{ id: string; nome: string }[]>([]);
   const [erro, setErro] = useState("");
-  const [pendente, setPendente] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState("");
+  const [pendente, setPendente] = useState(false);
 
-  async function vincular(grupoId: string) {
-    const whatsappGrupoId = (valores[grupoId] ?? "").trim();
-    if (!whatsappGrupoId.endsWith("@g.us")) return setErro("O ID do grupo deve terminar em @g.us");
-    setErro("");
-    setPendente(grupoId);
+  async function carregarComunidades() {
+    if (!conectado) return;
     try {
-      await api.vincularGrupoWhatsapp(token, grupoId, whatsappGrupoId);
-      await onReload();
+      const atuais = await api.comunidadesWhatsappDisponiveis(token);
+      setDisponiveis(atuais);
+      setValor((anterior) => atuais.some((item) => item.id === anterior) ? anterior : "");
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível vincular o grupo");
-    } finally {
-      setPendente(null);
-    }
-  }
-  async function desvincular(grupoId: string) {
-    setErro("");
-    setPendente(grupoId);
-    try {
-      await api.desvincularGrupoWhatsapp(token, grupoId);
-      await onReload();
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível desvincular o grupo");
-    } finally {
-      setPendente(null);
+      setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
     }
   }
 
-  return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style={{ paddingLeft: 20 }}>Grupo de revisão</th>
-            <th>Grupo do WhatsApp</th>
-            <th style={{ paddingRight: 20 }}>Ação</th>
-          </tr>
-        </thead>
-        <tbody>
-          {grupos.map((g) => (
-            <tr key={g.id}>
-              <td style={{ paddingLeft: 20 }}>{g.nome}</td>
-              <td>
-                {g.whatsappGrupoId ? (
-                  <Chip tone="ok">{g.whatsappGrupoNome ?? g.whatsappGrupoId}</Chip>
-                ) : (
-                  <input
-                    style={{
-                      background: "var(--surface-2)",
-                      border: "1px solid var(--border-strong)",
-                      color: "var(--text)",
-                      borderRadius: "var(--r-sm)",
-                      padding: "6px 10px",
-                      fontSize: 12.5,
-                      width: 220,
-                    }}
-                    placeholder="12036...@g.us"
-                    disabled={!conectado}
-                    value={valores[g.id] ?? ""}
-                    onChange={(e) => setValores((prev) => ({ ...prev, [g.id]: e.target.value }))}
-                  />
-                )}
-              </td>
-              <td style={{ paddingRight: 20 }}>
-                {g.whatsappGrupoId ? (
-                  <button className="btn sm" disabled={pendente === g.id} onClick={() => desvincular(g.id)}>
-                    <IconX />
-                    Remover
-                  </button>
-                ) : (
-                  <button
-                    className="btn sm"
-                    disabled={!conectado || pendente === g.id}
-                    onClick={() => vincular(g.id)}
-                    title={conectado ? "" : "Conecte o bot para vincular um grupo"}
-                  >
-                    <IconCheck />
-                    Vincular
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {!grupos.length && (
-        <div className="empty">
-          <b>Nenhum grupo de revisão cadastrado</b>Crie grupos na tela de Gestão primeiro.
-        </div>
-      )}
-      {erro && <p className="error-banner" style={{ margin: 14 }}>{erro}</p>}
-      {!conectado && (
-        <p className="mono-cell" style={{ padding: "0 20px 16px" }}>
-          <IconRefresh style={{ verticalAlign: "middle", marginRight: 4 }} />O bot precisa estar conectado para
-          vincular novos grupos.
-        </p>
-      )}
-    </div>
-  );
+  useEffect(() => {
+    if (!conectado) return;
+    api.comunidadesWhatsappDisponiveis(token).then(setDisponiveis).catch((error) =>
+      setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades"));
+  }, [token, conectado]);
+
+  async function vincular() {
+    if (!valor) return setErro("Selecione uma comunidade");
+    setPendente(true); setErro(""); setSucesso("");
+    try { await api.vincularComunidadeWhatsapp(token, periodo.id, valor); await onReload(); }
+    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível vincular a comunidade"); }
+    finally { setPendente(false); }
+  }
+
+  async function desvincular() {
+    setPendente(true); setErro(""); setSucesso("");
+    try { await api.desvincularComunidadeWhatsapp(token, periodo.id); await onReload(); }
+    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível desvincular a comunidade"); }
+    finally { setPendente(false); }
+  }
+
+  async function reenviarLink() {
+    setPendente(true); setErro(""); setSucesso("");
+    try {
+      await api.enviarLinkComunidadeWhatsapp(token, periodo.id);
+      setSucesso("Link de acesso enviado em Avisos.");
+    }
+    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível enviar o link"); }
+    finally { setPendente(false); }
+  }
+
+  return <div className="table-wrap">
+    <p style={{ color: "var(--text-3)", padding: "0 20px 14px", fontSize: 12.5 }}>
+      Ao vincular, o Feedbot publica um acesso direto à conversa privada para os monitores iniciarem o registro com um toque.
+    </p>
+    <table><thead><tr><th style={{ paddingLeft: 20 }}>Período</th><th>Comunidade · Avisos</th><th>Ação</th></tr></thead>
+      <tbody><tr>
+        <td style={{ paddingLeft: 20 }}>{periodo.nome}</td>
+        <td>{periodo.whatsappAvisosId ? <Chip tone="ok">{periodo.whatsappComunidadeNome ?? "Comunidade vinculada"}</Chip> :
+          <select disabled={!conectado} value={valor} onFocus={() => void carregarComunidades()} onChange={(e) => setValor(e.target.value)}>
+            <option value="">Selecione uma comunidade…</option>
+            {disponiveis.map((d) => <option key={d.id} value={d.id}>{d.nome} · Avisos</option>)}
+          </select>}</td>
+        <td>{periodo.whatsappAvisosId ? <span style={{ display: "flex", gap: 8 }}>
+          <button className="btn sm" disabled={!conectado || pendente} onClick={reenviarLink}><IconCheck />Reenviar link</button>
+          <button className="btn sm" disabled={pendente} onClick={desvincular}><IconX />Remover</button>
+        </span> : <span style={{ display: "flex", gap: 8 }}>
+          <button className="btn sm" disabled={!conectado || pendente} onClick={vincular}><IconCheck />Vincular</button>
+          <button className="btn sm" disabled={!conectado || pendente} onClick={() => void carregarComunidades()}><IconRefresh />Atualizar</button>
+        </span>}</td>
+      </tr></tbody>
+    </table>
+    {erro && <p className="error-banner" style={{ margin: 14 }}>{erro}</p>}
+    {sucesso && <p style={{ color: "var(--sage)", margin: 14 }}>{sucesso}</p>}
+  </div>;
 }

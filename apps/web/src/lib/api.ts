@@ -1,5 +1,6 @@
 import type {
   Aluno,
+  Atraso,
   Bot,
   Chefe,
   Dupla,
@@ -8,6 +9,7 @@ import type {
   Lista,
   Monitor,
   Periodo,
+  PrazoListaItem,
   Turma,
 } from "./types";
 
@@ -18,14 +20,16 @@ export class ApiError extends Error {}
 async function request<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
+      "x-feedbot-client": "web",
+      ...(init?.body ? { "content-type": "application/json" } : {}),
       ...init?.headers,
     },
   });
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401 && token) window.dispatchEvent(new Event("feedbot:unauthorized"));
   if (!response.ok) throw new ApiError(body.message ?? "Falha na comunicação com a API");
   return body as T;
 }
@@ -33,12 +37,13 @@ async function request<T>(path: string, token: string, init?: RequestInit): Prom
 export async function login(email: string, senha: string) {
   const response = await fetch(`${base}/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    credentials: "include",
+    headers: { "content-type": "application/json", "x-feedbot-client": "web" },
     body: JSON.stringify({ email, senha }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(body.message ?? "Não foi possível entrar");
-  return body as { token: string; chefe: Chefe };
+  return body as { expiraEm: string; chefe: Chefe };
 }
 
 export function logout(token: string) {
@@ -51,6 +56,9 @@ function post<T>(path: string, token: string, data: unknown) {
 function patch<T>(path: string, token: string, data: unknown) {
   return request<T>(path, token, { method: "PATCH", body: JSON.stringify(data) });
 }
+function put<T>(path: string, token: string, data: unknown) {
+  return request<T>(path, token, { method: "PUT", body: JSON.stringify(data) });
+}
 function del(path: string, token: string) {
   return request<void>(path, token, { method: "DELETE" });
 }
@@ -59,10 +67,13 @@ export const api = {
   login,
   logout,
   periodos: (token: string) => request<Periodo[]>("/periodos", token),
+  criarPeriodo: (
+    token: string,
+    data: { nome: string; dataInicio: string; dataFim: string; dataReferenciaRodizio: string },
+  ) => post<Periodo>("/periodos", token, data),
+  excluirPeriodo: (token: string, id: string) => del(`/periodos/${id}`, token),
   turmas: (token: string, periodoId: string) =>
     request<Turma[]>(`/turmas?periodoId=${periodoId}`, token),
-  criarTurma: (token: string, data: { periodoId: string; nome: string; nomeAbaPlanilha: string }) =>
-    post<Turma>("/turmas", token, data),
 
   grupos: (token: string, periodoId: string) =>
     request<GrupoRevisao[]>(`/grupos-revisao?periodoId=${periodoId}`, token),
@@ -73,11 +84,8 @@ export const api = {
   duplas: (token: string) => request<Dupla[]>("/duplas", token),
   criarDupla: (token: string, data: { grupoRevisaoId: string; label: string }) =>
     post<Dupla>("/duplas", token, data),
-  atualizarDupla: (
-    token: string,
-    id: string,
-    data: { monitorSemanaAId?: string | null; monitorSemanaBId?: string | null; label?: string },
-  ) => patch<Dupla>(`/duplas/${id}`, token, data),
+  atualizarDupla: (token: string, id: string, data: { label?: string }) =>
+    patch<Dupla>(`/duplas/${id}`, token, data),
   excluirDupla: (token: string, id: string) => del(`/duplas/${id}`, token),
 
   monitores: (token: string, periodoId: string) =>
@@ -88,8 +96,8 @@ export const api = {
       nome: string;
       whatsappNumero: string;
       periodoId: string;
-      duplaId?: string | null;
       isChefe?: boolean;
+      duplaId?: string | null;
     },
   ) => post<Monitor>("/monitores", token, data),
   atualizarMonitor: (token: string, id: string, data: Record<string, unknown>) =>
@@ -106,22 +114,59 @@ export const api = {
       duplaId: string;
       isPcd?: boolean;
       qtdQuestoesMeta?: number | null;
+      monitorSemanaAId?: string | null;
     },
   ) => post<Aluno>("/alunos", token, data),
+  atualizarAluno: (token: string, id: string, data: { monitorSemanaAId?: string | null }) =>
+    patch<Aluno>(`/alunos/${id}`, token, data),
+  salvarPrazoAluno: (
+    token: string,
+    alunoId: string,
+    listaId: string,
+    prazoEntregaFeedback: string | null,
+  ) => put(`/alunos/${alunoId}/prazos-lista`, token, { listaId, prazoEntregaFeedback }),
   excluirAluno: (token: string, id: string) => del(`/alunos/${id}`, token),
 
   listas: (token: string, periodoId: string) =>
     request<Lista[]>(`/listas?periodoId=${periodoId}`, token),
+  atualizarLista: (
+    token: string,
+    id: string,
+    data: {
+      nome?: string;
+      qtdQuestoesTotal?: number;
+      semanaOverride?: "A" | "B" | null;
+      prazos?: { turmaId: string; prazoEntregaFeedback: string }[];
+    },
+  ) => patch<Lista>(`/listas/${id}`, token, data),
+
+  prazosLista: (token: string, turmaId: string) =>
+    request<PrazoListaItem[]>(`/prazos-lista?turmaId=${turmaId}`, token),
+  salvarPrazosLista: (
+    token: string,
+    turmaId: string,
+    prazos: { listaId: string; prazoEntregaFeedback: string }[],
+  ) => put<{ atualizados: number }>("/prazos-lista", token, { turmaId, prazos }),
 
   feedbacks: (token: string, periodoId: string) =>
     request<Feedback[]>(`/feedbacks?periodoId=${periodoId}`, token),
+  atrasos: (token: string, periodoId: string) =>
+    request<Atraso[]>(`/atrasos?periodoId=${periodoId}`, token),
   reprocessarPlanilha: (token: string, id: string) =>
     post(`/feedbacks/${id}/reprocessar-planilha`, token, {}),
 
   bot: (token: string) => request<Bot>("/bot", token),
   conectarBot: (token: string) => post("/bot/conectar", token, {}),
   desconectarBot: (token: string) => request<void>("/bot/desconectar", token, { method: "POST" }),
-  vincularGrupoWhatsapp: (token: string, grupoId: string, whatsappGrupoId: string) =>
-    post<GrupoRevisao>(`/bot/grupos/${grupoId}`, token, { whatsappGrupoId }),
-  desvincularGrupoWhatsapp: (token: string, grupoId: string) => del(`/bot/grupos/${grupoId}`, token),
+  comunidadesWhatsappDisponiveis: (token: string) =>
+    request<{ id: string; nome: string }[]>("/bot/comunidades-disponiveis", token),
+  vincularComunidadeWhatsapp: (token: string, periodoId: string, whatsappAvisosId: string) =>
+    put<Periodo>(`/bot/periodos/${periodoId}/comunidade`, token, { whatsappAvisosId }),
+  desvincularComunidadeWhatsapp: (token: string, periodoId: string) =>
+    del(`/bot/periodos/${periodoId}/comunidade`, token),
+  enviarLinkComunidadeWhatsapp: (token: string, periodoId: string) =>
+    post<{ link: string }>(`/bot/periodos/${periodoId}/enviar-link`, token, {}),
+
+  criarContaChefe: (token: string, data: { monitorId: string; email: string; senha: string }) =>
+    post<{ id: string; monitorId: string; email: string }>("/auth/contas", token, data),
 };

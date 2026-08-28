@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { api, ApiError } from "../lib/api";
+import { api } from "../lib/api";
 import type { Chefe } from "../lib/types";
+import { LogoMark } from "../components/Logo";
 
-export function Login({ onLogin }: { onLogin: (token: string, chefe: Chefe) => void }) {
+export function Login({ onLogin }: { onLogin: (chefe: Chefe) => void }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -13,10 +14,10 @@ export function Login({ onLogin }: { onLogin: (token: string, chefe: Chefe) => v
     setErro("");
     setEnviando(true);
     try {
-      const { token, chefe } = await api.login(email, senha);
-      onLogin(token, chefe);
+      const { chefe } = await api.login(email, senha);
+      onLogin(chefe);
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível entrar");
+      setErro(error instanceof Error ? error.message : "Não foi possível entrar");
     } finally {
       setEnviando(false);
     }
@@ -25,7 +26,9 @@ export function Login({ onLogin }: { onLogin: (token: string, chefe: Chefe) => v
   return (
     <main className="login">
       <div className="login-card">
-        <div className="mark">F</div>
+        <div className="mark">
+          <LogoMark size={22} />
+        </div>
         <h1>Feedbot</h1>
         <div className="subtitle">Monitoria de Introdução à Programação</div>
         <form onSubmit={submit}>

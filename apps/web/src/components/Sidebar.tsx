@@ -1,22 +1,14 @@
 import type { Chefe } from "../lib/types";
 import { initials } from "../lib/format";
-import { IconAluno, IconBot, IconGrid, IconLogout, IconMonitor, IconSearch } from "./icons";
+import { IconAluno, IconBot, IconGrid, IconLogout, IconSearch } from "./icons";
+import { LogoMark } from "./Logo";
 
-export type PageId =
-  | "alunos"
-  | "monitores"
-  | "diretorio-alunos"
-  | "diretorio-monitores"
-  | "gestao"
-  | "bot";
+export type PageId = "dashboard" | "diretorio-alunos" | "diretorio-monitores" | "gestao" | "bot";
 
 const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
   {
-    group: "Dashboards",
-    items: [
-      { id: "alunos", label: "Alunos", icon: <IconAluno /> },
-      { id: "monitores", label: "Monitores", icon: <IconMonitor /> },
-    ],
+    group: "",
+    items: [{ id: "dashboard", label: "Dashboard", icon: <IconAluno /> }],
   },
   {
     group: "Diretório",
@@ -49,15 +41,17 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="mark">F</div>
+        <div className="mark">
+          <LogoMark size={16} />
+        </div>
         <div className="brand-txt">
           <strong>Feedbot</strong>
           <span>Introdução à programação</span>
         </div>
       </div>
-      {NAV.map((section) => (
-        <div key={section.group}>
-          <div className="nav-group-label">{section.group}</div>
+      {NAV.map((section, index) => (
+        <div key={section.group || index}>
+          {section.group && <div className="nav-group-label">{section.group}</div>}
           {section.items.map((item) => (
             <button
               key={item.id}

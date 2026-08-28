@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./index.css";
-import { api, ApiError } from "./lib/api";
+import { api } from "./lib/api";
 import type {
   Aluno,
+  Atraso,
   Bot,
   Chefe,
   Dupla,
@@ -23,6 +24,7 @@ import { MonitoresDashboard } from "./pages/MonitoresDashboard";
 import { DiretorioAlunos, DiretorioMonitores } from "./pages/Diretorios";
 import { Gestao } from "./pages/Gestao";
 import { BotPage } from "./pages/Bot";
+import { solicitarRemocaoAluno } from "./lib/acoes";
 
 type DrawerState = { type: "aluno"; id: string } | { type: "monitor"; id: string } | null;
 
@@ -37,9 +39,13 @@ function loadChefe(): Chefe | null {
 }
 
 function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("feedbot-token") ?? "");
+  const [token, setToken] = useState(() => {
+    localStorage.removeItem("feedbot-token");
+    return loadChefe() ? "cookie-session" : "";
+  });
   const [chefe, setChefe] = useState<Chefe | null>(() => loadChefe());
-  const [page, setPage] = useState<PageId>("alunos");
+  const [page, setPage] = useState<PageId>("dashboard");
+  const [dashboardView, setDashboardView] = useState<"alunos" | "monitores">("alunos");
   const [periodoId, setPeriodoId] = useState("");
   const [erro, setErro] = useState("");
 
@@ -51,33 +57,54 @@ function App() {
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [listas, setListas] = useState<Lista[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [atrasos, setAtrasos] = useState<Atraso[]>([]);
   const [bot, setBot] = useState<Bot | null>(null);
 
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
 
+  // Ações no painel disparam `load()` em sequência rápida (ex.: escolher o papel de
+  // vários alunos seguidos, sem esperar o carregamento anterior terminar) — sem essa
+  // guarda, uma resposta mais antiga pode chegar depois de uma mais nova e sobrescrever
+  // o estado fresco com dados desatualizados (ex.: uma dupla "perde" os monitores que
+  // acabaram de ser vinculados). `loadRequestId` garante que só a última chamada em
+  // curso tem permissão de aplicar seu resultado ao estado.
+  const loadRequestId = useRef(0);
   const load = useCallback(async () => {
     if (!token) return;
+    const requestId = ++loadRequestId.current;
     try {
       const periodosResp = await api.periodos(token);
       const id = periodoId || periodosResp[0]?.id || "";
       if (!id) {
+        if (requestId !== loadRequestId.current) return;
         setPeriodos(periodosResp);
         setPeriodoId(id);
         setErro("");
         return;
       }
-      const [turmasResp, gruposResp, duplasResp, monitoresResp, alunosResp, listasResp, feedbacksResp, botResp] =
-        await Promise.all([
-          api.turmas(token, id),
-          api.grupos(token, id),
-          api.duplas(token),
-          api.monitores(token, id),
-          api.alunos(token),
-          api.listas(token, id),
-          api.feedbacks(token, id),
-          api.bot(token),
-        ]);
+      const [
+        turmasResp,
+        gruposResp,
+        duplasResp,
+        monitoresResp,
+        alunosResp,
+        listasResp,
+        feedbacksResp,
+        atrasosResp,
+        botResp,
+      ] = await Promise.all([
+        api.turmas(token, id),
+        api.grupos(token, id),
+        api.duplas(token),
+        api.monitores(token, id),
+        api.alunos(token),
+        api.listas(token, id),
+        api.feedbacks(token, id),
+        api.atrasos(token, id),
+        api.bot(token),
+      ]);
+      if (requestId !== loadRequestId.current) return;
       setPeriodos(periodosResp);
       setPeriodoId(id);
       setTurmas(turmasResp);
@@ -87,10 +114,12 @@ function App() {
       setAlunos(alunosResp.filter((a) => a.turma.periodoId === id));
       setListas(listasResp);
       setFeedbacks(feedbacksResp);
+      setAtrasos(atrasosResp);
       setBot(botResp);
       setErro("");
     } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Falha ao carregar dados");
+      if (requestId !== loadRequestId.current) return;
+      setErro(error instanceof Error ? error.message : "Falha ao carregar dados");
     }
   }, [token, periodoId]);
 
@@ -101,10 +130,21 @@ function App() {
     void load();
   }, [load]);
 
-  function handleLogin(newToken: string, newChefe: Chefe) {
-    localStorage.setItem("feedbot-token", newToken);
+  useEffect(() => {
+    const encerrarSessaoInvalida = () => {
+      localStorage.removeItem("feedbot-token");
+      localStorage.removeItem("feedbot-chefe");
+      setToken("");
+      setChefe(null);
+      setPeriodoId("");
+    };
+    window.addEventListener("feedbot:unauthorized", encerrarSessaoInvalida);
+    return () => window.removeEventListener("feedbot:unauthorized", encerrarSessaoInvalida);
+  }, []);
+
+  function handleLogin(newChefe: Chefe) {
     localStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
-    setToken(newToken);
+    setToken("cookie-session");
     setChefe(newChefe);
   }
   function handleLogout() {
@@ -123,29 +163,76 @@ function App() {
   if (!token) return <Login onLogin={handleLogin} />;
 
   const alunoAberto = drawer?.type === "aluno" ? alunos.find((a) => a.id === drawer.id) : undefined;
-  const monitorAberto = drawer?.type === "monitor" ? monitores.find((m) => m.id === drawer.id) : undefined;
+  const monitorAberto =
+    drawer?.type === "monitor" ? monitores.find((m) => m.id === drawer.id) : undefined;
 
   return (
     <div className="app">
       <Sidebar page={page} onNavigate={setPage} chefe={chefe} onLogout={handleLogout} />
       <div className="main">
-        <Topbar periodos={periodos} periodoId={periodoId} onChangePeriodo={handleChangePeriodo} />
+        <Topbar
+          token={token}
+          periodos={periodos}
+          periodoId={periodoId}
+          onChangePeriodo={handleChangePeriodo}
+          onCriado={handleChangePeriodo}
+        />
         <div className="content">
           {erro && <div className="error-banner">{erro}</div>}
-          {page === "alunos" && (
-            <AlunosDashboard alunos={alunos} grupos={grupos} listas={listas} feedbacks={feedbacks} />
-          )}
-          {page === "monitores" && (
-            <MonitoresDashboard grupos={grupos} duplas={duplas} listas={listas} feedbacks={feedbacks} />
+          {page === "dashboard" && (
+            <>
+              <div className="filterbar" style={{ width: "fit-content", padding: 6 }}>
+                <button
+                  className={`btn sm${dashboardView === "alunos" ? " primary" : " ghost"}`}
+                  onClick={() => setDashboardView("alunos")}
+                >
+                  Alunos
+                </button>
+                <button
+                  className={`btn sm${dashboardView === "monitores" ? " primary" : " ghost"}`}
+                  onClick={() => setDashboardView("monitores")}
+                >
+                  Monitores
+                </button>
+              </div>
+              {dashboardView === "alunos" ? (
+                <AlunosDashboard
+                  alunos={alunos}
+                  grupos={grupos}
+                  listas={listas}
+                  feedbacks={feedbacks}
+                />
+              ) : (
+                <MonitoresDashboard
+                  grupos={grupos}
+                  duplas={duplas}
+                  listas={listas}
+                  feedbacks={feedbacks}
+                  atrasos={atrasos}
+                />
+              )}
+            </>
           )}
           {page === "diretorio-alunos" && (
-            <DiretorioAlunos alunos={alunos} grupos={grupos} onOpenAluno={(id) => setDrawer({ type: "aluno", id })} />
+            <DiretorioAlunos
+              token={token}
+              alunos={alunos}
+              grupos={grupos}
+              onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
+              onReload={load}
+              onRequestConfirm={setConfirm}
+            />
           )}
           {page === "diretorio-monitores" && (
             <DiretorioMonitores
+              token={token}
               monitores={monitores}
               grupos={grupos}
+              duplas={duplas}
+              alunos={alunos}
               onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
+              onReload={load}
+              onRequestConfirm={setConfirm}
             />
           )}
           {page === "gestao" && (
@@ -157,11 +244,19 @@ function App() {
               monitores={monitores}
               alunos={alunos}
               turmas={turmas}
+              listas={listas}
               onReload={load}
               onRequestConfirm={setConfirm}
             />
           )}
-          {page === "bot" && <BotPage token={token} bot={bot} grupos={grupos} onReload={load} />}
+          {page === "bot" && (
+            <BotPage
+              token={token}
+              bot={bot}
+              periodo={periodos.find((p) => p.id === periodoId)!}
+              onReload={load}
+            />
+          )}
         </div>
       </div>
 
@@ -169,19 +264,22 @@ function App() {
         <AlunoDrawer
           aluno={alunoAberto}
           grupos={grupos}
+          duplas={duplas}
           feedbacks={feedbacks}
           listas={listas}
+          token={token}
+          onReload={load}
           onClose={() => setDrawer(null)}
           onRequestRemove={() =>
-            setConfirm({
-              title: `Remover ${alunoAberto.nome}?`,
-              message: "O aluno será removido do acompanhamento deste período.",
-              confirmLabel: "Remover",
-              onConfirm: async () => {
-                await api.excluirAluno(token, alunoAberto.id);
+            solicitarRemocaoAluno({
+              aluno: alunoAberto,
+              token,
+              onRequestConfirm: setConfirm,
+              onReload: async () => {
                 setDrawer(null);
                 await load();
               },
+              onErro: setErro,
             })
           }
         />
@@ -189,25 +287,14 @@ function App() {
       {monitorAberto && (
         <MonitorDrawer
           monitor={monitorAberto}
+          alunos={alunos}
+          duplas={duplas}
           feedbacks={feedbacks}
           listas={listas}
+          token={token}
           onClose={() => setDrawer(null)}
-          onRequestRemove={() => {
-            if (!monitorAberto.dupla) return;
-            const semana = monitorAberto.dupla.monitorSemanaAId === monitorAberto.id ? "A" : "B";
-            setConfirm({
-              title: "Remover monitor?",
-              message: `O monitor da semana ${semana} será removido desta dupla. Você pode vincular outro monitor depois.`,
-              confirmLabel: "Remover",
-              onConfirm: async () => {
-                await api.atualizarDupla(token, monitorAberto.dupla!.id, {
-                  [semana === "A" ? "monitorSemanaAId" : "monitorSemanaBId"]: null,
-                });
-                setDrawer(null);
-                await load();
-              },
-            });
-          }}
+          onReload={load}
+          onErro={setErro}
         />
       )}
       {confirm && <ConfirmModal request={confirm} onClose={() => setConfirm(null)} />}
