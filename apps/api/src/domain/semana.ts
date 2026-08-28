@@ -1,36 +1,15 @@
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function toUtcMidnight(date: Date): number {
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-}
-
-function trueMod(n: number, m: number): number {
-  return ((n % m) + m) % m;
-}
-
 export interface CalcularSemanaParams {
-  hoje: Date;
-  dataReferenciaRodizio: Date;
+  posicaoLista: number;
   semanaOverride?: "A" | "B" | null;
 }
 
 /**
- * Espelha a fórmula da spec mestra § 2.2:
- * semana = lista.semana_override OR (FLOOR(DATEDIFF(hoje, data_referencia_rodizio) / 7) % 2 == 0 ? 'A' : 'B')
+ * A semana A/B é definida pela posição da lista na ordem do período, não pela
+ * data: Lista 1 é sempre do monitor da semana A, Lista 2 da semana B, Lista 3
+ * da semana A, e assim por diante (posição ímpar = A, par = B). `semanaOverride`
+ * permite ao chefe forçar a semana de uma lista específica quando necessário.
  */
-export function calcularSemana({
-  hoje,
-  dataReferenciaRodizio,
-  semanaOverride,
-}: CalcularSemanaParams): "A" | "B" {
-  if (semanaOverride) {
-    return semanaOverride;
-  }
-
-  const diffDias = Math.floor(
-    (toUtcMidnight(hoje) - toUtcMidnight(dataReferenciaRodizio)) / MS_PER_DAY,
-  );
-  const semanaIndex = trueMod(Math.floor(diffDias / 7), 2);
-
-  return semanaIndex === 0 ? "A" : "B";
+export function calcularSemana({ posicaoLista, semanaOverride }: CalcularSemanaParams): "A" | "B" {
+  if (semanaOverride) return semanaOverride;
+  return posicaoLista % 2 === 1 ? "A" : "B";
 }

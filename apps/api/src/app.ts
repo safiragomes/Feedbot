@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
@@ -16,11 +17,24 @@ import { GoogleSheetsSync } from "./services/google-sheets.js";
 export function buildApp(
   options: { prisma?: PrismaClient; bot?: WhatsAppBot; sheets?: GoogleSheetsSync } = {},
 ) {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, bodyLimit: 1024 * 1024 });
+
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply
+      .header("cache-control", "no-store")
+      .header("x-content-type-options", "nosniff")
+      .header("x-frame-options", "DENY")
+      .header("referrer-policy", "no-referrer")
+      .header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    return payload;
+  });
 
   app.register(cors, {
     origin: process.env["WEB_ORIGIN"]?.split(",") ?? ["http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
   });
+  app.register(cookie);
   app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   app.register(sensible);
   app.register(healthRoutes);
@@ -42,7 +56,21 @@ export function buildApp(
         message: "Operação incompatível com os dados relacionados",
       });
     }
-    return reply.send(error);
+    // Deliberate 4xx errors (reply.badRequest/unauthorized/notFound/conflict) carry a safe,
+    // intentional message — only mask genuinely unexpected failures to avoid leaking internals.
+    const statusCode =
+      error && typeof error === "object" && "statusCode" in error
+        ? (error as { statusCode?: unknown }).statusCode
+        : undefined;
+    if (typeof statusCode === "number" && statusCode < 500) {
+      return reply.send(error);
+    }
+    console.error(error);
+    return reply.code(500).send({
+      statusCode: 500,
+      error: "Internal Server Error",
+      message: "Erro inesperado no servidor",
+    });
   });
 
   return app;

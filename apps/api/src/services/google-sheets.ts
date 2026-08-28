@@ -8,6 +8,10 @@ function colunaA1(index: number) {
   return result;
 }
 
+function abaA1(nome: string) {
+  return nome.replaceAll("'", "''");
+}
+
 export class GoogleSheetsSync {
   private readonly spreadsheetId = process.env["GOOGLE_SHEETS_ID"];
   private readonly credentialsJson = process.env["GOOGLE_SERVICE_ACCOUNT_JSON"];
@@ -55,12 +59,14 @@ export class GoogleSheetsSync {
               },
             })
           )?.colunaQuestoesCorretas;
+      if (coluna && !/^[A-Z]{1,3}$/.test(coluna)) coluna = undefined;
+      const aba = abaA1(feedback.aluno.turma.nomeAbaPlanilha);
       if (!coluna) {
         const headers =
           (
             await sheets.spreadsheets.values.get({
               spreadsheetId: this.spreadsheetId,
-              range: `'${feedback.aluno.turma.nomeAbaPlanilha}'!1:3`,
+              range: `'${aba}'!1:3`,
             })
           ).data.values ?? [];
         let bloco = "";
@@ -94,7 +100,7 @@ export class GoogleSheetsSync {
         (
           await sheets.spreadsheets.values.get({
             spreadsheetId: this.spreadsheetId,
-            range: `'${feedback.aluno.turma.nomeAbaPlanilha}'!B:B`,
+            range: `'${aba}'!B:B`,
           })
         ).data.values ?? [];
       const linha =
@@ -102,7 +108,7 @@ export class GoogleSheetsSync {
       if (!linha) throw new Error(`Matrícula ${feedback.aluno.matricula} não encontrada na aba`);
       await sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `'${feedback.aluno.turma.nomeAbaPlanilha}'!${coluna}${linha}`,
+        range: `'${aba}'!${coluna}${linha}`,
         valueInputOption: "USER_ENTERED",
         requestBody: { values: [[feedback.qtdQuestoesPontuadas]] },
       });

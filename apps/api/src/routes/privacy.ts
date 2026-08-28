@@ -30,27 +30,4 @@ export function privacyRoutes(app: FastifyInstance, prisma: PrismaClient) {
     });
     return reply.code(204).send();
   });
-  app.get("/privacidade/monitores/:id", protectedRoute, async (request, reply) => {
-    const monitor = await prisma.monitor.findUnique({
-      where: request.params as { id: string },
-      include: { dupla: true, feedbacksRegistrados: { include: { lista: true, aluno: true } } },
-    });
-    return monitor ?? reply.notFound("Monitor não encontrado");
-  });
-  app.delete("/privacidade/monitores/:id", protectedRoute, async (request, reply) => {
-    const id = (request.params as { id: string }).id;
-    await prisma.$transaction(async (tx) => {
-      await tx.contaChefe.deleteMany({ where: { monitorId: id } });
-      await tx.monitor.update({
-        where: { id },
-        data: {
-          nome: `Monitor removido (${id.slice(-6)})`,
-          whatsappNumero: `REMOVIDO-${id}`,
-          status: "INATIVO",
-          duplaId: null,
-        },
-      });
-    });
-    return reply.code(204).send();
-  });
 }

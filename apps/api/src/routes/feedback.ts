@@ -3,6 +3,7 @@ import type { PrismaClient } from "../generated/prisma/client.js";
 import { requireChief } from "../auth/require-chief.js";
 import { criarFeedback, type NovoFeedback } from "../services/feedback.js";
 import { GoogleSheetsSync } from "../services/google-sheets.js";
+import { buscarPendenciasAtrasadas } from "../services/atrasos.js";
 
 export function feedbackRoutes(
   app: FastifyInstance,
@@ -11,23 +12,40 @@ export function feedbackRoutes(
 ) {
   const protectedRoute = { preHandler: requireChief(prisma) };
 
+  app.get("/atrasos", protectedRoute, async (request) => {
+    const periodoId = (request.query as { periodoId?: string }).periodoId;
+    const pendencias = await buscarPendenciasAtrasadas(prisma);
+    if (!periodoId) return pendencias;
+    const listas = await prisma.lista.findMany({ where: { periodoId }, select: { id: true } });
+    const ids = new Set(listas.map((l) => l.id));
+    return pendencias.filter((p) => ids.has(p.listaId));
+  });
+
   app.get("/feedbacks", protectedRoute, async (request) => {
     const query = request.query as { periodoId?: string; sincronizado?: string };
-    return prisma.feedback.findMany({
+    const feedbacks = await prisma.feedback.findMany({
       where: {
         ...(query.periodoId ? { lista: { periodoId: query.periodoId } } : {}),
         ...(query.sincronizado === "false" ? { sincronizadoPlanilha: false } : {}),
       },
       include: {
-        aluno: { include: { turma: true } },
+        aluno: { include: { turma: true, prazosIndividuais: true } },
         monitor: true,
-        lista: true,
+        lista: { include: { prazos: true } },
         questoesIa: true,
         questoesPlagio: { include: { alunoEnvolvido: true } },
         questoesProibicao: true,
       },
       orderBy: { criadoEm: "desc" },
     });
+    return feedbacks.map(({ lista: { prazos, ...lista }, ...feedback }) => ({
+      ...feedback,
+      lista,
+      prazoEntregaFeedback:
+        feedback.aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback.toISOString() ??
+        prazos.find((p) => p.turmaId === feedback.aluno.turmaId)?.prazoEntregaFeedback.toISOString() ??
+        null,
+    }));
   });
 
   app.post("/feedbacks", protectedRoute, async (request, reply) => {

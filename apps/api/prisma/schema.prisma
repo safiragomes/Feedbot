@@ -1,8 +1,10 @@
 // Schema derivado de docs/specs/modelo-dados.md (ver esse documento para as decisões de modelagem).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
@@ -32,6 +34,8 @@ model Periodo {
   dataFim               DateTime
   dataReferenciaRodizio DateTime
   ativo                 Boolean  @default(true)
+  whatsappAvisosId      String?  @unique
+  whatsappComunidadeNome String?
 
   turmas        Turma[]
   gruposRevisao GrupoRevisao[]
@@ -50,6 +54,7 @@ model Turma {
   periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
   alunos                   Aluno[]
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
+  prazos                   PrazoLista[]
 
   @@unique([periodoId, nome])
 }
@@ -70,38 +75,35 @@ model GrupoRevisao {
 }
 
 model Dupla {
-  id               String  @id @default(cuid())
-  grupoRevisaoId   String
-  monitorSemanaAId String?
-  monitorSemanaBId String?
-  label            String
+  id             String @id @default(cuid())
+  grupoRevisaoId String
+  label          String
 
-  grupoRevisao   GrupoRevisao @relation(fields: [grupoRevisaoId], references: [id])
-  monitorSemanaA Monitor?     @relation("DuplaMonitorSemanaA", fields: [monitorSemanaAId], references: [id])
-  monitorSemanaB Monitor?     @relation("DuplaMonitorSemanaB", fields: [monitorSemanaBId], references: [id])
-  monitores      Monitor[]    @relation("DuplaMonitores")
-  alunos         Aluno[]
-  feedbacks      Feedback[]
+  grupoRevisao GrupoRevisao @relation(fields: [grupoRevisaoId], references: [id], onDelete: Cascade)
+  alunos       Aluno[]
+  monitores    Monitor[]
+  feedbacks    Feedback[]
 
-  @@unique([monitorSemanaAId])
-  @@unique([monitorSemanaBId])
   @@unique([grupoRevisaoId, label])
 }
 
+/// Um monitor pertence a no máximo uma dupla (a "dupla de monitores" que atende os
+/// alunos dela); esse teto de 2 monitores por dupla é validado pela API de gestão,
+/// não pelo schema. Para cada aluno da dupla, um dos dois é escolhido como monitor
+/// da semana A (Aluno.monitorSemanaAId) — o outro é implicitamente o da semana B.
 model Monitor {
   id             String        @id @default(cuid())
   nome           String
   whatsappNumero String        @unique
   isChefe        Boolean       @default(false)
-  duplaId        String?
   periodoId      String
+  duplaId        String?
   status         MonitorStatus @default(ATIVO)
 
   periodo              Periodo        @relation(fields: [periodoId], references: [id])
-  dupla                Dupla?         @relation("DuplaMonitores", fields: [duplaId], references: [id])
+  dupla                Dupla?         @relation(fields: [duplaId], references: [id], onDelete: SetNull)
   gruposComoChefe      GrupoRevisao[] @relation("GrupoRevisaoChefe")
-  duplaComoMonitorA    Dupla?         @relation("DuplaMonitorSemanaA")
-  duplaComoMonitorB    Dupla?         @relation("DuplaMonitorSemanaB")
+  alunosComoMonitorA   Aluno[]        @relation("AlunoMonitorSemanaA")
   feedbacksRegistrados Feedback[]
   contaChefe           ContaChefe?
 }
@@ -116,17 +118,17 @@ model ContaChefe {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  monitor  Monitor       @relation(fields: [monitorId], references: [id])
-  sessoes  SessaoChefe[]
+  monitor Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  sessoes SessaoChefe[]
 }
 
 /// Sessões revogáveis, armazenando somente o hash do token enviado ao cliente.
 model SessaoChefe {
-  id            String   @id @default(cuid())
-  contaChefeId  String
-  tokenHash     String   @unique
-  expiraEm      DateTime
-  criadoEm      DateTime @default(now())
+  id           String   @id @default(cuid())
+  contaChefeId String
+  tokenHash    String   @unique
+  expiraEm     DateTime
+  criadoEm     DateTime @default(now())
 
   contaChefe ContaChefe @relation(fields: [contaChefeId], references: [id], onDelete: Cascade)
 
@@ -135,33 +137,85 @@ model SessaoChefe {
 }
 
 model Aluno {
-  id              String  @id @default(cuid())
-  nome            String
-  matricula       String  @unique
-  turmaId         String
-  duplaId         String
-  isPcd           Boolean @default(false)
-  qtdQuestoesMeta Int?
+  id               String  @id @default(cuid())
+  nome             String
+  matricula        String  @unique
+  turmaId          String
+  duplaId          String
+  isPcd            Boolean @default(false)
+  qtdQuestoesMeta  Int?
+  monitorSemanaAId String?
 
   turma                      Turma                   @relation(fields: [turmaId], references: [id])
-  dupla                      Dupla                   @relation(fields: [duplaId], references: [id])
+  dupla                      Dupla                   @relation(fields: [duplaId], references: [id], onDelete: Cascade)
+  monitorSemanaA             Monitor?                @relation("AlunoMonitorSemanaA", fields: [monitorSemanaAId], references: [id], onDelete: SetNull)
   feedbacks                  Feedback[]
   ocorrenciasPlagioEnvolvido FeedbackQuestaoPlagio[]
+  prazosIndividuais          PrazoAlunoLista[]
+  lembretesAtraso            LembreteAtraso[]
 }
 
 model Lista {
-  id                   String   @id @default(cuid())
-  periodoId            String
-  nome                 String
-  qtdQuestoesTotal     Int
-  prazoEntregaFeedback DateTime
-  semanaOverride       Semana?
+  id               String   @id @default(cuid())
+  periodoId        String
+  nome             String
+  qtdQuestoesTotal Int
+  ordem            Int
+  semanaOverride   Semana?
 
   periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
   feedbacks                Feedback[]
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
+  prazos                   PrazoLista[]
+  prazosIndividuais        PrazoAlunoLista[]
+  lembretesAtraso          LembreteAtraso[]
 
   @@unique([periodoId, nome])
+  @@unique([periodoId, ordem])
+}
+
+/// Prazo de entrega de feedback por lista × turma — a mesma Lista (mesmo nome/ordem)
+/// vale para todas as turmas do período, mas cada turma pode ter um prazo diferente.
+/// Uma linha só existe depois que um chefe define o prazo daquela turma para aquela
+/// lista; até lá, o par (lista, turma) fica sem prazo configurado (tratado como
+/// "sem prazo" pela aplicação, não como erro).
+model PrazoLista {
+  id                   String   @id @default(cuid())
+  listaId              String
+  turmaId              String
+  prazoEntregaFeedback DateTime
+
+  lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)
+  turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+
+  @@unique([listaId, turmaId])
+}
+
+/// Exceção ao prazo da turma para um aluno específico. Quando existe, este é o
+/// prazo efetivo usado tanto nos indicadores quanto nos lembretes do WhatsApp.
+model PrazoAlunoLista {
+  id                   String   @id @default(cuid())
+  alunoId              String
+  listaId              String
+  prazoEntregaFeedback DateTime
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)
+
+  @@unique([alunoId, listaId])
+}
+
+/// Impede que o mesmo atraso gere um lembrete a cada execução do verificador.
+model LembreteAtraso {
+  id        String   @id @default(cuid())
+  alunoId   String
+  listaId   String
+  enviadoEm DateTime @default(now())
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)
+
+  @@unique([alunoId, listaId])
 }
 
 model Feedback {
@@ -179,14 +233,15 @@ model Feedback {
   sincronizadoPlanilha Boolean  @default(false)
   atualizadoEm         DateTime @updatedAt
 
-  aluno             Aluno                      @relation(fields: [alunoId], references: [id])
-  monitor           Monitor                    @relation(fields: [monitorId], references: [id])
+  aluno             Aluno                      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  monitor           Monitor                    @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   lista             Lista                      @relation(fields: [listaId], references: [id])
-  dupla             Dupla                      @relation(fields: [duplaId], references: [id])
+  dupla             Dupla                      @relation(fields: [duplaId], references: [id], onDelete: Cascade)
   questoesIa        FeedbackQuestaoIA[]
   questoesPlagio    FeedbackQuestaoPlagio[]
   questoesProibicao FeedbackQuestaoProibicao[]
 
+  @@unique([alunoId, listaId])
   @@index([alunoId])
   @@index([monitorId])
   @@index([listaId])
@@ -209,7 +264,7 @@ model FeedbackQuestaoPlagio {
   alunoEnvolvidoId String
 
   feedback       Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
-  alunoEnvolvido Aluno    @relation(fields: [alunoEnvolvidoId], references: [id])
+  alunoEnvolvido Aluno    @relation(fields: [alunoEnvolvidoId], references: [id], onDelete: Cascade)
 
   @@unique([feedbackId, numeroQuestao, alunoEnvolvidoId])
 }

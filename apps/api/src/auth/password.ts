@@ -22,6 +22,13 @@ export function newSessionToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
+export function timingSafeEqualString(a: string, b: string): boolean {
+  const bufferA = Buffer.from(a);
+  const bufferB = Buffer.from(b);
+  if (bufferA.length !== bufferB.length) return false;
+  return timingSafeEqual(bufferA, bufferB);
+}
+
 export async function hashToken(token: string): Promise<string> {
   const key = (await scrypt(token, "feedbot-session-token", KEY_LENGTH)) as Buffer;
   return key.toString("hex");

@@ -14,31 +14,36 @@ export function botRoutes(app: FastifyInstance, prisma: PrismaClient, bot: Whats
     await bot.desconectar();
     return reply.code(204).send();
   });
-  app.post("/bot/grupos/:id", protectedRoute, async (request, reply) => {
-    const whatsappGrupoId = (request.body as { whatsappGrupoId?: unknown }).whatsappGrupoId;
-    if (typeof whatsappGrupoId !== "string" || !whatsappGrupoId.endsWith("@g.us"))
-      return reply.badRequest("ID de grupo do WhatsApp inválido");
+  app.get("/bot/comunidades-disponiveis", protectedRoute, async (_request, reply) => {
     try {
-      const whatsappGrupoNome = await bot.nomeDoGrupo(whatsappGrupoId);
-      return reply
-        .code(200)
-        .send(
-          await prisma.grupoRevisao.update({
-            where: request.params as { id: string },
-            data: { whatsappGrupoId, whatsappGrupoNome },
-          }),
-        );
+      return await bot.comunidadesDisponiveis();
     } catch (error) {
-      return reply.badRequest(
-        error instanceof Error ? error.message : "Não foi possível validar o grupo",
-      );
+      return reply.badRequest(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
     }
   });
-  app.delete("/bot/grupos/:id", protectedRoute, async (request, reply) => {
-    await prisma.grupoRevisao.update({
+  app.put("/bot/periodos/:id/comunidade", protectedRoute, async (request, reply) => {
+    const periodoId = (request.params as { id: string }).id;
+    const whatsappAvisosId = (request.body as { whatsappAvisosId?: unknown }).whatsappAvisosId;
+    if (typeof whatsappAvisosId !== "string") return reply.badRequest("Selecione uma comunidade");
+    const disponiveis = await bot.comunidadesDisponiveis();
+    const comunidade = disponiveis.find((item) => item.id === whatsappAvisosId);
+    if (!comunidade) return reply.badRequest("A comunidade não existe mais ou o Feedbot não participa dos Avisos");
+    await bot.enviarLinkDeAcesso(whatsappAvisosId);
+    return prisma.periodo.update({
+      where: { id: periodoId },
+      data: { whatsappAvisosId, whatsappComunidadeNome: comunidade.nome },
+    });
+  });
+  app.delete("/bot/periodos/:id/comunidade", protectedRoute, async (request, reply) => {
+    await prisma.periodo.update({
       where: request.params as { id: string },
-      data: { whatsappGrupoId: null, whatsappGrupoNome: null },
+      data: { whatsappAvisosId: null, whatsappComunidadeNome: null },
     });
     return reply.code(204).send();
+  });
+  app.post("/bot/periodos/:id/enviar-link", protectedRoute, async (request, reply) => {
+    const periodo = await prisma.periodo.findUnique({ where: request.params as { id: string } });
+    if (!periodo?.whatsappAvisosId) return reply.badRequest("O período não está vinculado a uma comunidade");
+    return bot.enviarLinkDeAcesso(periodo.whatsappAvisosId);
   });
 }
