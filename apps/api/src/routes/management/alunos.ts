@@ -34,11 +34,11 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const nome = parseText(body.nome);
     const matricula = parseText(body.matricula);
     const turmaId = parseText(body.turmaId);
-    const duplaId = parseText(body.duplaId);
+    const duplaId = body.duplaId == null ? null : (parseText(body.duplaId) ?? null);
     const qtdQuestoesMeta = parseOptionalPositiveInteger(body.qtdQuestoesMeta);
     const monitorSemanaAId =
       body.monitorSemanaAId === null ? null : parseText(body.monitorSemanaAId);
-    if (!nome || !matricula || !turmaId || !duplaId || qtdQuestoesMeta === undefined)
+    if (!nome || !matricula || !turmaId || qtdQuestoesMeta === undefined)
       return reply.badRequest("Dados do aluno inválidos");
     try {
       await validarVinculosAluno(prisma, turmaId, duplaId);
@@ -66,7 +66,12 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const aluno = await prisma.aluno.findUnique({ where: request.params as IdParams });
     if (!aluno) return reply.notFound();
     const turmaId = body.turmaId === undefined ? aluno.turmaId : parseText(body.turmaId);
-    const duplaId = body.duplaId === undefined ? aluno.duplaId : parseText(body.duplaId);
+    const duplaId =
+      body.duplaId === undefined
+        ? aluno.duplaId
+        : body.duplaId === null
+          ? null
+          : (parseText(body.duplaId) ?? null);
     const qtdQuestoesMeta =
       body.qtdQuestoesMeta === undefined
         ? undefined
@@ -79,7 +84,6 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
           : parseText(body.monitorSemanaAId);
     if (
       !turmaId ||
-      !duplaId ||
       (body.qtdQuestoesMeta !== undefined && qtdQuestoesMeta === undefined) ||
       (body.monitorSemanaAId !== undefined && monitorSemanaAId === undefined)
     )

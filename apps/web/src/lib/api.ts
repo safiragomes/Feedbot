@@ -3,12 +3,14 @@ import type {
   Atraso,
   Bot,
   Chefe,
+  ConfiguracaoPlanilha,
   Dupla,
   Feedback,
   GrupoRevisao,
   Lista,
   Monitor,
   Periodo,
+  PreviaImportacaoAlunos,
   PrazoListaItem,
   Turma,
 } from "./types";
@@ -72,6 +74,26 @@ export const api = {
     data: { nome: string; dataInicio: string; dataFim: string; dataReferenciaRodizio: string },
   ) => post<Periodo>("/periodos", token, data),
   excluirPeriodo: (token: string, id: string) => del(`/periodos/${id}`, token),
+  configuracaoPlanilha: (token: string) =>
+    request<ConfiguracaoPlanilha>("/planilha/configuracao", token),
+  urlConectarGoogle: () => `${base}/google/oauth/iniciar`,
+  desconectarGoogle: (token: string) => del("/google/oauth/conexao", token),
+  vincularPlanilha: (token: string, periodoId: string, url: string) =>
+    put<{ periodo: Periodo; titulo: string; abas: string[]; emailServico: string | null }>(
+      `/periodos/${periodoId}/planilha`,
+      token,
+      { url },
+    ),
+  desvincularPlanilha: (token: string, periodoId: string) =>
+    del(`/periodos/${periodoId}/planilha`, token),
+  previaAlunosPlanilha: (token: string, periodoId: string) =>
+    request<PreviaImportacaoAlunos>(`/periodos/${periodoId}/planilha/alunos/previa`, token),
+  importarAlunosPlanilha: (token: string, periodoId: string) =>
+    post<{ criados: number; ignorados: number }>(
+      `/periodos/${periodoId}/planilha/alunos/importar`,
+      token,
+      {},
+    ),
   turmas: (token: string, periodoId: string) =>
     request<Turma[]>(`/turmas?periodoId=${periodoId}`, token),
 
@@ -111,14 +133,17 @@ export const api = {
       nome: string;
       matricula: string;
       turmaId: string;
-      duplaId: string;
+      duplaId?: string | null;
       isPcd?: boolean;
       qtdQuestoesMeta?: number | null;
       monitorSemanaAId?: string | null;
     },
   ) => post<Aluno>("/alunos", token, data),
-  atualizarAluno: (token: string, id: string, data: { monitorSemanaAId?: string | null }) =>
-    patch<Aluno>(`/alunos/${id}`, token, data),
+  atualizarAluno: (
+    token: string,
+    id: string,
+    data: { duplaId?: string | null; isPcd?: boolean; monitorSemanaAId?: string | null },
+  ) => patch<Aluno>(`/alunos/${id}`, token, data),
   salvarPrazoAluno: (
     token: string,
     alunoId: string,

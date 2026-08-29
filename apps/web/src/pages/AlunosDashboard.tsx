@@ -37,7 +37,7 @@ export function AlunosDashboard({
       alunos.filter(
         (a) =>
           (!turma || a.turma.nome === turma) &&
-          (!grupoId || a.dupla.grupoRevisaoId === grupoId) &&
+          (!grupoId || a.dupla?.grupoRevisaoId === grupoId) &&
           (!duplaId || a.duplaId === duplaId),
       ),
     [alunos, turma, grupoId, duplaId],

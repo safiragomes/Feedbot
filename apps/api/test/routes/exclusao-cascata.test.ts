@@ -35,10 +35,18 @@ describe("DELETE /grupos-revisao/:id", () => {
       data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
     });
     const conta = await prisma.contaChefe.create({
-      data: { monitorId: chefe.id, email: `chefe-${sufixo}@teste.dev`, senhaHash: await hashPassword("senha-de-teste-1234") },
+      data: {
+        monitorId: chefe.id,
+        email: `chefe-${sufixo}@teste.dev`,
+        senhaHash: await hashPassword("senha-de-teste-1234"),
+      },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const grupo = await prisma.grupoRevisao.create({
@@ -46,11 +54,18 @@ describe("DELETE /grupos-revisao/:id", () => {
     });
     grupoId = grupo.id;
 
-    const dupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 1" } });
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
     duplaId = dupla.id;
 
     const monitor = await prisma.monitor.create({
-      data: { nome: "Monitor da dupla", whatsappNumero: `+55${sufixo}1`, periodoId, duplaId: dupla.id },
+      data: {
+        nome: "Monitor da dupla",
+        whatsappNumero: `+55${sufixo}1`,
+        periodoId,
+        duplaId: dupla.id,
+      },
     });
     monitorId = monitor.id;
 
@@ -69,7 +84,9 @@ describe("DELETE /grupos-revisao/:id", () => {
     // — Feedback.duplaId é um retrato de quando o feedback foi criado, não acompanha
     // Aluno.duplaId depois. A dupla original (com o feedback "órfão" apontando pra
     // ela) precisa continuar cascateando quando o grupo inteiro é apagado.
-    const outraDupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 2" } });
+    const outraDupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 2" },
+    });
     const alunoMovido = await prisma.aluno.create({
       data: {
         nome: "Aluno que trocou de dupla",
@@ -93,7 +110,10 @@ describe("DELETE /grupos-revisao/:id", () => {
       listaId: lista.id,
       qtdQuestoesPontuadas: 4,
     });
-    await prisma.aluno.update({ where: { id: alunoMovido.id }, data: { duplaId: outraDupla.id, monitorSemanaAId: null } });
+    await prisma.aluno.update({
+      where: { id: alunoMovido.id },
+      data: { duplaId: outraDupla.id, monitorSemanaAId: null },
+    });
   });
 
   afterAll(async () => {
@@ -107,7 +127,7 @@ describe("DELETE /grupos-revisao/:id", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("apaga o grupo em cascata (duplas e alunos), mas só desvincula os monitores em vez de apagá-los", async () => {
+  it("apaga o grupo e as duplas, mas preserva alunos e monitores sem dupla", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/grupos-revisao/${grupoId}`,
@@ -117,7 +137,9 @@ describe("DELETE /grupos-revisao/:id", () => {
 
     expect(await prisma.grupoRevisao.findUnique({ where: { id: grupoId } })).toBeNull();
     expect(await prisma.dupla.findUnique({ where: { id: duplaId } })).toBeNull();
-    expect(await prisma.aluno.findUnique({ where: { id: alunoId } })).toBeNull();
+    const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });
+    expect(aluno?.duplaId).toBeNull();
+    expect(aluno?.monitorSemanaAId).toBeNull();
 
     const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
     expect(monitor).not.toBeNull();
@@ -158,21 +180,37 @@ describe("DELETE /monitores/:id", () => {
       data: { nome: "Chefe da sessão", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
     });
     const conta = await prisma.contaChefe.create({
-      data: { monitorId: chefeSessao.id, email: `chefe-${sufixo}@teste.dev`, senhaHash: await hashPassword("senha-de-teste-1234") },
+      data: {
+        monitorId: chefeSessao.id,
+        email: `chefe-${sufixo}@teste.dev`,
+        senhaHash: await hashPassword("senha-de-teste-1234"),
+      },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const grupo = await prisma.grupoRevisao.create({
       data: { periodoId, chefeId: chefeSessao.id, nome: "Grupo teste" },
     });
-    const dupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 1" } });
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
 
     // Monitor a remover: também é chefe, com conta/login própria (deve cascatear
     // junto), e já tem feedback registrado (o que antes bloqueava a exclusão).
     const monitorRemovido = await prisma.monitor.create({
-      data: { nome: "Monitor a remover", whatsappNumero: `+55${sufixo}1`, isChefe: true, periodoId, duplaId: dupla.id },
+      data: {
+        nome: "Monitor a remover",
+        whatsappNumero: `+55${sufixo}1`,
+        isChefe: true,
+        periodoId,
+        duplaId: dupla.id,
+      },
     });
     monitorRemovidoId = monitorRemovido.id;
     await prisma.contaChefe.create({
@@ -234,7 +272,9 @@ describe("DELETE /monitores/:id", () => {
 
     expect(await prisma.monitor.findUnique({ where: { id: monitorRemovidoId } })).toBeNull();
     expect(await prisma.feedback.findUnique({ where: { id: feedbackId } })).toBeNull();
-    expect(await prisma.contaChefe.findFirst({ where: { monitorId: monitorRemovidoId } })).toBeNull();
+    expect(
+      await prisma.contaChefe.findFirst({ where: { monitorId: monitorRemovidoId } }),
+    ).toBeNull();
 
     // O aluno continua existindo — só perde a atribuição de monitor da semana A.
     const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });

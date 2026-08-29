@@ -56,6 +56,7 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     prisma.lista.findUnique({ where: { id: entrada.listaId } }),
   ]);
   if (!aluno || !monitor || !lista) throw new Error("Aluno, monitor ou lista não encontrado");
+  if (!aluno.duplaId) throw new Error("Atribua o aluno a uma dupla antes de registrar feedback");
   if (aluno.turma.periodoId !== lista.periodoId)
     throw new Error("Aluno e lista devem pertencer ao mesmo período");
   if (monitor.periodoId !== lista.periodoId)
@@ -95,7 +96,11 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
 
   const posicaoLista = await posicaoDaLista(prisma, lista.id, lista.periodoId);
   const semana = calcularSemana({ posicaoLista, semanaOverride: lista.semanaOverride });
-  const monitorEsperado = await monitorEsperadoDaSemana(prisma, aluno, semana);
+  const monitorEsperado = await monitorEsperadoDaSemana(
+    prisma,
+    { duplaId: aluno.duplaId, monitorSemanaAId: aluno.monitorSemanaAId },
+    semana,
+  );
   if (monitorEsperado !== monitor.id) {
     throw new Error(
       `Esta lista é da semana ${semana} deste aluno, responsabilidade de outro monitor`,

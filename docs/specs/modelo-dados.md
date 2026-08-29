@@ -10,7 +10,8 @@ O schema Prisma (`apps/api/prisma/schema.prisma`) implementa 1:1 o ERD da seçã
 
 - **1 monitor = 1 dupla por período** (§ 2.2) — `Monitor.duplaId` é a FK canônica. Não é reforçada por constraint de banco (um monitor pode, em tese, não ter dupla ainda — chefes sem dupla própria); é responsabilidade da camada de aplicação (Fase 1) validar a regra ao vincular monitores, inclusive o teto de 2 monitores por dupla.
 - **Semana A/B é escolhida por aluno, não pela dupla toda** — dentro de uma dupla (até 2 monitores), cada aluno tem seu próprio `Aluno.monitorSemanaAId`, que deve ser um dos (até 2) monitores da dupla do próprio aluno. O monitor da semana B nunca é armazenado: é sempre "o outro monitor da dupla", calculado em tempo de leitura (`apps/api/src/services/feedback.ts`, `apps/api/src/services/whatsapp-bot.ts`). Isso permite que, dentro da mesma dupla, um monitor seja semana A para alguns alunos e semana B para outros.
-- **PCD não implica cálculo de nota** (§ 2.2) — `Aluno.isPcd` e `Aluno.qtdQuestoesMeta` são apenas informativos; nenhuma lógica de nota vive no banco.
+- **PCD/ND preserva acertos reais** (§ 2.2) — `Feedback.qtdQuestoesPontuadas` guarda o valor bruto;
+  a equivalência de 75% é calculada somente ao enviar ao Sheets.
 - **Cálculo de semana A/B** (§ 2.2) — não é responsabilidade do schema. É uma função pura (`apps/api/src/domain/semana.ts`), testada isoladamente (ver task "TDD: cálculo de semana A/B"). O schema só armazena o resultado já calculado em `Feedback.semana` (snapshot no momento do registro) e o `Lista.semanaOverride` que alimenta o cálculo.
 - **Cada Turma tem exatamente uma aba própria na planilha** (§ 2.2) — não modelado como constraint separada; decorre de `Turma.nomeAbaPlanilha` ser um campo simples da própria turma (não uma tabela de mapeamento turma↔aba).
 
@@ -29,6 +30,8 @@ O schema Prisma (`apps/api/prisma/schema.prisma`) implementa 1:1 o ERD da seçã
 
 - Chefe sem dupla própria → `Monitor.duplaId` nullable (spec § 2.1 já prevê).
 - Dupla recém-criada sem monitores, ou aluno ainda sem escolha de semana A → `Monitor.duplaId`/`Aluno.monitorSemanaAId` nullable (estado "vago" do protótipo); nesse caso a semana B também fica indefinida, já que depende de A estar resolvida.
+- Aluno importado ainda sem distribuição → `Aluno.duplaId` nullable. Ele pode aparecer na gestão,
+  mas não participa do fluxo de feedback ou de lembretes até receber uma dupla.
 - `Lista.semanaOverride` nulo → cálculo automático via `data_referencia_rodizio` do período.
 - `PrazoLista` sem linha para um par (lista, turma) → prazo ainda não configurado; tratado como `null` pela aplicação (o dashboard exclui esses feedbacks das estatísticas de atraso em vez de contá-los como atrasados).
 - `MapeamentoPlanilhaLista.colunaQuestoesCorretas` nulo → ainda não resolvido por busca de header; resolvido sob demanda (Fase 3).

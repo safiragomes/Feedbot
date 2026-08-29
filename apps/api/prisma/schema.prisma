@@ -36,6 +36,9 @@ model Periodo {
   ativo                  Boolean  @default(true)
   whatsappAvisosId       String?  @unique
   whatsappComunidadeNome String?
+  planilhaId              String?
+  planilhaUrl             String?
+  planilhaVinculadaEm     DateTime?
 
   turmas        Turma[]
   gruposRevisao GrupoRevisao[]
@@ -43,6 +46,14 @@ model Periodo {
   listas        Lista[]
 
   @@unique([nome])
+}
+
+model ConexaoGoogle {
+  id                       String   @id @default("principal")
+  email                    String
+  refreshTokenCriptografado String
+  conectadoEm              DateTime @default(now())
+  atualizadoEm             DateTime @updatedAt
 }
 
 model Turma {
@@ -142,13 +153,13 @@ model Aluno {
   nome             String
   matricula        String  @unique
   turmaId          String
-  duplaId          String
+  duplaId          String?
   isPcd            Boolean @default(false)
   qtdQuestoesMeta  Int?
   monitorSemanaAId String?
 
   turma                      Turma                   @relation(fields: [turmaId], references: [id])
-  dupla                      Dupla                   @relation(fields: [duplaId], references: [id], onDelete: Cascade)
+  dupla                      Dupla?                  @relation(fields: [duplaId], references: [id], onDelete: SetNull)
   monitorSemanaA             Monitor?                @relation("AlunoMonitorSemanaA", fields: [monitorSemanaAId], references: [id], onDelete: SetNull)
   feedbacks                  Feedback[]
   ocorrenciasPlagioEnvolvido FeedbackQuestaoPlagio[]

@@ -171,7 +171,14 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     });
   });
   app.delete("/grupos-revisao/:id", protectedRoute, async (request, reply) => {
-    await prisma.grupoRevisao.delete({ where: request.params as IdParams });
+    const { id } = request.params as IdParams;
+    await prisma.$transaction([
+      prisma.aluno.updateMany({
+        where: { dupla: { grupoRevisaoId: id } },
+        data: { monitorSemanaAId: null },
+      }),
+      prisma.grupoRevisao.delete({ where: { id } }),
+    ]);
     return reply.code(204).send();
   });
 
@@ -202,7 +209,11 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     return prisma.dupla.update({ where: request.params as IdParams, data: { label } });
   });
   app.delete("/duplas/:id", protectedRoute, async (request, reply) => {
-    await prisma.dupla.delete({ where: request.params as IdParams });
+    const { id } = request.params as IdParams;
+    await prisma.$transaction([
+      prisma.aluno.updateMany({ where: { duplaId: id }, data: { monitorSemanaAId: null } }),
+      prisma.dupla.delete({ where: { id } }),
+    ]);
     return reply.code(204).send();
   });
 

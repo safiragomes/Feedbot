@@ -13,11 +13,23 @@ import { managementRoutes } from "./routes/management.js";
 import { privacyRoutes } from "./routes/privacy.js";
 import { WhatsAppBot } from "./services/whatsapp-bot.js";
 import { GoogleSheetsSync } from "./services/google-sheets.js";
+import { planilhaRoutes } from "./routes/planilha.js";
+import { googleOAuthRoutes } from "./routes/google-oauth.js";
+import { ambienteProducao, confiarNoProxy, webOrigins } from "./config/runtime.js";
 
 export function buildApp(
   options: { prisma?: PrismaClient; bot?: WhatsAppBot; sheets?: GoogleSheetsSync } = {},
 ) {
-  const app = Fastify({ logger: false, bodyLimit: 1024 * 1024 });
+  const app = Fastify({
+    bodyLimit: 1024 * 1024,
+    trustProxy: confiarNoProxy(),
+    logger: ambienteProducao()
+      ? {
+          level: "info",
+          redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
+        }
+      : false,
+  });
 
   app.addHook("onSend", async (_request, reply, payload) => {
     reply
@@ -25,12 +37,16 @@ export function buildApp(
       .header("x-content-type-options", "nosniff")
       .header("x-frame-options", "DENY")
       .header("referrer-policy", "no-referrer")
-      .header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+      .header("permissions-policy", "camera=(), microphone=(), geolocation=()")
+      .header("content-security-policy", "default-src 'none'; frame-ancestors 'none'")
+      .header("cross-origin-resource-policy", "same-site");
+    if (ambienteProducao())
+      reply.header("strict-transport-security", "max-age=31536000; includeSubDomains");
     return payload;
   });
 
   app.register(cors, {
-    origin: process.env["WEB_ORIGIN"]?.split(",") ?? ["http://localhost:5173"],
+    origin: webOrigins(),
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   });
@@ -42,7 +58,10 @@ export function buildApp(
     app.register(authRoutes, options.prisma);
     app.register(managementRoutes, options.prisma);
     app.register(privacyRoutes, options.prisma);
-    feedbackRoutes(app, options.prisma, options.sheets ?? new GoogleSheetsSync());
+    const sheets = options.sheets ?? new GoogleSheetsSync();
+    feedbackRoutes(app, options.prisma, sheets);
+    planilhaRoutes(app, options.prisma, sheets);
+    googleOAuthRoutes(app, options.prisma);
     if (options.bot) botRoutes(app, options.prisma, options.bot);
   }
   app.setErrorHandler((error, _request, reply) => {

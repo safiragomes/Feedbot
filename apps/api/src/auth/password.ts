@@ -1,8 +1,19 @@
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  scrypt as scryptCallback,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { promisify } from "node:util";
 
 const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 64;
+export const DUMMY_PASSWORD_HASH = `scrypt$feedbot-dummy-salt$${scryptSync(
+  "senha-inexistente",
+  "feedbot-dummy-salt",
+  KEY_LENGTH,
+).toString("hex")}`;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
@@ -30,6 +41,5 @@ export function timingSafeEqualString(a: string, b: string): boolean {
 }
 
 export async function hashToken(token: string): Promise<string> {
-  const key = (await scrypt(token, "feedbot-session-token", KEY_LENGTH)) as Buffer;
-  return key.toString("hex");
+  return createHash("sha256").update(token, "utf8").digest("hex");
 }

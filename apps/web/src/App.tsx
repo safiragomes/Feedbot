@@ -24,6 +24,7 @@ import { MonitoresDashboard } from "./pages/MonitoresDashboard";
 import { DiretorioAlunos, DiretorioMonitores } from "./pages/Diretorios";
 import { Gestao } from "./pages/Gestao";
 import { BotPage } from "./pages/Bot";
+import { PlanilhaPage } from "./pages/Planilha";
 import { solicitarRemocaoAluno } from "./lib/acoes";
 
 type DrawerState = { type: "aluno"; id: string } | { type: "monitor"; id: string } | null;
@@ -259,6 +260,16 @@ function App() {
               bot={bot}
               periodo={periodos.find((p) => p.id === periodoId)!}
               onReload={load}
+            />
+          )}
+          {page === "planilha" && periodos.find((p) => p.id === periodoId) && (
+            <PlanilhaPage
+              key={periodoId}
+              token={token}
+              periodo={periodos.find((p) => p.id === periodoId)!}
+              turmas={turmas}
+              onReload={load}
+              onRequestConfirm={setConfirm}
             />
           )}
         </div>

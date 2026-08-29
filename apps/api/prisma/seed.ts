@@ -209,7 +209,11 @@ async function main() {
       // (i cicla por todas as duplas antes de repetir uma — usa a "rodada" em vez de
       // i diretamente, senão todo aluno de uma mesma dupla cairia sempre do mesmo lado.)
       const rodada = Math.floor(i / duplas.length);
-      const monitorSemanaAId = membros ? (rodada % 2 === 0 ? membros.m1Id : membros.m2Id) : undefined;
+      const monitorSemanaAId = membros
+        ? rodada % 2 === 0
+          ? membros.m1Id
+          : membros.m2Id
+        : undefined;
 
       return prisma.aluno.create({
         data: {
@@ -244,7 +248,10 @@ async function main() {
   await Promise.all(
     listas.flatMap((lista, listaIndex) =>
       turmas.map(async (turma, turmaIndex) => {
-        const prazoEntregaFeedback = addDias(dataReferenciaRodizio, 7 * listaIndex + 6 + turmaIndex * 2);
+        const prazoEntregaFeedback = addDias(
+          dataReferenciaRodizio,
+          7 * listaIndex + 6 + turmaIndex * 2,
+        );
         await prisma.prazoLista.create({
           data: { listaId: lista.id, turmaId: turma.id, prazoEntregaFeedback },
         });
@@ -270,7 +277,7 @@ async function gerarFeedbacks({
 }: {
   alunos: {
     id: string;
-    duplaId: string;
+    duplaId: string | null;
     turmaId: string;
     monitorSemanaAId: string | null;
   }[];
@@ -281,9 +288,14 @@ async function gerarFeedbacks({
   let total = 0;
 
   for (const [alunoIndex, aluno] of alunos.entries()) {
+    if (!aluno.duplaId) continue;
     const entregues = 3 + (alunoIndex % 4);
 
-    for (let listaIndex = 0; listaIndex < entregues && listaIndex < listas.length; listaIndex += 1) {
+    for (
+      let listaIndex = 0;
+      listaIndex < entregues && listaIndex < listas.length;
+      listaIndex += 1
+    ) {
       const lista = listas[listaIndex]!;
       const seed = (alunoIndex * 31 + listaIndex * 17) % 100;
       const semana = calcularSemana({ posicaoLista: listaIndex + 1 });
@@ -303,15 +315,27 @@ async function gerarFeedbacks({
       const noPrazo = seed % 5 !== 0;
 
       const questoesIa = usouIa
-        ? [...new Set([(seed % QTD_QUESTOES_PADRAO) + 1, ...(seed % 3 === 0 ? [((seed * 2) % QTD_QUESTOES_PADRAO) + 1] : [])])]
+        ? [
+            ...new Set([
+              (seed % QTD_QUESTOES_PADRAO) + 1,
+              ...(seed % 3 === 0 ? [((seed * 2) % QTD_QUESTOES_PADRAO) + 1] : []),
+            ]),
+          ]
         : [];
       const questoesProibicao = usouProibicao
-        ? [...new Set([((seed * 3) % QTD_QUESTOES_PADRAO) + 1, ...(seed % 4 === 0 ? [((seed * 5) % QTD_QUESTOES_PADRAO) + 1] : [])])]
+        ? [
+            ...new Set([
+              ((seed * 3) % QTD_QUESTOES_PADRAO) + 1,
+              ...(seed % 4 === 0 ? [((seed * 5) % QTD_QUESTOES_PADRAO) + 1] : []),
+            ]),
+          ]
         : [];
       const parceiros = alunos.filter((a) => a.id !== aluno.id && a.duplaId === aluno.duplaId);
       const envolvido = parceiros.length ? parceiros[seed % parceiros.length] : undefined;
       const questoesPlagio =
-        plagiou && envolvido ? [{ numeroQuestao: (seed % QTD_QUESTOES_PADRAO) + 1, alunoEnvolvidoId: envolvido.id }] : [];
+        plagiou && envolvido
+          ? [{ numeroQuestao: (seed % QTD_QUESTOES_PADRAO) + 1, alunoEnvolvidoId: envolvido.id }]
+          : [];
 
       const qtdQuestoesPontuadas = Array.from({ length: QTD_QUESTOES_PADRAO }, (_, qi) => {
         const roll = ((seed * 7 + qi * 53 + listaIndex * 11) % 100) / 100;
@@ -337,7 +361,9 @@ async function gerarFeedbacks({
           criadoEm,
           questoesIa: { create: questoesIa.map((numeroQuestao) => ({ numeroQuestao })) },
           questoesPlagio: { create: questoesPlagio },
-          questoesProibicao: { create: questoesProibicao.map((numeroQuestao) => ({ numeroQuestao })) },
+          questoesProibicao: {
+            create: questoesProibicao.map((numeroQuestao) => ({ numeroQuestao })),
+          },
         },
       });
       total += 1;

@@ -40,13 +40,19 @@ describe("POST /alunos", () => {
       },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const grupo = await prisma.grupoRevisao.create({
       data: { periodoId, chefeId: chefe.id, nome: "Grupo teste" },
     });
-    const dupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 1" } });
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
     duplaId = dupla.id;
   });
 
@@ -70,6 +76,17 @@ describe("POST /alunos", () => {
     });
     expect(response.statusCode).toBe(201);
     expect(response.json().qtdQuestoesMeta).toBeNull();
+  });
+
+  it("permite pré-cadastrar aluno sem dupla", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/alunos",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { nome: "Aluno sem dupla", matricula: `SEM-DUPLA-${sufixo}`, turmaId },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().duplaId).toBeNull();
   });
 
   it("continua recusando qtdQuestoesMeta explicitamente inválido", async () => {

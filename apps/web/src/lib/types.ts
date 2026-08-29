@@ -7,6 +7,35 @@ export type Periodo = {
   ativo: boolean;
   whatsappAvisosId: string | null;
   whatsappComunidadeNome: string | null;
+  planilhaId: string | null;
+  planilhaUrl: string | null;
+  planilhaVinculadaEm: string | null;
+};
+
+export type ConfiguracaoPlanilha = {
+  credencialConfigurada: boolean;
+  email: string | null;
+  tipo: "oauth" | "servico" | null;
+  oauthConfigurado: boolean;
+};
+
+export type ItemPreviaImportacaoAluno = {
+  turmaId: string;
+  turmaNome: string;
+  linha: number;
+  matricula: string;
+  nome: string;
+  status: "novo" | "cadastrado" | "invalido" | "duplicado" | "conflito";
+  motivo?: string;
+};
+
+export type PreviaImportacaoAlunos = {
+  itens: ItemPreviaImportacaoAluno[];
+  resumo: {
+    novos: number;
+    cadastrados: number;
+    invalidos: number;
+  };
 };
 
 export type Turma = {
@@ -53,12 +82,12 @@ export type Aluno = {
   nome: string;
   matricula: string;
   turmaId: string;
-  duplaId: string;
+  duplaId: string | null;
   isPcd: boolean;
   qtdQuestoesMeta: number | null;
   monitorSemanaAId: string | null;
   turma: Turma;
-  dupla: Dupla;
+  dupla: Dupla | null;
   monitorSemanaA?: Monitor | null;
   prazosIndividuais: { listaId: string; prazoEntregaFeedback: string }[];
 };
@@ -113,8 +142,14 @@ export type Bot = {
 };
 
 export type Atraso = {
-  alunoId: string; alunoNome: string; listaId: string; listaNome: string;
-  monitorId: string; monitorNome: string; duplaId: string; prazoEntregaFeedback: string;
+  alunoId: string;
+  alunoNome: string;
+  listaId: string;
+  listaNome: string;
+  monitorId: string;
+  monitorNome: string;
+  duplaId: string;
+  prazoEntregaFeedback: string;
 };
 
 export type Chefe = { id: string; nome: string; email: string };

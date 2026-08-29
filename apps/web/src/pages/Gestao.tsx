@@ -78,7 +78,7 @@ export function Gestao({
     onRequestConfirm({
       title: `Excluir ${grupo.nome}?`,
       message: gd.length
-        ? `Isso também apaga ${gd.length} dupla(s) e ${qtdAlunos} aluno(s) vinculados, e todo o histórico de feedback deles. Os monitores não são excluídos, só ficam sem dupla. Esta ação não pode ser desfeita.`
+        ? `Isso também apaga ${gd.length} dupla(s) e o histórico ligado a elas. ${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla. Esta ação não pode ser desfeita.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir grupo",
       onConfirm: () => run(() => api.excluirGrupo(token, grupo.id)),
@@ -89,7 +89,7 @@ export function Gestao({
     onRequestConfirm({
       title: "Excluir dupla?",
       message: qtdAlunos
-        ? `Isso também apaga ${qtdAlunos} aluno(s) vinculados e todo o histórico de feedback deles. Os monitores não são excluídos, só ficam sem dupla. Esta ação não pode ser desfeita.`
+        ? `O histórico ligado à dupla será apagado. ${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla. Esta ação não pode ser desfeita.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir dupla",
       onConfirm: () => run(() => api.excluirDupla(token, dupla.id)),
@@ -232,7 +232,7 @@ export function Gestao({
       <div className="grupo-grid">
         {grupos.map((grupo) => {
           const gd = duplas.filter((d) => d.grupoRevisaoId === grupo.id);
-          const qtdAlunos = alunos.filter((a) => a.dupla.grupoRevisaoId === grupo.id).length;
+          const qtdAlunos = alunos.filter((a) => a.dupla?.grupoRevisaoId === grupo.id).length;
           const aberto = abertos.has(grupo.id);
           return (
             <div key={grupo.id} className={`grupo-card${aberto ? " open" : ""}`}>

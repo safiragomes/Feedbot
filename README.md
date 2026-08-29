@@ -2,6 +2,17 @@
 
 Bot de WhatsApp + dashboard para a monitoria de Introdução à Programação registrar o resultado da correção de listas e escrever automaticamente na planilha oficial. Ver `monitoria-especificacao.md` (spec mestra), `politica-privacidade.md` e `plano-desenvolvimento.md` (roteiro de fases).
 
+## Integração com Google Sheets
+
+O servidor recebe uma credencial OAuth de aplicação web (`GOOGLE_OAUTH_CLIENT_ID`,
+`GOOGLE_OAUTH_CLIENT_SECRET` e `GOOGLE_OAUTH_REDIRECT_URI`). Pela tela **Gestão → Planilha**, o
+chefe conecta uma conta Google, autoriza acesso offline e vincula a planilha de cada período. O
+refresh token é persistido criptografado com `GOOGLE_TOKEN_ENCRYPTION_KEY` (32 bytes em base64).
+
+O Feedbot valida as abas `Notas Interno CCIA`, `Notas Interno EC` e `Notas Interno SI`, localiza o
+aluno pela matrícula e escreve exclusivamente na coluna **Questões corretas** da lista. As colunas
+de nota e suas fórmulas não são alteradas.
+
 ## Requisitos
 
 - Node.js 22+ (ver `.nvmrc`)

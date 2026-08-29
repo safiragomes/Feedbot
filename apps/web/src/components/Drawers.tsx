@@ -28,9 +28,10 @@ export function AlunoDrawer({
   onRequestRemove: () => void;
 }) {
   const [salvandoPrazo, setSalvandoPrazo] = useState<string | null>(null);
+  const [salvandoCondicao, setSalvandoCondicao] = useState(false);
   const [prazosEditados, setPrazosEditados] = useState(new Map<string, string>());
   const afb = feedbacks.filter((f) => f.alunoId === aluno.id);
-  const grupoNome = grupos.find((g) => g.id === aluno.dupla.grupoRevisaoId)?.nome ?? "—";
+  const grupoNome = grupos.find((g) => g.id === aluno.dupla?.grupoRevisaoId)?.nome ?? "—";
   const monitoresDupla = duplas.find((d) => d.id === aluno.duplaId)?.monitores ?? [];
   const monitorB = monitorSemanaB(monitoresDupla, aluno.monitorSemanaAId);
 
@@ -59,7 +60,44 @@ export function AlunoDrawer({
       <div className="drawer-section">
         <h5>Vínculo</h5>
         <MiniRow label="Grupo de revisão">{grupoNome}</MiniRow>
-        <MiniRow label="Dupla">{aluno.dupla.label}</MiniRow>
+        <MiniRow label="Dupla">
+          <select
+            value={aluno.duplaId ?? ""}
+            onChange={async (event) => {
+              await api.atualizarAluno(token, aluno.id, {
+                duplaId: event.target.value || null,
+                monitorSemanaAId: null,
+              });
+              await onReload();
+            }}
+          >
+            <option value="">não atribuída</option>
+            {duplas.map((dupla) => (
+              <option key={dupla.id} value={dupla.id}>
+                {dupla.label}
+              </option>
+            ))}
+          </select>
+        </MiniRow>
+        <MiniRow label="Condição especial">
+          <label className="special-condition-toggle">
+            <input
+              type="checkbox"
+              checked={aluno.isPcd}
+              disabled={salvandoCondicao}
+              onChange={async (event) => {
+                setSalvandoCondicao(true);
+                try {
+                  await api.atualizarAluno(token, aluno.id, { isPcd: event.target.checked });
+                  await onReload();
+                } finally {
+                  setSalvandoCondicao(false);
+                }
+              }}
+            />
+            PCD/ND · meta de 75%
+          </label>
+        </MiniRow>
         <MiniRow label="Monitor semana A">{aluno.monitorSemanaA?.nome ?? "não atribuído"}</MiniRow>
         <MiniRow label="Monitor semana B">{monitorB?.nome ?? "não atribuído"}</MiniRow>
         <MiniRow label="Listas entregues">

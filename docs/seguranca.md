@@ -5,6 +5,8 @@
 - Todas as rotas administrativas exigem sessão revogável de um monitor-chefe ativo.
 - Login e bootstrap possuem limitação de tentativas; senhas usam `scrypt` com salt.
 - Tokens são aleatórios, armazenados no banco somente como hash e expiram em 12 horas.
+- O hash de sessão usa SHA-256 sobre tokens aleatórios de 256 bits; senhas continuam usando
+  `scrypt`. O login executa trabalho equivalente mesmo quando o e-mail não existe.
 - O navegador recebe a sessão em cookie `HttpOnly`, `SameSite=Strict` e `Secure` em
   produção; o token não é exposto ao JavaScript nem salvo em `localStorage`.
 - Alterações autenticadas por cookie exigem um cabeçalho próprio, como defesa adicional
@@ -13,12 +15,16 @@
 - Entradas HTTP, CSV e ocorrências de feedback têm limites de tamanho.
 - Relações de aluno, monitor, lista, turma e plágio são validadas por período.
 - Respostas da API usam `no-store` e cabeçalhos defensivos.
+- CORS aceita somente origens exatas; CSP bloqueia conteúdo, frames e recursos na API.
+- Refresh tokens Google usam AES-256-GCM e têm formato/chave validados antes do uso.
+- Logs de produção ocultam cookies e cabeçalhos de autorização.
 - O PostgreSQL do Compose é publicado somente em `127.0.0.1`.
 - Credenciais da sessão do WhatsApp ficam fora do Git e o diretório usa permissão `0700`.
 
 ## Checklist de produção
 
 1. Use HTTPS em um proxy reverso e não publique PostgreSQL ou o diretório do Baileys.
+   Defina `TRUST_PROXY=true` somente quando o acesso direto à API estiver bloqueado.
 2. Defina `DATABASE_URL`, `AUTH_BOOTSTRAP_SECRET`, `WEB_ORIGIN` e credenciais Google por
    um gerenciador de segredos; nunca reutilize os valores de exemplo.
 3. Execute migrations antes de iniciar a API e mantenha backups criptografados testados.

@@ -614,13 +614,20 @@ export class WhatsAppBot {
           ),
           questoesProibicao: conversa.proibicao,
         });
-        if (this.sheets.configurado())
-          void this.sheets.sincronizarFeedback(this.prisma, feedback.id);
+        let mensagemPlanilha = "";
+        try {
+          await this.sheets.sincronizarFeedback(this.prisma, feedback.id);
+          mensagemPlanilha = "Questões corretas enviadas para a planilha ✅";
+        } catch (error) {
+          mensagemPlanilha = `Feedback salvo, mas a planilha não foi atualizada: ${
+            error instanceof Error ? error.message : "falha desconhecida"
+          }.`;
+        }
         this.conversas.delete(chave);
         return this.enviar(
           socket,
           jid,
-          "Registrado ✅ A sincronização com a planilha será processada automaticamente. Envie Registrar feedback para iniciar outro registro.",
+          `Registrado ✅ ${mensagemPlanilha} Envie Registrar feedback para iniciar outro registro.`,
         );
       } catch (error) {
         return responder(

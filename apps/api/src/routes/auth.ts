@@ -3,6 +3,7 @@ import type { PrismaClient } from "../generated/prisma/client.js";
 import {
   hashPassword,
   hashToken,
+  DUMMY_PASSWORD_HASH,
   newSessionToken,
   timingSafeEqualString,
   verifyPassword,
@@ -95,12 +96,8 @@ export function authRoutes(app: FastifyInstance, prisma: PrismaClient) {
         where: { email },
         include: { monitor: true },
       });
-      if (
-        !conta ||
-        !conta.monitor.isChefe ||
-        conta.monitor.status !== "ATIVO" ||
-        !(await verifyPassword(senha, conta.senhaHash))
-      ) {
+      const senhaValida = await verifyPassword(senha, conta?.senhaHash ?? DUMMY_PASSWORD_HASH);
+      if (!conta || !conta.monitor.isChefe || conta.monitor.status !== "ATIVO" || !senhaValida) {
         return reply.unauthorized("Credenciais inválidas");
       }
 

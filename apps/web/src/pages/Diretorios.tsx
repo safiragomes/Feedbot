@@ -72,7 +72,7 @@ export function DiretorioAlunos({
     .filter(
       (a) =>
         (!turma || a.turma.nome === turma) &&
-        (!grupoId || a.dupla.grupoRevisaoId === grupoId) &&
+        (!grupoId || a.dupla?.grupoRevisaoId === grupoId) &&
         (!ocorrencias.length || alunoAtendeOcorrencias(a.id)) &&
         (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
     )
@@ -187,8 +187,8 @@ export function DiretorioAlunos({
                 </td>
                 <td className="mono-cell">{a.matricula}</td>
                 <td>{a.turma.nome}</td>
-                <td>{grupos.find((g) => g.id === a.dupla.grupoRevisaoId)?.nome ?? "—"}</td>
-                <td className="mono-cell">{a.dupla.label}</td>
+                <td>{grupos.find((g) => g.id === a.dupla?.grupoRevisaoId)?.nome ?? "—"}</td>
+                <td className="mono-cell">{a.dupla?.label ?? "sem dupla"}</td>
                 <td>
                   <span className="flags-cell">
                     {feedbacksCompativeis.some((f) => f.alunoId === a.id && f.usouIa) && (

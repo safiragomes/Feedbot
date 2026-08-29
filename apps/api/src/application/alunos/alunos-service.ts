@@ -86,7 +86,16 @@ export function parseCsvAlunos(csv: string): AlunoImportado[] {
   });
 }
 
-export async function validarVinculosAluno(prisma: PrismaClient, turmaId: string, duplaId: string) {
+export async function validarVinculosAluno(
+  prisma: PrismaClient,
+  turmaId: string,
+  duplaId: string | null,
+) {
+  if (!duplaId) {
+    if (!(await prisma.turma.findUnique({ where: { id: turmaId } })))
+      throw new Error("Turma não encontrada");
+    return;
+  }
   const [turma, dupla] = await Promise.all([
     prisma.turma.findUnique({ where: { id: turmaId } }),
     prisma.dupla.findUnique({ where: { id: duplaId }, include: { grupoRevisao: true } }),
@@ -99,10 +108,11 @@ export async function validarVinculosAluno(prisma: PrismaClient, turmaId: string
 
 export async function validarMonitorSemanaA(
   prisma: PrismaClient,
-  duplaId: string,
+  duplaId: string | null,
   monitorId: string | null | undefined,
 ) {
   if (!monitorId) return;
+  if (!duplaId) throw new Error("Atribua uma dupla antes de escolher o monitor");
   const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
   if (!monitor) throw new Error("Monitor não encontrado");
   if (monitor.duplaId !== duplaId) throw new Error("Monitor deve pertencer à dupla do aluno");

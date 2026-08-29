@@ -118,7 +118,9 @@ MAPEAMENTO_PLANILHA_LISTA     -- resolve onde escrever na planilha (ver seção 
 
 - **1 monitor = 1 dupla por período.** Simplifica o roteamento do bot: o número de WhatsApp resolve diretamente a dupla, sem precisar perguntar.
 - **1 chefe = 1 grupo por período.** Um chefe não pode responder por dois grupos de revisão no mesmo período.
-- **PCD não implica cálculo de nota no sistema.** `is_pcd` e `qtd_questoes_meta` existem só para contextualizar o dashboard (ex: mostrar a meta do aluno junto da entrega). A nota é 100% responsabilidade da planilha oficial dos professores.
+- **PCD/ND usa equivalência proporcional no envio.** O Feedbot guarda os acertos reais, mas envia
+  à planilha `min(total, acertos / 0,75)` para alunos marcados manualmente com condição especial.
+  A planilha continua responsável por calcular a nota final.
 - **Cálculo de semana A/B**:
   ```
   semana = lista.semana_override

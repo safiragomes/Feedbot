@@ -31,24 +31,36 @@ export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = ne
   });
   const pendencias: PendenciaAtrasada[] = [];
   for (const aluno of alunos) {
+    if (!aluno.duplaId || !aluno.dupla) continue;
     const entregues = new Set(aluno.feedbacks.map((f) => f.listaId));
     const listasPeriodo = listas.filter((l) => l.periodoId === aluno.turma.periodoId);
     for (const lista of listasPeriodo) {
       if (entregues.has(lista.id)) continue;
-      const prazo = aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback
-        ?? lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
+      const prazo =
+        aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
+        lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
       if (!prazo || prazo >= agora) continue;
-      const semana = calcularSemana({ posicaoLista: lista.ordem, semanaOverride: lista.semanaOverride });
-      const monitor = semana === "A"
-        ? aluno.dupla.monitores.find((m) => m.id === aluno.monitorSemanaAId)
-          ?? (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined)
-        : aluno.dupla.monitores.find((m) => m.id !== aluno.monitorSemanaAId)
-          ?? (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined);
+      const semana = calcularSemana({
+        posicaoLista: lista.ordem,
+        semanaOverride: lista.semanaOverride,
+      });
+      const monitor =
+        semana === "A"
+          ? (aluno.dupla.monitores.find((m) => m.id === aluno.monitorSemanaAId) ??
+            (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined))
+          : (aluno.dupla.monitores.find((m) => m.id !== aluno.monitorSemanaAId) ??
+            (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined));
       if (!monitor) continue;
       pendencias.push({
-        alunoId: aluno.id, alunoNome: aluno.nome, listaId: lista.id, listaNome: lista.nome,
-        monitorId: monitor.id, monitorNome: monitor.nome, whatsappNumero: monitor.whatsappNumero,
-        duplaId: aluno.duplaId, prazoEntregaFeedback: prazo,
+        alunoId: aluno.id,
+        alunoNome: aluno.nome,
+        listaId: lista.id,
+        listaNome: lista.nome,
+        monitorId: monitor.id,
+        monitorNome: monitor.nome,
+        whatsappNumero: monitor.whatsappNumero,
+        duplaId: aluno.duplaId,
+        prazoEntregaFeedback: prazo,
       });
     }
   }

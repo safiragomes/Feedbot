@@ -3,7 +3,8 @@ import { initials } from "../lib/format";
 import { IconAluno, IconBot, IconGrid, IconLogout, IconSearch } from "./icons";
 import { LogoMark } from "./Logo";
 
-export type PageId = "dashboard" | "diretorio-alunos" | "diretorio-monitores" | "gestao" | "bot";
+export type PageId =
+  "dashboard" | "diretorio-alunos" | "diretorio-monitores" | "gestao" | "planilha" | "bot";
 
 const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -19,7 +20,10 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
   },
   {
     group: "Gestão",
-    items: [{ id: "gestao", label: "Grupos & duplas", icon: <IconGrid /> }],
+    items: [
+      { id: "gestao", label: "Grupos & duplas", icon: <IconGrid /> },
+      { id: "planilha", label: "Planilha", icon: <IconGrid /> },
+    ],
   },
   {
     group: "Bot",
