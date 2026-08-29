@@ -218,6 +218,8 @@ function App() {
               token={token}
               alunos={alunos}
               grupos={grupos}
+              listas={listas}
+              feedbacks={feedbacks}
               onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
               onReload={load}
               onRequestConfirm={setConfirm}
@@ -230,6 +232,8 @@ function App() {
               grupos={grupos}
               duplas={duplas}
               alunos={alunos}
+              listas={listas}
+              atrasos={atrasos}
               onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
               onReload={load}
               onRequestConfirm={setConfirm}
@@ -290,6 +294,7 @@ function App() {
           alunos={alunos}
           duplas={duplas}
           feedbacks={feedbacks}
+          atrasos={atrasos}
           listas={listas}
           token={token}
           onClose={() => setDrawer(null)}

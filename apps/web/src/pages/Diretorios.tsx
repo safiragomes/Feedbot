@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
-import type { Aluno, Dupla, GrupoRevisao, Monitor } from "../lib/types";
+import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
 import { IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
 
+type TipoOcorrencia = "ia" | "plagio" | "proibicao";
+
 export function DiretorioAlunos({
   token,
   alunos,
   grupos,
+  listas,
+  feedbacks,
   onOpenAluno,
   onReload,
   onRequestConfirm,
@@ -16,12 +20,16 @@ export function DiretorioAlunos({
   token: string;
   alunos: Aluno[];
   grupos: GrupoRevisao[];
+  listas: Lista[];
+  feedbacks: Feedback[];
   onOpenAluno: (id: string) => void;
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
   const [turma, setTurma] = useState("");
   const [grupoId, setGrupoId] = useState("");
+  const [listaId, setListaId] = useState("");
+  const [ocorrencias, setOcorrencias] = useState<TipoOcorrencia[]>([]);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
 
@@ -31,11 +39,41 @@ export function DiretorioAlunos({
   );
 
   const q = busca.trim().toLowerCase();
+  const feedbacksCompativeis = feedbacks.filter(
+    (feedback) => !listaId || feedback.listaId === listaId,
+  );
+  const feedbacksPorAluno = new Map<string, Feedback[]>();
+  feedbacksCompativeis.forEach((feedback) => {
+    const registros = feedbacksPorAluno.get(feedback.alunoId) ?? [];
+    registros.push(feedback);
+    feedbacksPorAluno.set(feedback.alunoId, registros);
+  });
+
+  function alunoAtendeOcorrencias(alunoId: string) {
+    const registros = feedbacksPorAluno.get(alunoId) ?? [];
+    return ocorrencias.every((tipo) =>
+      registros.some((feedback) =>
+        tipo === "ia"
+          ? feedback.usouIa
+          : tipo === "plagio"
+            ? feedback.plagiou
+            : feedback.usouProibicao,
+      ),
+    );
+  }
+
+  function alternarOcorrencia(tipo: TipoOcorrencia) {
+    setOcorrencias((atuais) =>
+      atuais.includes(tipo) ? atuais.filter((item) => item !== tipo) : [...atuais, tipo],
+    );
+  }
+
   const filtrados = alunos
     .filter(
       (a) =>
         (!turma || a.turma.nome === turma) &&
         (!grupoId || a.dupla.grupoRevisaoId === grupoId) &&
+        (!ocorrencias.length || alunoAtendeOcorrencias(a.id)) &&
         (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -50,7 +88,9 @@ export function DiretorioAlunos({
       <div className="page-head">
         <div>
           <h1>Alunos</h1>
-          <div className="subtitle">Diretório completo — encontre um aluno por turma, grupo ou busca direta.</div>
+          <div className="subtitle">
+            Diretório completo — encontre um aluno por turma, grupo ou busca direta.
+          </div>
         </div>
       </div>
 
@@ -64,6 +104,34 @@ export function DiretorioAlunos({
             </option>
           ))}
         </select>
+        <span className="flag">Lista</span>
+        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
+          <option value="">todas as listas</option>
+          {listas.map((lista) => (
+            <option key={lista.id} value={lista.id}>
+              {lista.nome}
+            </option>
+          ))}
+        </select>
+        <span className="flag">Ocorrências</span>
+        <div className="occurrence-options">
+          {(
+            [
+              ["ia", "IA"],
+              ["plagio", "Plágio"],
+              ["proibicao", "Proibição"],
+            ] as const
+          ).map(([tipo, label]) => (
+            <label key={tipo}>
+              <input
+                type="checkbox"
+                checked={ocorrencias.includes(tipo)}
+                onChange={() => alternarOcorrencia(tipo)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
         <span className="flag">Grupo</span>
         <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
           <option value="">todos os grupos</option>
@@ -97,6 +165,7 @@ export function DiretorioAlunos({
               <th>Turma</th>
               <th>Grupo de revisão</th>
               <th>Dupla</th>
+              <th>Ocorrências</th>
               <th style={{ paddingRight: 20 }} />
             </tr>
           </thead>
@@ -120,8 +189,28 @@ export function DiretorioAlunos({
                 <td>{a.turma.nome}</td>
                 <td>{grupos.find((g) => g.id === a.dupla.grupoRevisaoId)?.nome ?? "—"}</td>
                 <td className="mono-cell">{a.dupla.label}</td>
+                <td>
+                  <span className="flags-cell">
+                    {feedbacksCompativeis.some((f) => f.alunoId === a.id && f.usouIa) && (
+                      <Chip tone="info">IA</Chip>
+                    )}
+                    {feedbacksCompativeis.some((f) => f.alunoId === a.id && f.plagiou) && (
+                      <Chip tone="danger">plágio</Chip>
+                    )}
+                    {feedbacksCompativeis.some((f) => f.alunoId === a.id && f.usouProibicao) && (
+                      <Chip tone="warn">proibição</Chip>
+                    )}
+                    {!feedbacksCompativeis.some(
+                      (f) => f.alunoId === a.id && (f.usouIa || f.plagiou || f.usouProibicao),
+                    ) && <span className="mono-cell">—</span>}
+                  </span>
+                </td>
                 <td style={{ paddingRight: 20, textAlign: "right" }}>
-                  <button className="x-btn" title="Remover aluno" onClick={(event) => confirmarExclusao(a, event)}>
+                  <button
+                    className="x-btn"
+                    title="Remover aluno"
+                    onClick={(event) => confirmarExclusao(a, event)}
+                  >
                     <IconTrash />
                   </button>
                 </td>
@@ -129,7 +218,9 @@ export function DiretorioAlunos({
             ))}
           </tbody>
         </table>
-        {!filtrados.length && <EmptyState title="Nenhum aluno encontrado" hint="Ajuste os filtros ou a busca acima." />}
+        {!filtrados.length && (
+          <EmptyState title="Nenhum aluno encontrado" hint="Ajuste os filtros ou a busca acima." />
+        )}
       </div>
     </>
   );
@@ -141,6 +232,8 @@ export function DiretorioMonitores({
   grupos,
   duplas,
   alunos,
+  listas,
+  atrasos,
   onOpenMonitor,
   onReload,
   onRequestConfirm,
@@ -150,21 +243,31 @@ export function DiretorioMonitores({
   grupos: GrupoRevisao[];
   duplas: Dupla[];
   alunos: Aluno[];
+  listas: Lista[];
+  atrasos: Atraso[];
   onOpenMonitor: (id: string) => void;
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
   const [grupoId, setGrupoId] = useState("");
+  const [listaId, setListaId] = useState("");
+  const [somentePendentes, setSomentePendentes] = useState(false);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
 
   const q = busca.trim().toLowerCase();
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
   const duplaPorId = new Map(duplas.map((d) => [d.id, d]));
+  const pendenciasVisiveis = atrasos.filter((atraso) => !listaId || atraso.listaId === listaId);
+  const monitoresPendentes = new Set(pendenciasVisiveis.map((atraso) => atraso.monitorId));
   const filtrados = monitores
     .filter((m) => {
       const pertenceAoGrupo = !grupoId || (!!m.duplaId && grupoDaDupla.get(m.duplaId) === grupoId);
-      return pertenceAoGrupo && (!q || m.nome.toLowerCase().includes(q));
+      return (
+        pertenceAoGrupo &&
+        (!q || m.nome.toLowerCase().includes(q)) &&
+        ((!listaId && !somentePendentes) || monitoresPendentes.has(m.id))
+      );
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
 
@@ -178,7 +281,9 @@ export function DiretorioMonitores({
       <div className="page-head">
         <div>
           <h1>Monitores</h1>
-          <div className="subtitle">Diretório completo — encontre um monitor por grupo de revisão ou busca direta.</div>
+          <div className="subtitle">
+            Diretório completo — encontre um monitor por grupo de revisão ou busca direta.
+          </div>
         </div>
       </div>
 
@@ -192,6 +297,23 @@ export function DiretorioMonitores({
             </option>
           ))}
         </select>
+        <span className="flag">Lista pendente</span>
+        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
+          <option value="">todas as listas</option>
+          {listas.map((lista) => (
+            <option key={lista.id} value={lista.id}>
+              {lista.nome}
+            </option>
+          ))}
+        </select>
+        <label style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <input
+            type="checkbox"
+            checked={somentePendentes}
+            onChange={(e) => setSomentePendentes(e.target.checked)}
+          />
+          <span className="flag">somente com pendências</span>
+        </label>
         <div className="search-wrap">
           <div className="search-box">
             <IconSearch />
@@ -215,6 +337,7 @@ export function DiretorioMonitores({
               <th>Alunos · semana A</th>
               <th>Alunos · semana B</th>
               <th>Papel</th>
+              <th>Pendências</th>
               <th style={{ paddingRight: 20 }} />
             </tr>
           </thead>
@@ -227,30 +350,46 @@ export function DiretorioMonitores({
                 (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === m.id,
               ).length;
               return (
-              <tr key={m.id} className="clickable" onClick={() => onOpenMonitor(m.id)}>
-                <td style={{ paddingLeft: 20 }}>
-                  <div className="person-cell">
-                    <Avatar nome={m.nome} />
-                    <span className="person-name">{m.nome}</span>
-                  </div>
-                </td>
-                <td className="mono-cell">{alunosA}</td>
-                <td className="mono-cell">{alunosB}</td>
-                <td>
-                  <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
-                </td>
-                <td style={{ paddingRight: 20, textAlign: "right" }}>
-                  <button className="x-btn" title="Excluir monitor" onClick={(event) => confirmarExclusao(m, event)}>
-                    <IconTrash />
-                  </button>
-                </td>
-              </tr>
+                <tr key={m.id} className="clickable" onClick={() => onOpenMonitor(m.id)}>
+                  <td style={{ paddingLeft: 20 }}>
+                    <div className="person-cell">
+                      <Avatar nome={m.nome} />
+                      <span className="person-name">{m.nome}</span>
+                    </div>
+                  </td>
+                  <td className="mono-cell">{alunosA}</td>
+                  <td className="mono-cell">{alunosB}</td>
+                  <td>
+                    <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
+                  </td>
+                  <td>
+                    {pendenciasVisiveis.filter((atraso) => atraso.monitorId === m.id).length ? (
+                      <Chip tone="danger">
+                        {pendenciasVisiveis.filter((atraso) => atraso.monitorId === m.id).length}
+                      </Chip>
+                    ) : (
+                      <span className="mono-cell">—</span>
+                    )}
+                  </td>
+                  <td style={{ paddingRight: 20, textAlign: "right" }}>
+                    <button
+                      className="x-btn"
+                      title="Excluir monitor"
+                      onClick={(event) => confirmarExclusao(m, event)}
+                    >
+                      <IconTrash />
+                    </button>
+                  </td>
+                </tr>
               );
             })}
           </tbody>
         </table>
         {!filtrados.length && (
-          <EmptyState title="Nenhum monitor encontrado" hint="Ajuste os filtros ou a busca acima." />
+          <EmptyState
+            title="Nenhum monitor encontrado"
+            hint="Ajuste os filtros ou a busca acima."
+          />
         )}
       </div>
     </>

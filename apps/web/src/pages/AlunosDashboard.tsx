@@ -59,14 +59,22 @@ export function AlunosDashboard({
 
   const dIA = listasChart.map((l) => fb.filter((f) => f.listaId === l.id && f.usouIa).length);
   const dPL = listasChart.map((l) => fb.filter((f) => f.listaId === l.id && f.plagiou).length);
-  const dPR = listasChart.map((l) => fb.filter((f) => f.listaId === l.id && f.usouProibicao).length);
+  const dPR = listasChart.map(
+    (l) => fb.filter((f) => f.listaId === l.id && f.usouProibicao).length,
+  );
 
   const ocorrenciasConfig: ChartConfiguration = {
     type: "bar",
     data: {
       labels: listasChart.map((l) => l.nome),
       datasets: [
-        { label: "IA", data: dIA, backgroundColor: "#B79EE0", borderRadius: 4, maxBarThickness: 22 },
+        {
+          label: "IA",
+          data: dIA,
+          backgroundColor: "#B79EE0",
+          borderRadius: 4,
+          maxBarThickness: 22,
+        },
         {
           label: "Plágio",
           data: dPL,
@@ -145,7 +153,9 @@ export function AlunosDashboard({
     type: "bar",
     data: {
       labels: listasChart.map((l) => shortLista(l.nome)),
-      datasets: [{ data: qtdMedia, backgroundColor: "#7FB8E0", borderRadius: 5, maxBarThickness: 34 }],
+      datasets: [
+        { data: qtdMedia, backgroundColor: "#7FB8E0", borderRadius: 5, maxBarThickness: 34 },
+      ],
     },
     options: {
       responsive: true,
@@ -212,7 +222,14 @@ export function AlunosDashboard({
     type: "bar",
     data: {
       labels: top10.map((r) => r.label),
-      datasets: [{ data: top10.map((r) => r.v), backgroundColor: "#E5938A", borderRadius: 4, maxBarThickness: 16 }],
+      datasets: [
+        {
+          data: top10.map((r) => r.v),
+          backgroundColor: "#E5938A",
+          borderRadius: 4,
+          maxBarThickness: 16,
+        },
+      ],
     },
     options: {
       indexAxis: "y",
@@ -238,7 +255,9 @@ export function AlunosDashboard({
       <div className="page-head">
         <div>
           <h1>Alunos</h1>
-          <div className="subtitle">Desempenho, ocorrências e acompanhamento por turma, grupo e lista.</div>
+          <div className="subtitle">
+            Desempenho, ocorrências e acompanhamento por turma, grupo e lista.
+          </div>
         </div>
       </div>
 
@@ -288,7 +307,13 @@ export function AlunosDashboard({
       </div>
 
       <div className="stats">
-        <StatCard label="Alunos filtrados" value={filtrados.length} sub={`${pcd} PCD/ND`} icon={<IconAluno />} color="sky" />
+        <StatCard
+          label="Alunos filtrados"
+          value={filtrados.length}
+          sub={`${pcd} PCD/ND`}
+          icon={<IconAluno />}
+          color="sky"
+        />
         <StatCard
           label="Uso de IA"
           value={comIA}
@@ -371,16 +396,27 @@ export function AlunosDashboard({
                             <div className="heat-total">{t}</div>
                             <div className="heat-mini">
                               {cell.ia > 0 && (
-                                <span style={{ width: `${(cell.ia / t) * 100}%`, background: "var(--plum)" }} />
+                                <span
+                                  style={{
+                                    width: `${(cell.ia / t) * 100}%`,
+                                    background: "var(--plum)",
+                                  }}
+                                />
                               )}
                               {cell.plagio > 0 && (
                                 <span
-                                  style={{ width: `${(cell.plagio / t) * 100}%`, background: "var(--rose)" }}
+                                  style={{
+                                    width: `${(cell.plagio / t) * 100}%`,
+                                    background: "var(--rose)",
+                                  }}
                                 />
                               )}
                               {cell.proibicao > 0 && (
                                 <span
-                                  style={{ width: `${(cell.proibicao / t) * 100}%`, background: "var(--gold)" }}
+                                  style={{
+                                    width: `${(cell.proibicao / t) * 100}%`,
+                                    background: "var(--gold)",
+                                  }}
                                 />
                               )}
                             </div>

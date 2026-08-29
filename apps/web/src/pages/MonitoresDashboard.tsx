@@ -28,7 +28,8 @@ export function MonitoresDashboard({
     () =>
       feedbacks.filter(
         (f) =>
-          (!grupoId || duplaGrupo.get(f.duplaId) === grupoId) && (!listaId || f.listaId === listaId),
+          (!grupoId || duplaGrupo.get(f.duplaId) === grupoId) &&
+          (!listaId || f.listaId === listaId),
       ),
     [feedbacks, grupoId, listaId, duplaGrupo],
   );
@@ -38,8 +39,12 @@ export function MonitoresDashboard({
     { nome: string; total: number; comPrazo: number; noPrazo: number }
   >();
   fb.forEach((f) => {
-    const atual =
-      byMonitor.get(f.monitorId) ?? { nome: f.monitor.nome, total: 0, comPrazo: 0, noPrazo: 0 };
+    const atual = byMonitor.get(f.monitorId) ?? {
+      nome: f.monitor.nome,
+      total: 0,
+      comPrazo: 0,
+      noPrazo: 0,
+    };
     atual.total += 1;
     if (f.prazoEntregaFeedback !== null) {
       atual.comPrazo += 1;
@@ -53,7 +58,10 @@ export function MonitoresDashboard({
   const comPrazo = fb.filter((f) => f.prazoEntregaFeedback !== null);
   const totalPrazo = comPrazo.filter((f) => noPrazo(f.criadoEm, f.prazoEntregaFeedback)).length;
   const pctPrazo = comPrazo.length ? Math.round((totalPrazo / comPrazo.length) * 100) : 0;
-  const atrasosVisiveis = atrasos.filter((a) => (!grupoId || duplaGrupo.get(a.duplaId) === grupoId) && (!listaId || a.listaId === listaId));
+  const atrasosVisiveis = atrasos.filter(
+    (a) =>
+      (!grupoId || duplaGrupo.get(a.duplaId) === grupoId) && (!listaId || a.listaId === listaId),
+  );
   const atrasados = new Set([
     ...arr.filter((m) => m.comPrazo > 0 && m.noPrazo / m.comPrazo < 0.7).map((m) => m.nome),
     ...atrasosVisiveis.map((a) => a.monitorNome),
@@ -61,7 +69,9 @@ export function MonitoresDashboard({
 
   const gruposVisiveis = grupos.filter((g) => !grupoId || g.id === grupoId);
   const porGrupo = gruposVisiveis.map((g) => {
-    const gfb = fb.filter((f) => duplaGrupo.get(f.duplaId) === g.id && f.prazoEntregaFeedback !== null);
+    const gfb = fb.filter(
+      (f) => duplaGrupo.get(f.duplaId) === g.id && f.prazoEntregaFeedback !== null,
+    );
     return {
       nome: g.nome.replace("Grupo ", ""),
       prazo: gfb.filter((f) => noPrazo(f.criadoEm, f.prazoEntregaFeedback)).length,
@@ -147,7 +157,14 @@ export function MonitoresDashboard({
     type: "bar",
     data: {
       labels: ranking.map((m) => m.nome.split(" ")[0]!),
-      datasets: [{ data: ranking.map((m) => m.total), backgroundColor: "#7FB8E0", borderRadius: 4, maxBarThickness: 16 }],
+      datasets: [
+        {
+          data: ranking.map((m) => m.total),
+          backgroundColor: "#7FB8E0",
+          borderRadius: 4,
+          maxBarThickness: 16,
+        },
+      ],
     },
     options: {
       indexAxis: "y",
@@ -170,7 +187,9 @@ export function MonitoresDashboard({
       <div className="page-head">
         <div>
           <h1>Monitores</h1>
-          <div className="subtitle">Entregas de feedback, prazos e volume por grupo de revisão e lista.</div>
+          <div className="subtitle">
+            Entregas de feedback, prazos e volume por grupo de revisão e lista.
+          </div>
         </div>
       </div>
 
@@ -196,7 +215,12 @@ export function MonitoresDashboard({
       </div>
 
       <div className="stats">
-        <StatCard label="Monitores com registro" value={arr.length} icon={<IconMonitor />} color="sky" />
+        <StatCard
+          label="Monitores com registro"
+          value={arr.length}
+          icon={<IconMonitor />}
+          color="sky"
+        />
         <StatCard
           label="Entregas no prazo"
           value={`${pctPrazo}%`}
@@ -204,22 +228,20 @@ export function MonitoresDashboard({
           icon={<IconCheckCircle />}
           color="sage"
         />
-        <StatCard label="Monitores atrasados" value={atrasados} sub={`${atrasosVisiveis.length} feedback(s) pendente(s)`} icon={<IconClock />} color="rose" />
-        <StatCard label="Grupos na visão" value={grupoId ? 1 : grupos.length} icon={<IconGrid />} color="gold" />
+        <StatCard
+          label="Monitores atrasados"
+          value={atrasados}
+          sub={`${atrasosVisiveis.length} feedback(s) pendente(s)`}
+          icon={<IconClock />}
+          color="rose"
+        />
+        <StatCard
+          label="Grupos na visão"
+          value={grupoId ? 1 : grupos.length}
+          icon={<IconGrid />}
+          color="gold"
+        />
       </div>
-
-      {atrasosVisiveis.length > 0 && (
-        <Panel title="Feedbacks pendentes após o prazo" tag={`${atrasosVisiveis.length} pendência(s)`}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {atrasosVisiveis.map((atraso) => (
-              <div className="mini-row" key={`${atraso.alunoId}:${atraso.listaId}`}>
-                <span className="l">{atraso.monitorNome}</span>
-                <span className="mono-cell">{atraso.listaNome} · falta {atraso.alunoNome}</span>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
 
       <Panel
         title="Entregas por grupo de revisão"

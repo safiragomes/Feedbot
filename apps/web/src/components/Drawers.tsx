@@ -1,4 +1,5 @@
-import type { Aluno, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
+import { useState } from "react";
+import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
 import { fimDoDiaIso, noPrazo } from "../lib/format";
 import { api } from "../lib/api";
 import { monitorSemanaB } from "../lib/dupla";
@@ -67,21 +68,49 @@ export function AlunoDrawer({
       </div>
       <div className="drawer-section">
         <h5>Prazo individual</h5>
-        <p className="mono-cell">Use somente quando este aluno tiver uma prorrogação. Sem exceção, vale o prazo da turma.</p>
+        <p className="mono-cell">
+          Use somente quando este aluno tiver uma prorrogação. Sem exceção, vale o prazo da turma.
+        </p>
         {listas.map((lista) => {
-          const individual = aluno.prazosIndividuais?.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback;
-          const turma = lista.prazos?.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
+          const individual = aluno.prazosIndividuais?.find(
+            (p) => p.listaId === lista.id,
+          )?.prazoEntregaFeedback;
+          const turma = lista.prazos?.find(
+            (p) => p.turmaId === aluno.turmaId,
+          )?.prazoEntregaFeedback;
           const valor = prazosEditados.get(lista.id) ?? individual?.slice(0, 10) ?? "";
           return (
             <div className="mini-row" key={lista.id} style={{ gap: 8 }}>
-              <span className="l">{lista.nome}<small style={{ display: "block" }}>Turma: {turma?.slice(0, 10) ?? "sem prazo"}</small></span>
-              <input type="date" value={valor} onChange={(e) => setPrazosEditados((prev) => new Map(prev).set(lista.id, e.target.value))} />
-              <button className="btn sm" disabled={salvandoPrazo === lista.id} onClick={async () => {
-                setSalvandoPrazo(lista.id);
-                await api.salvarPrazoAluno(token, aluno.id, lista.id, valor ? fimDoDiaIso(valor) : null);
-                await onReload();
-                setSalvandoPrazo(null);
-              }}>{valor ? "Salvar" : individual ? "Usar turma" : "—"}</button>
+              <span className="l">
+                {lista.nome}
+                <small style={{ display: "block" }}>
+                  Turma: {turma?.slice(0, 10) ?? "sem prazo"}
+                </small>
+              </span>
+              <input
+                type="date"
+                value={valor}
+                onChange={(e) =>
+                  setPrazosEditados((prev) => new Map(prev).set(lista.id, e.target.value))
+                }
+              />
+              <button
+                className="btn sm"
+                disabled={salvandoPrazo === lista.id}
+                onClick={async () => {
+                  setSalvandoPrazo(lista.id);
+                  await api.salvarPrazoAluno(
+                    token,
+                    aluno.id,
+                    lista.id,
+                    valor ? fimDoDiaIso(valor) : null,
+                  );
+                  await onReload();
+                  setSalvandoPrazo(null);
+                }}
+              >
+                {valor ? "Salvar" : individual ? "Usar turma" : "—"}
+              </button>
             </div>
           );
         })}
@@ -103,11 +132,17 @@ export function AlunoDrawer({
               </MiniRow>
             );
           return (
-            <div key={lista.id} className="mini-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
+            <div
+              key={lista.id}
+              className="mini-row"
+              style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}
+            >
               <span className="l">{lista.nome}</span>
               <div className="flags-cell">
                 {f.usouIa && (
-                  <Chip tone="info">IA · Q{f.questoesIa.map((q) => q.numeroQuestao).join(", Q")}</Chip>
+                  <Chip tone="info">
+                    IA · Q{f.questoesIa.map((q) => q.numeroQuestao).join(", Q")}
+                  </Chip>
                 )}
                 {f.questoesPlagio.map((p) => (
                   <Chip key={p.numeroQuestao} tone="danger">
@@ -125,7 +160,11 @@ export function AlunoDrawer({
         })}
       </div>
       <div className="modal-actions" style={{ marginTop: 6 }}>
-        <button className="btn ghost" style={{ width: "100%", justifyContent: "center" }} onClick={onRequestRemove}>
+        <button
+          className="btn ghost"
+          style={{ width: "100%", justifyContent: "center" }}
+          onClick={onRequestRemove}
+        >
           Remover aluno do acompanhamento
         </button>
       </div>
@@ -138,6 +177,7 @@ export function MonitorDrawer({
   alunos,
   duplas,
   feedbacks,
+  atrasos,
   listas,
   token,
   onClose,
@@ -148,6 +188,7 @@ export function MonitorDrawer({
   alunos: Aluno[];
   duplas: Dupla[];
   feedbacks: Feedback[];
+  atrasos: Atraso[];
   listas: Lista[];
   token: string;
   onClose: () => void;
@@ -165,6 +206,7 @@ export function MonitorDrawer({
   const alunosB = alunosDaDupla.filter(
     (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === monitor.id,
   );
+  const pendencias = atrasos.filter((atraso) => atraso.monitorId === monitor.id);
 
   // Monitor B nunca é armazenado — é sempre "o outro monitor da dupla" (ou o próprio,
   // sem parceiro). Por isso desatribuir este monitor de um aluno (seja como A ou como
@@ -202,12 +244,28 @@ export function MonitorDrawer({
         <MiniRow label="Papel">{monitor.isChefe ? "Chefe de monitoria" : "Monitor"}</MiniRow>
       </div>
       <div className="drawer-section">
+        <h5>Feedbacks pendentes</h5>
+        {pendencias.length ? (
+          pendencias.map((pendencia) => (
+            <MiniRow key={`${pendencia.alunoId}:${pendencia.listaId}`} label={pendencia.listaNome}>
+              <Chip tone="danger">{pendencia.alunoNome}</Chip>
+            </MiniRow>
+          ))
+        ) : (
+          <p className="mono-cell">nenhuma pendência após o prazo</p>
+        )}
+      </div>
+      <div className="drawer-section">
         <h5>Alunos · semana A</h5>
         {alunosA.length ? (
           alunosA.map((a) => (
             <div className="mini-row" key={a.id}>
               <span className="l">{a.nome}</span>
-              <button className="x-btn" title="Desatribuir semana A" onClick={() => desatribuir(a.id)}>
+              <button
+                className="x-btn"
+                title="Desatribuir semana A"
+                onClick={() => desatribuir(a.id)}
+              >
                 <IconX />
               </button>
             </div>
@@ -222,7 +280,11 @@ export function MonitorDrawer({
           alunosB.map((a) => (
             <div className="mini-row" key={a.id}>
               <span className="l">{a.nome}</span>
-              <button className="x-btn" title="Desatribuir semana B" onClick={() => desatribuir(a.id)}>
+              <button
+                className="x-btn"
+                title="Desatribuir semana B"
+                onClick={() => desatribuir(a.id)}
+              >
                 <IconX />
               </button>
             </div>
@@ -254,4 +316,3 @@ export function MonitorDrawer({
     </Drawer>
   );
 }
-import { useState } from "react";
