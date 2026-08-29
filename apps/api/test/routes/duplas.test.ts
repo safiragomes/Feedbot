@@ -11,6 +11,7 @@ describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
 
   let periodoId: string;
   let grupoId: string;
+  let chefeId: string;
   let duplaId: string;
   let outraDuplaId: string;
   let monitorAId: string;
@@ -37,11 +38,20 @@ describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
     const chefe = await prisma.monitor.create({
       data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
     });
+    chefeId = chefe.id;
     const conta = await prisma.contaChefe.create({
-      data: { monitorId: chefe.id, email: `chefe-${sufixo}@teste.dev`, senhaHash: await hashPassword("senha-de-teste-1234") },
+      data: {
+        monitorId: chefe.id,
+        email: `chefe-${sufixo}@teste.dev`,
+        senhaHash: await hashPassword("senha-de-teste-1234"),
+      },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const grupo = await prisma.grupoRevisao.create({
@@ -49,9 +59,13 @@ describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
     });
     grupoId = grupo.id;
 
-    const dupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 1" } });
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
     duplaId = dupla.id;
-    const outraDupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 2" } });
+    const outraDupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 2" },
+    });
     outraDuplaId = outraDupla.id;
 
     const monitorA = await prisma.monitor.create({
@@ -63,7 +77,12 @@ describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
     });
     monitorBId = monitorB.id;
     const monitorFora = await prisma.monitor.create({
-      data: { nome: "Monitor de outra dupla", whatsappNumero: `+55${sufixo}3`, periodoId, duplaId: outraDuplaId },
+      data: {
+        nome: "Monitor de outra dupla",
+        whatsappNumero: `+55${sufixo}3`,
+        periodoId,
+        duplaId: outraDuplaId,
+      },
     });
     monitorForaId = monitorFora.id;
 
@@ -97,6 +116,18 @@ describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
       payload: { nome: "Terceiro monitor", whatsappNumero: `+55${sufixo}4`, periodoId, duplaId },
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it("um chefe não pode possuir dois grupos no mesmo período", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/grupos-revisao",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { periodoId, chefeId, nome: "Segundo grupo do mesmo chefe" },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toBe("Este chefe já possui um grupo neste período");
   });
 
   it("aluno só pode ter como monitor da semana A um monitor da própria dupla", async () => {

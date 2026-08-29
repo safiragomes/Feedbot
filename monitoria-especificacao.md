@@ -117,6 +117,7 @@ MAPEAMENTO_PLANILHA_LISTA     -- resolve onde escrever na planilha (ver seção 
 ### 2.2 Regras de negócio importantes
 
 - **1 monitor = 1 dupla por período.** Simplifica o roteamento do bot: o número de WhatsApp resolve diretamente a dupla, sem precisar perguntar.
+- **1 chefe = 1 grupo por período.** Um chefe não pode responder por dois grupos de revisão no mesmo período.
 - **PCD não implica cálculo de nota no sistema.** `is_pcd` e `qtd_questoes_meta` existem só para contextualizar o dashboard (ex: mostrar a meta do aluno junto da entrega). A nota é 100% responsabilidade da planilha oficial dos professores.
 - **Cálculo de semana A/B**:
   ```

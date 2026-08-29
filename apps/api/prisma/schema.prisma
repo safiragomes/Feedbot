@@ -28,13 +28,13 @@ enum BotSessaoStatus {
 }
 
 model Periodo {
-  id                    String   @id @default(cuid())
-  nome                  String
-  dataInicio            DateTime
-  dataFim               DateTime
-  dataReferenciaRodizio DateTime
-  ativo                 Boolean  @default(true)
-  whatsappAvisosId      String?  @unique
+  id                     String   @id @default(cuid())
+  nome                   String
+  dataInicio             DateTime
+  dataFim                DateTime
+  dataReferenciaRodizio  DateTime
+  ativo                  Boolean  @default(true)
+  whatsappAvisosId       String?  @unique
   whatsappComunidadeNome String?
 
   turmas        Turma[]
@@ -72,6 +72,7 @@ model GrupoRevisao {
   duplas  Dupla[]
 
   @@unique([whatsappGrupoId])
+  @@unique([periodoId, chefeId])
 }
 
 model Dupla {
@@ -156,7 +157,7 @@ model Aluno {
 }
 
 model Lista {
-  id               String   @id @default(cuid())
+  id               String  @id @default(cuid())
   periodoId        String
   nome             String
   qtdQuestoesTotal Int
