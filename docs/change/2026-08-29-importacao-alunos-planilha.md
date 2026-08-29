@@ -25,6 +25,8 @@ segunda vez no Feedbot. A mudança implementa a spec
 - A prévia exibe todas as linhas da seleção, mantendo rolagem interna sem truncar em 100 itens.
 - Após a confirmação, o próprio painel exibe uma resposta visual persistente com a quantidade de
   alunos cadastrados, e o botão indica quando não há novos alunos pendentes.
+- Cada aluno novo pode ser marcado ou desmarcado antes da confirmação; o backend relê a planilha e
+  aceita somente as matrículas explicitamente selecionadas.
 
 ## Verificação
 

@@ -20,7 +20,7 @@ matrículas das abas das turmas, evitando um segundo cadastro manual.
 7. Alunos novos são pré-cadastrados sem dupla. A dupla pode ser atribuída depois pelo drawer do
    aluno, antes que ele participe do fluxo de feedback.
 8. A confirmação relê a planilha para não confiar em dados de prévia enviados pelo navegador e
-   cria somente alunos novos em uma transação.
+   cria somente alunos novos e explicitamente selecionados em uma transação.
 9. Alunos ausentes da planilha nunca são removidos ou desativados automaticamente.
 10. O limite é de 2.000 linhas de alunos por planilha.
 
@@ -35,3 +35,5 @@ matrículas das abas das turmas, evitando um segundo cadastro manual.
 - Linhas totalmente vazias são ignoradas.
 - Matrículas numéricas retornadas pelo Sheets são normalizadas sem `.0`.
 - Um aluno sem dupla não pode receber monitor da semana nem ter feedback registrado.
+- Novos alunos vêm selecionados por padrão, mas o chefe pode desmarcar indivíduos ou todos antes
+  da confirmação.

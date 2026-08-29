@@ -88,11 +88,11 @@ export const api = {
     del(`/periodos/${periodoId}/planilha`, token),
   previaAlunosPlanilha: (token: string, periodoId: string) =>
     request<PreviaImportacaoAlunos>(`/periodos/${periodoId}/planilha/alunos/previa`, token),
-  importarAlunosPlanilha: (token: string, periodoId: string) =>
+  importarAlunosPlanilha: (token: string, periodoId: string, matriculasSelecionadas: string[]) =>
     post<{ criados: number; ignorados: number }>(
       `/periodos/${periodoId}/planilha/alunos/importar`,
       token,
-      {},
+      { matriculasSelecionadas },
     ),
   turmas: (token: string, periodoId: string) =>
     request<Turma[]>(`/turmas?periodoId=${periodoId}`, token),

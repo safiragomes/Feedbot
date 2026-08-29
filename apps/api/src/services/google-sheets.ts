@@ -12,6 +12,7 @@ import { calcularQuestoesEquivalentes } from "../domain/pontuacao-planilha.js";
 import { autenticacaoGoogle, oauthGoogleConfigurado } from "./google-oauth.js";
 import {
   classificarImportacaoAlunos,
+  selecionarNovosParaImportacao,
   type LinhaAlunoPlanilha,
   type PreviaImportacaoAlunos,
 } from "../application/planilha/classificar-importacao.js";
@@ -187,9 +188,13 @@ export class GoogleSheetsSync {
     );
   }
 
-  async importarAlunosDaPlanilha(prisma: PrismaClient, periodoId: string) {
+  async importarAlunosDaPlanilha(
+    prisma: PrismaClient,
+    periodoId: string,
+    matriculasSelecionadas: string[],
+  ) {
     const previa = await this.previsualizarImportacaoAlunos(prisma, periodoId);
-    const novos = previa.itens.filter((item) => item.status === "novo");
+    const novos = selecionarNovosParaImportacao(previa, matriculasSelecionadas);
     await prisma.$transaction([
       ...novos.map((aluno) =>
         prisma.aluno.create({

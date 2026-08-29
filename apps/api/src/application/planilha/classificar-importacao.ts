@@ -51,3 +51,11 @@ export function classificarImportacaoAlunos(
     },
   };
 }
+
+export function selecionarNovosParaImportacao(
+  previa: PreviaImportacaoAlunos,
+  matriculasSelecionadas: string[],
+) {
+  const selecionadas = new Set(matriculasSelecionadas);
+  return previa.itens.filter((item) => item.status === "novo" && selecionadas.has(item.matricula));
+}

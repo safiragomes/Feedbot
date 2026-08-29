@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { classificarImportacaoAlunos } from "../../src/application/planilha/classificar-importacao.js";
+import {
+  classificarImportacaoAlunos,
+  selecionarNovosParaImportacao,
+} from "../../src/application/planilha/classificar-importacao.js";
 
 const linha = (matricula: string, linhaNumero: number) => ({
   turmaId: "turma-1",
@@ -32,5 +35,16 @@ describe("classificação da importação", () => {
       "duplicado",
     ]);
     expect(previa.resumo).toEqual({ novos: 0, cadastrados: 1, invalidos: 3 });
+  });
+
+  it("autoriza somente novos explicitamente selecionados", () => {
+    const previa = classificarImportacaoAlunos(
+      [linha("20260000001", 2), linha("20260000002", 3)],
+      [{ matricula: "20260000002", periodoId: "periodo-atual" }],
+      "periodo-atual",
+    );
+    expect(
+      selecionarNovosParaImportacao(previa, ["20260000001", "20260000002", "99999999999"]),
+    ).toEqual([expect.objectContaining({ matricula: "20260000001", status: "novo" })]);
   });
 });

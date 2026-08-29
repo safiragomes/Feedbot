@@ -50,8 +50,24 @@ export function planilhaRoutes(
   });
 
   app.post("/periodos/:id/planilha/alunos/importar", protectedRoute, async (request, reply) => {
+    const matriculasSelecionadas = (
+      request.body as { matriculasSelecionadas?: unknown } | undefined
+    )?.matriculasSelecionadas;
+    if (
+      !Array.isArray(matriculasSelecionadas) ||
+      matriculasSelecionadas.length > 2_000 ||
+      matriculasSelecionadas.some(
+        (matricula) => typeof matricula !== "string" || !/^\d{11}$/.test(matricula),
+      )
+    )
+      return reply.badRequest("Seleção de matrículas inválida");
+    const selecaoUnica = [...new Set(matriculasSelecionadas as string[])];
     try {
-      return await sheets.importarAlunosDaPlanilha(prisma, (request.params as { id: string }).id);
+      return await sheets.importarAlunosDaPlanilha(
+        prisma,
+        (request.params as { id: string }).id,
+        selecaoUnica,
+      );
     } catch (error) {
       return reply.badRequest(
         error instanceof Error ? error.message : "Não foi possível importar os alunos",

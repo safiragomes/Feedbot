@@ -30,6 +30,7 @@ export function PlanilhaPage({
   } | null>(null);
   const [turmaFiltro, setTurmaFiltro] = useState("");
   const [situacaoFiltro, setSituacaoFiltro] = useState("");
+  const [matriculasSelecionadas, setMatriculasSelecionadas] = useState(new Set<string>());
   const itensFiltrados =
     previa?.itens.filter(
       (item) =>
@@ -72,7 +73,13 @@ export function PlanilhaPage({
     setLendoAlunos(true);
     setErro("");
     try {
-      setPrevia(await api.previaAlunosPlanilha(token, periodo.id));
+      const resultado = await api.previaAlunosPlanilha(token, periodo.id);
+      setPrevia(resultado);
+      setMatriculasSelecionadas(
+        new Set(
+          resultado.itens.filter((item) => item.status === "novo").map((item) => item.matricula),
+        ),
+      );
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível ler os alunos");
     } finally {
@@ -85,7 +92,9 @@ export function PlanilhaPage({
     setErro("");
     setResultadoImportacao(null);
     try {
-      const resultado = await api.importarAlunosPlanilha(token, periodo.id);
+      const resultado = await api.importarAlunosPlanilha(token, periodo.id, [
+        ...matriculasSelecionadas,
+      ]);
       setResultadoImportacao(resultado);
       setSucesso(`${resultado.criados} novo(s) aluno(s) adicionado(s).`);
       await onReload();
@@ -269,10 +278,37 @@ export function PlanilhaPage({
                       </select>
                     </div>
                   </div>
+                  {previa.resumo.novos > 0 && (
+                    <div className="sheet-import-selection">
+                      <strong>
+                        {matriculasSelecionadas.size} de {previa.resumo.novos} novos selecionados
+                      </strong>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() =>
+                          setMatriculasSelecionadas(
+                            matriculasSelecionadas.size === previa.resumo.novos
+                              ? new Set()
+                              : new Set(
+                                  previa.itens
+                                    .filter((item) => item.status === "novo")
+                                    .map((item) => item.matricula),
+                                ),
+                          )
+                        }
+                      >
+                        {matriculasSelecionadas.size === previa.resumo.novos
+                          ? "Desmarcar todos"
+                          : "Selecionar todos"}
+                      </button>
+                    </div>
+                  )}
                   <div className="table-wrap sheet-import-table">
                     <table>
                       <thead>
                         <tr>
+                          <th>Importar</th>
                           <th>Turma</th>
                           <th>Linha</th>
                           <th>Matrícula</th>
@@ -283,6 +319,25 @@ export function PlanilhaPage({
                       <tbody>
                         {itensFiltrados.map((item) => (
                           <tr key={`${item.turmaId}-${item.linha}`}>
+                            <td>
+                              {item.status === "novo" ? (
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Importar ${item.nome}`}
+                                  checked={matriculasSelecionadas.has(item.matricula)}
+                                  onChange={(event) =>
+                                    setMatriculasSelecionadas((atuais) => {
+                                      const proximas = new Set(atuais);
+                                      if (event.target.checked) proximas.add(item.matricula);
+                                      else proximas.delete(item.matricula);
+                                      return proximas;
+                                    })
+                                  }
+                                />
+                              ) : (
+                                "—"
+                              )}
+                            </td>
                             <td>{item.turmaNome}</td>
                             <td>{item.linha}</td>
                             <td className="mono-cell">{item.matricula || "—"}</td>
@@ -299,14 +354,16 @@ export function PlanilhaPage({
                   <div className="modal-actions">
                     <button
                       className="btn primary"
-                      disabled={importando || !previa.resumo.novos}
+                      disabled={importando || !matriculasSelecionadas.size}
                       onClick={() => void importarAlunos()}
                     >
                       {importando
                         ? "Importando…"
-                        : previa.resumo.novos
-                          ? "Confirmar importação"
-                          : "Nenhum aluno novo"}
+                        : matriculasSelecionadas.size
+                          ? `Importar ${matriculasSelecionadas.size} selecionado(s)`
+                          : previa.resumo.novos
+                            ? "Nenhum aluno selecionado"
+                            : "Nenhum aluno novo"}
                     </button>
                   </div>
                   {resultadoImportacao && (
