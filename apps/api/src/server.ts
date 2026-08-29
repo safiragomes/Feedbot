@@ -19,6 +19,14 @@ await prisma.botSessao.updateMany({
 // persistidas existirem, restaura a conexão sem exigir um novo QR code.
 void bot.restaurarSessao().catch((error) => app.log.error(error));
 
+// O navegador não participa da conexão. Este watchdog roda dentro da API e recupera
+// sockets que ficaram presos sem emitir "close", inclusive com o painel fechado.
+const conexaoBotTimer = setInterval(
+  () => void bot.garantirConexao().catch((error) => app.log.error(error)),
+  60_000,
+);
+conexaoBotTimer.unref();
+
 // Verifica periodicamente. O registro LembreteAtraso torna a operação idempotente,
 // inclusive depois de reinícios do processo.
 const lembretesTimer = setInterval(
@@ -30,6 +38,7 @@ const lembretesTimer = setInterval(
 lembretesTimer.unref();
 
 app.addHook("onClose", async () => {
+  clearInterval(conexaoBotTimer);
   clearInterval(lembretesTimer);
   await bot.encerrarParaReinicio();
 });

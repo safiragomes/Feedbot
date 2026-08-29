@@ -5,137 +5,15 @@ import { requireChief } from "../auth/require-chief.js";
 import { normalizarWhatsapp } from "../domain/telefone.js";
 import { NUM_LISTAS_POR_PERIODO, QTD_QUESTOES_PADRAO } from "../domain/lista.js";
 import { TURMAS_FIXAS } from "../domain/turma.js";
+import {
+  parseBoolean as bool,
+  parseDate as date,
+  parsePositiveInteger as positiveInteger,
+  parseText as text,
+} from "../http/input.js";
+import { alunoRoutes } from "./management/alunos.js";
 
 type IdParams = { id: string };
-
-function text(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim();
-  return normalized && normalized.length <= 200 ? normalized : undefined;
-}
-
-function bool(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
-}
-
-function date(value: unknown): Date | undefined {
-  if (typeof value !== "string" && !(value instanceof Date)) return undefined;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf()) ? undefined : parsed;
-}
-
-function positiveInteger(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
-}
-
-function optionalInteger(value: unknown): number | null | undefined {
-  if (value === null || value === undefined) return null;
-  return positiveInteger(value);
-}
-
-function csvRows(csv: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-
-  for (let index = 0; index < csv.length; index += 1) {
-    const char = csv[index]!;
-    if (char === '"') {
-      if (quoted && csv[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      row.push(field.trim());
-      field = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && csv[index + 1] === "\n") index += 1;
-      row.push(field.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      field = "";
-    } else field += char;
-  }
-  if (quoted) throw new Error("CSV possui aspas não fechadas");
-  row.push(field.trim());
-  if (row.some(Boolean)) rows.push(row);
-  return rows;
-}
-
-function parseCsvStudents(csv: string) {
-  if (Buffer.byteLength(csv, "utf8") > 512 * 1024) throw new Error("CSV excede o limite de 512 KB");
-  const [header, ...rows] = csvRows(csv);
-  if (!header) throw new Error("CSV vazio");
-  if (rows.length > 2_000) throw new Error("CSV excede o limite de 2.000 alunos");
-  const columns = new Map(header.map((name, index) => [name.trim().toLowerCase(), index]));
-  for (const required of ["nome", "matricula", "turmaid", "duplaid"]) {
-    if (!columns.has(required)) throw new Error(`CSV requer a coluna ${required}`);
-  }
-  const value = (row: string[], name: string) => row[columns.get(name)!]?.trim();
-  return rows.map((row, index) => {
-    const nome = value(row, "nome");
-    const matricula = value(row, "matricula");
-    const turmaId = value(row, "turmaid");
-    const duplaId = value(row, "duplaid");
-    if (
-      !nome ||
-      !matricula ||
-      !turmaId ||
-      !duplaId ||
-      nome.length > 200 ||
-      matricula.length > 100 ||
-      turmaId.length > 200 ||
-      duplaId.length > 200
-    )
-      throw new Error(`Linha ${index + 2} incompleta`);
-    const pcd = value(row, "ispcd")?.toLowerCase();
-    const metaValue = value(row, "qtdquestoesmeta");
-    const qtdQuestoesMeta = metaValue ? Number(metaValue) : null;
-    if (pcd && !["true", "false", "sim", "nao", "não", "1", "0"].includes(pcd)) {
-      throw new Error(`isPcd inválido na linha ${index + 2}`);
-    }
-    if (
-      metaValue &&
-      (qtdQuestoesMeta === null || !Number.isInteger(qtdQuestoesMeta) || qtdQuestoesMeta < 1)
-    ) {
-      throw new Error(`qtdQuestoesMeta inválida na linha ${index + 2}`);
-    }
-    return {
-      nome,
-      matricula,
-      turmaId,
-      duplaId,
-      isPcd: ["true", "sim", "1"].includes(pcd ?? ""),
-      qtdQuestoesMeta,
-    };
-  });
-}
-
-async function validateAlunoLinks(prisma: PrismaClient, turmaId: string, duplaId: string) {
-  const [turma, dupla] = await Promise.all([
-    prisma.turma.findUnique({ where: { id: turmaId } }),
-    prisma.dupla.findUnique({ where: { id: duplaId }, include: { grupoRevisao: true } }),
-  ]);
-  if (!turma || !dupla) throw new Error("Turma ou dupla não encontrada");
-  if (turma.periodoId !== dupla.grupoRevisao.periodoId)
-    throw new Error("Turma e dupla devem pertencer ao mesmo período");
-  return turma.periodoId;
-}
-
-// O monitor da semana A de um aluno precisa ser um dos (até 2) monitores da própria
-// dupla do aluno — o monitor da semana B é sempre "o outro" dessa mesma dupla,
-// derivado (não armazenado).
-async function validateAlunoMonitorA(
-  prisma: PrismaClient,
-  duplaId: string,
-  monitorId: string | null | undefined,
-) {
-  if (!monitorId) return;
-  const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
-  if (!monitor) throw new Error("Monitor não encontrado");
-  if (monitor.duplaId !== duplaId) throw new Error("Monitor deve pertencer à dupla do aluno");
-}
 
 // Cada monitor pertence a no máximo uma dupla, e cada dupla tem no máximo 2 monitores
 // (a "dupla de monitores" que atende os alunos dela).
@@ -161,6 +39,7 @@ async function validateMonitorDupla(
 
 export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   const protectedRoute = { preHandler: requireChief(prisma) };
+  alunoRoutes(app, prisma);
 
   app.get("/periodos", protectedRoute, async () =>
     prisma.periodo.findMany({ orderBy: { dataInicio: "desc" } }),
@@ -263,6 +142,8 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const chefe = await prisma.monitor.findUnique({ where: { id: chefeId } });
     if (!chefe || !chefe.isChefe || chefe.periodoId !== periodoId)
       return reply.badRequest("Chefe deve ser um monitor-chefe do mesmo período");
+    const grupoDoChefe = await prisma.grupoRevisao.findFirst({ where: { periodoId, chefeId } });
+    if (grupoDoChefe) return reply.conflict("Este chefe já possui um grupo neste período");
     return reply
       .code(201)
       .send(await prisma.grupoRevisao.create({ data: { periodoId, chefeId, nome } }));
@@ -279,6 +160,10 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       const chefe = await prisma.monitor.findUnique({ where: { id: chefeId } });
       if (!chefe || !chefe.isChefe || chefe.periodoId !== group.periodoId)
         return reply.badRequest("Chefe inválido para o período");
+      const grupoDoChefe = await prisma.grupoRevisao.findFirst({
+        where: { periodoId: group.periodoId, chefeId, id: { not: group.id } },
+      });
+      if (grupoDoChefe) return reply.conflict("Este chefe já possui um grupo neste período");
     }
     return prisma.grupoRevisao.update({
       where: request.params as IdParams,
@@ -428,149 +313,6 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   app.delete("/monitores/:id", protectedRoute, async (request, reply) => {
     await prisma.monitor.delete({ where: request.params as IdParams });
     return reply.code(204).send();
-  });
-
-  app.get("/alunos", protectedRoute, async (request) =>
-    prisma.aluno.findMany({
-      where: text((request.query as Record<string, unknown>).turmaId)
-        ? { turmaId: text((request.query as Record<string, unknown>).turmaId) }
-        : text((request.query as Record<string, unknown>).duplaId)
-          ? { duplaId: text((request.query as Record<string, unknown>).duplaId) }
-          : undefined,
-      include: { turma: true, dupla: true, monitorSemanaA: true, prazosIndividuais: true },
-      orderBy: { nome: "asc" },
-    }),
-  );
-  app.post("/alunos", protectedRoute, async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
-    const nome = text(body.nome);
-    const matricula = text(body.matricula);
-    const turmaId = text(body.turmaId);
-    const duplaId = text(body.duplaId);
-    const qtdQuestoesMeta = optionalInteger(body.qtdQuestoesMeta);
-    const monitorSemanaAId = body.monitorSemanaAId === null ? null : text(body.monitorSemanaAId);
-    if (!nome || !matricula || !turmaId || !duplaId || qtdQuestoesMeta === undefined)
-      return reply.badRequest("Dados do aluno inválidos");
-    try {
-      await validateAlunoLinks(prisma, turmaId, duplaId);
-      await validateAlunoMonitorA(prisma, duplaId, monitorSemanaAId);
-    } catch (error) {
-      return reply.badRequest(error instanceof Error ? error.message : "Vínculos inválidos");
-    }
-    return reply.code(201).send(
-      await prisma.aluno.create({
-        data: {
-          nome,
-          matricula,
-          turmaId,
-          duplaId,
-          isPcd: bool(body.isPcd) ?? false,
-          qtdQuestoesMeta,
-          monitorSemanaAId,
-        },
-      }),
-    );
-  });
-  app.patch("/alunos/:id", protectedRoute, async (request, reply) => {
-    const body = request.body as Record<string, unknown>;
-    const aluno = await prisma.aluno.findUnique({ where: request.params as IdParams });
-    if (!aluno) return reply.notFound();
-    const turmaId = body.turmaId === undefined ? aluno.turmaId : text(body.turmaId);
-    const duplaId = body.duplaId === undefined ? aluno.duplaId : text(body.duplaId);
-    const qtdQuestoesMeta =
-      body.qtdQuestoesMeta === undefined ? undefined : optionalInteger(body.qtdQuestoesMeta);
-    const monitorSemanaAId =
-      body.monitorSemanaAId === undefined
-        ? undefined
-        : body.monitorSemanaAId === null
-          ? null
-          : text(body.monitorSemanaAId);
-    if (
-      !turmaId ||
-      !duplaId ||
-      (body.qtdQuestoesMeta !== undefined && qtdQuestoesMeta === undefined) ||
-      (body.monitorSemanaAId !== undefined && monitorSemanaAId === undefined)
-    )
-      return reply.badRequest("Dados do aluno inválidos");
-    try {
-      await validateAlunoLinks(prisma, turmaId, duplaId);
-      // Se a dupla do aluno está mudando, a atribuição de monitor A anterior (da
-      // dupla antiga) deixa de valer — precisa ser reescolhida ou limpa.
-      const monitorParaValidar =
-        monitorSemanaAId !== undefined
-          ? monitorSemanaAId
-          : duplaId !== aluno.duplaId
-            ? null
-            : undefined;
-      await validateAlunoMonitorA(prisma, duplaId, monitorParaValidar);
-    } catch (error) {
-      return reply.badRequest(error instanceof Error ? error.message : "Vínculos inválidos");
-    }
-    return prisma.aluno.update({
-      where: request.params as IdParams,
-      data: {
-        nome: body.nome === undefined ? undefined : text(body.nome),
-        matricula: body.matricula === undefined ? undefined : text(body.matricula),
-        turmaId,
-        duplaId,
-        isPcd: body.isPcd === undefined ? undefined : bool(body.isPcd),
-        qtdQuestoesMeta,
-        monitorSemanaAId:
-          monitorSemanaAId !== undefined
-            ? monitorSemanaAId
-            : duplaId !== aluno.duplaId
-              ? null
-              : undefined,
-      },
-    });
-  });
-  app.delete("/alunos/:id", protectedRoute, async (request, reply) => {
-    await prisma.aluno.delete({ where: request.params as IdParams });
-    return reply.code(204).send();
-  });
-  app.put("/alunos/:id/prazos-lista", protectedRoute, async (request, reply) => {
-    const alunoId = (request.params as IdParams).id;
-    const body = request.body as Record<string, unknown>;
-    const listaId = text(body.listaId);
-    const valor = body.prazoEntregaFeedback;
-    const aluno = await prisma.aluno.findUnique({
-      where: { id: alunoId },
-      include: { turma: true },
-    });
-    if (!aluno || !listaId)
-      return aluno ? reply.badRequest("listaId é obrigatório") : reply.notFound();
-    const lista = await prisma.lista.findUnique({ where: { id: listaId } });
-    if (!lista || lista.periodoId !== aluno.turma.periodoId)
-      return reply.badRequest("A lista deve pertencer ao período do aluno");
-    if (valor === null) {
-      await prisma.prazoAlunoLista.deleteMany({ where: { alunoId, listaId } });
-      await prisma.lembreteAtraso.deleteMany({ where: { alunoId, listaId } });
-      return reply.code(204).send();
-    }
-    const prazoEntregaFeedback = date(valor);
-    if (!prazoEntregaFeedback) return reply.badRequest("Prazo inválido");
-    const prazo = await prisma.prazoAlunoLista.upsert({
-      where: { alunoId_listaId: { alunoId, listaId } },
-      create: { alunoId, listaId, prazoEntregaFeedback },
-      update: { prazoEntregaFeedback },
-    });
-    // Se o prazo foi prorrogado, um eventual lembrete anterior não deve impedir um
-    // novo aviso caso o monitor também ultrapasse a nova data.
-    await prisma.lembreteAtraso.deleteMany({ where: { alunoId, listaId } });
-    return prazo;
-  });
-  app.post("/alunos/importar-csv", protectedRoute, async (request, reply) => {
-    const csv = (request.body as Record<string, unknown>).csv;
-    if (typeof csv !== "string") return reply.badRequest("Campo csv é obrigatório");
-    let alunos;
-    try {
-      alunos = parseCsvStudents(csv);
-      for (const aluno of alunos) await validateAlunoLinks(prisma, aluno.turmaId, aluno.duplaId);
-    } catch (error) {
-      return reply.badRequest(error instanceof Error ? error.message : "CSV inválido");
-    }
-    await prisma.$transaction(alunos.map((aluno) => prisma.aluno.create({ data: aluno })));
-    return reply.code(201).send({ importados: alunos.length });
   });
 
   app.get("/listas", protectedRoute, async (request) =>
