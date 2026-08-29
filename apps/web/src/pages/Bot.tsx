@@ -5,29 +5,6 @@ import type { Bot, Periodo } from "../lib/types";
 import { IconCheck, IconRefresh, IconWhatsapp, IconX } from "../components/icons";
 import { Chip, Panel } from "../components/ui";
 
-const EXEMPLO_CONVERSA: { from: "bot" | "user"; text: string }[] = [
-  { from: "bot", text: "Olá, Rafael. Qual lista você vai registrar?\n1. Lista 1\n2. Lista 2\n3. Lista 3" },
-  { from: "user", text: "3" },
-  { from: "bot", text: "Qual aluno?\n1. Ana Beatriz\n2. Cauã Ribeiro\n3. Isadora Leão" },
-  { from: "user", text: "2" },
-  { from: "bot", text: "Quantas questões corretas? Envie apenas o número." },
-  { from: "user", text: "7" },
-  { from: "bot", text: "Usou IA? Responda sim ou não." },
-  { from: "user", text: "sim" },
-  { from: "bot", text: "Em quais questões? Ex.: 1, 3" },
-  { from: "user", text: "3" },
-  { from: "bot", text: "Houve plágio? Responda sim ou não." },
-  { from: "user", text: "não" },
-  { from: "bot", text: "Usou alguma proibição da lista? Responda sim ou não." },
-  { from: "user", text: "não" },
-  { from: "bot", text: "Envie CONFIRMAR para gravar ou CANCELAR para reiniciar." },
-  { from: "user", text: "confirmar" },
-  {
-    from: "bot",
-    text: "Registrado ✅ A sincronização com a planilha será processada automaticamente.",
-  },
-];
-
 export function BotPage({
   token,
   bot,
@@ -74,6 +51,12 @@ export function BotPage({
     }
   }
   async function desconectar() {
+    if (
+      !window.confirm(
+        "Desvincular este número? Será necessário ler um novo QR code para conectar novamente.",
+      )
+    )
+      return;
     setErro("");
     setCarregando(true);
     try {
@@ -92,8 +75,8 @@ export function BotPage({
         <div>
           <h1>Bot do WhatsApp</h1>
           <div className="subtitle">
-            Pareie o número dedicado por QR code (Baileys, biblioteca multi-device não-oficial — ADR-0003) e
-            vincule o espaço de Avisos da comunidade correspondente a cada período.
+            Conecte o número dedicado via QR code e vincule a comunidade de Avisos correspondente a
+            cada período.
           </div>
         </div>
       </div>
@@ -103,7 +86,9 @@ export function BotPage({
       <div className="panel-grid" style={{ gridTemplateColumns: "0.9fr 1.1fr" }}>
         <Panel title="Conexão">
           <div className="connect-status">
-            <span className={`status-dot${status === "CONECTADO" ? " on" : status === "CONECTANDO" ? " mid" : ""}`} />
+            <span
+              className={`status-dot${status === "CONECTADO" ? " on" : status === "CONECTANDO" ? " mid" : ""}`}
+            />
             <span className="mono-cell">
               {status === "CONECTADO"
                 ? "conectado"
@@ -129,9 +114,11 @@ export function BotPage({
                   <p className="mono-cell">gerando QR code…</p>
                 )}
               </div>
-              <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600, marginBottom: 14 }}>
-                No WhatsApp do número dedicado: Aparelhos conectados → Conectar um aparelho, e escaneie o código
-                acima.
+              <p
+                style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600, marginBottom: 14 }}
+              >
+                No WhatsApp do número dedicado: Aparelhos conectados → Conectar um aparelho, e
+                escaneie o código acima.
               </p>
             </>
           )}
@@ -152,61 +139,33 @@ export function BotPage({
               disabled={carregando}
               onClick={desconectar}
             >
-              Desconectar
+              Desvincular número
             </button>
           )}
         </Panel>
-
-        <Panel title="Status da sessão" tag="Baileys · multi-device não-oficial">
-          <div className="info-row">
-            <span className="l">Biblioteca</span>
-            <span>@whiskeysockets/baileys</span>
-          </div>
-          <div className="info-row">
-            <span className="l">Sessão</span>
-            <span>persistida em disco, reconexão automática</span>
-          </div>
-          <div className="info-row">
-            <span className="l">Verificação oficial</span>
-            <Chip tone="off">não há selo verde (uso interno)</Chip>
-          </div>
-          <div className="info-row">
-            <span className="l">Escopo do fluxo</span>
-            <span>ativação no grupo e preenchimento privado monitor ↔ bot</span>
-          </div>
-          <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600, marginTop: 14 }}>
-            Como o pareamento não é oficial, a sessão pode cair e exigir um novo QR code sem aviso — use um número
-            dedicado (não o pessoal de nenhum chefe).
-          </p>
+        <Panel title="Comunidade do período">
+          <ComunidadeWhatsapp
+            token={token}
+            periodo={periodo}
+            conectado={status === "CONECTADO"}
+            onReload={onReload}
+          />
         </Panel>
-      </div>
-
-      <div className="section-divider">Comunidade do período</div>
-      <ComunidadeWhatsapp token={token} periodo={periodo} conectado={status === "CONECTADO"} onReload={onReload} />
-
-      <div className="section-divider">Exemplo do fluxo de conversa</div>
-      <div className="phone">
-        <div className="phone-head">
-          <div className="av">F</div>
-          <div>
-            <div className="nm">Feedbot · Introdução à Programação</div>
-            <div className="st">exemplo do script real do bot</div>
-          </div>
-        </div>
-        <div className="msgs">
-          {EXEMPLO_CONVERSA.map((msg, index) => (
-            <div key={index} className={`msg ${msg.from}`} style={{ whiteSpace: "pre-line" }}>
-              {msg.text}
-            </div>
-          ))}
-        </div>
       </div>
     </>
   );
 }
 
-function ComunidadeWhatsapp({ token, periodo, conectado, onReload }: {
-  token: string; periodo: Periodo; conectado: boolean; onReload: () => Promise<void>;
+function ComunidadeWhatsapp({
+  token,
+  periodo,
+  conectado,
+  onReload,
+}: {
+  token: string;
+  periodo: Periodo;
+  conectado: boolean;
+  onReload: () => Promise<void>;
 }) {
   const [valor, setValor] = useState("");
   const [disponiveis, setDisponiveis] = useState<{ id: string; nome: string }[]>([]);
@@ -219,7 +178,7 @@ function ComunidadeWhatsapp({ token, periodo, conectado, onReload }: {
     try {
       const atuais = await api.comunidadesWhatsappDisponiveis(token);
       setDisponiveis(atuais);
-      setValor((anterior) => atuais.some((item) => item.id === anterior) ? anterior : "");
+      setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
     }
@@ -227,57 +186,124 @@ function ComunidadeWhatsapp({ token, periodo, conectado, onReload }: {
 
   useEffect(() => {
     if (!conectado) return;
-    api.comunidadesWhatsappDisponiveis(token).then(setDisponiveis).catch((error) =>
-      setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades"));
+    api
+      .comunidadesWhatsappDisponiveis(token)
+      .then(setDisponiveis)
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades"),
+      );
   }, [token, conectado]);
 
   async function vincular() {
     if (!valor) return setErro("Selecione uma comunidade");
-    setPendente(true); setErro(""); setSucesso("");
-    try { await api.vincularComunidadeWhatsapp(token, periodo.id, valor); await onReload(); }
-    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível vincular a comunidade"); }
-    finally { setPendente(false); }
+    setPendente(true);
+    setErro("");
+    setSucesso("");
+    try {
+      await api.vincularComunidadeWhatsapp(token, periodo.id, valor);
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular a comunidade");
+    } finally {
+      setPendente(false);
+    }
   }
 
   async function desvincular() {
-    setPendente(true); setErro(""); setSucesso("");
-    try { await api.desvincularComunidadeWhatsapp(token, periodo.id); await onReload(); }
-    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível desvincular a comunidade"); }
-    finally { setPendente(false); }
+    setPendente(true);
+    setErro("");
+    setSucesso("");
+    try {
+      await api.desvincularComunidadeWhatsapp(token, periodo.id);
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível desvincular a comunidade");
+    } finally {
+      setPendente(false);
+    }
   }
 
   async function reenviarLink() {
-    setPendente(true); setErro(""); setSucesso("");
+    setPendente(true);
+    setErro("");
+    setSucesso("");
     try {
       await api.enviarLinkComunidadeWhatsapp(token, periodo.id);
       setSucesso("Link de acesso enviado em Avisos.");
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível enviar o link");
+    } finally {
+      setPendente(false);
     }
-    catch (error) { setErro(error instanceof Error ? error.message : "Não foi possível enviar o link"); }
-    finally { setPendente(false); }
   }
 
-  return <div className="table-wrap">
-    <p style={{ color: "var(--text-3)", padding: "0 20px 14px", fontSize: 12.5 }}>
-      Ao vincular, o Feedbot publica um acesso direto à conversa privada para os monitores iniciarem o registro com um toque.
-    </p>
-    <table><thead><tr><th style={{ paddingLeft: 20 }}>Período</th><th>Comunidade · Avisos</th><th>Ação</th></tr></thead>
-      <tbody><tr>
-        <td style={{ paddingLeft: 20 }}>{periodo.nome}</td>
-        <td>{periodo.whatsappAvisosId ? <Chip tone="ok">{periodo.whatsappComunidadeNome ?? "Comunidade vinculada"}</Chip> :
-          <select disabled={!conectado} value={valor} onFocus={() => void carregarComunidades()} onChange={(e) => setValor(e.target.value)}>
-            <option value="">Selecione uma comunidade…</option>
-            {disponiveis.map((d) => <option key={d.id} value={d.id}>{d.nome} · Avisos</option>)}
-          </select>}</td>
-        <td>{periodo.whatsappAvisosId ? <span style={{ display: "flex", gap: 8 }}>
-          <button className="btn sm" disabled={!conectado || pendente} onClick={reenviarLink}><IconCheck />Reenviar link</button>
-          <button className="btn sm" disabled={pendente} onClick={desvincular}><IconX />Remover</button>
-        </span> : <span style={{ display: "flex", gap: 8 }}>
-          <button className="btn sm" disabled={!conectado || pendente} onClick={vincular}><IconCheck />Vincular</button>
-          <button className="btn sm" disabled={!conectado || pendente} onClick={() => void carregarComunidades()}><IconRefresh />Atualizar</button>
-        </span>}</td>
-      </tr></tbody>
-    </table>
-    {erro && <p className="error-banner" style={{ margin: 14 }}>{erro}</p>}
-    {sucesso && <p style={{ color: "var(--sage)", margin: 14 }}>{sucesso}</p>}
-  </div>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <p style={{ color: "var(--text-3)", fontSize: 12.5, margin: 0 }}>
+        Ao vincular, o Feedbot publica um acesso direto à conversa privada para os monitores
+        iniciarem o registro com um toque.
+      </p>
+      <div className="info-row">
+        <span className="l">Período</span>
+        <span>{periodo.nome}</span>
+      </div>
+      <div className="info-row">
+        <span className="l">Comunidade · Avisos</span>
+        <span>
+          {periodo.whatsappAvisosId ? (
+            <Chip tone="ok">{periodo.whatsappComunidadeNome ?? "Comunidade vinculada"}</Chip>
+          ) : (
+            <select
+              disabled={!conectado}
+              value={valor}
+              onFocus={() => void carregarComunidades()}
+              onChange={(e) => setValor(e.target.value)}
+            >
+              <option value="">Selecione uma comunidade…</option>
+              {disponiveis.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nome} · Avisos
+                </option>
+              ))}
+            </select>
+          )}
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {periodo.whatsappAvisosId ? (
+          <>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={reenviarLink}>
+              <IconCheck />
+              Reenviar link
+            </button>
+            <button className="btn sm" disabled={pendente} onClick={desvincular}>
+              <IconX />
+              Remover
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={vincular}>
+              <IconCheck />
+              Vincular
+            </button>
+            <button
+              className="btn sm"
+              disabled={!conectado || pendente}
+              onClick={() => void carregarComunidades()}
+            >
+              <IconRefresh />
+              Atualizar
+            </button>
+          </>
+        )}
+      </div>
+      {erro && (
+        <p className="error-banner" style={{ margin: 0 }}>
+          {erro}
+        </p>
+      )}
+      {sucesso && <p style={{ color: "var(--sage)", margin: 0 }}>{sucesso}</p>}
+    </div>
+  );
 }

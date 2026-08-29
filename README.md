@@ -77,7 +77,8 @@ O bot usa uma biblioteca não-oficial multi-device (ex. Baileys), pareada por QR
 ### Execução contínua (24/7)
 
 O painel pode ser fechado sem desconectar o bot: a conexão pertence à API, não ao
-navegador. Para manter API, bot e banco ativos com reinício automático, execute:
+navegador. A API também mantém um watchdog independente do painel para refazer conexões
+interrompidas ou presas. Para manter API, bot e banco ativos com reinício automático, execute:
 
 ```bash
 docker compose up -d --build
@@ -91,4 +92,5 @@ ou quando o usuário solicita **Desconectar** no painel.
 
 O computador/servidor e o Docker precisam permanecer ligados. Para disponibilidade
 real 24/7, execute o Compose em um servidor permanente e configure o Docker para iniciar
-com o sistema operacional.
+com o sistema operacional. A disponibilidade ainda depende da internet e do WhatsApp;
+revogação do aparelho conectado exige um novo pareamento manual.

@@ -10,6 +10,11 @@ import {
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { BotSessaoStatus } from "../generated/prisma/enums.js";
 import { calcularSemana } from "../domain/semana.js";
+import {
+  comandoEncerraFluxo,
+  comandoIniciaFluxo,
+  comOpcaoDeSaida,
+} from "../domain/comandos-bot.js";
 import { semanasCobertasPorMonitor } from "../domain/monitorSemana.js";
 import { variantesWhatsapp } from "../domain/telefone.js";
 import { criarFeedback } from "./feedback.js";
@@ -74,6 +79,7 @@ export class WhatsAppBot {
   private devePermanecerConectado = false;
   private reconnectTimer?: NodeJS.Timeout;
   private tentativasReconexao = 0;
+  private ultimaTentativaEm?: Date;
   private quedaEm?: Date;
   private lembretesEmExecucao = false;
 
@@ -84,6 +90,14 @@ export class WhatsAppBot {
   ) {}
 
   async status() {
+    const sessao = await this.prisma.botSessao.findUnique({ where: { id: SESSION_ID } });
+    if (!this.socket?.user || sessao?.status === BotSessaoStatus.CONECTADO) return sessao;
+
+    // O socket é a fonte de verdade enquanto o processo está vivo. Um evento de
+    // fechamento atrasado de uma conexão anterior não pode deixar o painel preso
+    // em DESCONECTADO quando a conexão substituta já está aberta.
+    const numeroConectado = this.socket.user.id.split(":")[0];
+    await this.atualizarStatus(BotSessaoStatus.CONECTADO, numeroConectado);
     return this.prisma.botSessao.findUnique({ where: { id: SESSION_ID } });
   }
   qrAtual() {
@@ -101,6 +115,22 @@ export class WhatsAppBot {
     }
     await this.conectar();
     return true;
+  }
+
+  async garantirConexao() {
+    if (!this.devePermanecerConectado || this.socket?.user) return;
+
+    const tentativaExpirou =
+      this.ultimaTentativaEm && Date.now() - this.ultimaTentativaEm.getTime() >= 2 * 60_000;
+    if (this.socket && !tentativaExpirou) return;
+
+    if (this.socket) {
+      const socketTravado = this.socket;
+      this.socket = undefined;
+      socketTravado.end(new Error("Tempo limite ao conectar o WhatsApp"));
+    }
+    this.quedaEm ??= new Date();
+    await this.conectar();
   }
 
   async enviarLembretesDeAtraso(agora = new Date()) {
@@ -148,6 +178,7 @@ export class WhatsAppBot {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
     if (this.socket) return;
+    this.ultimaTentativaEm = new Date();
     await mkdir(this.authDir, { recursive: true, mode: 0o700 });
     await chmod(this.authDir, 0o700);
     const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
@@ -166,6 +197,7 @@ export class WhatsAppBot {
       if (connection === "open") {
         this.qr = undefined;
         this.tentativasReconexao = 0;
+        this.ultimaTentativaEm = undefined;
         await this.atualizarStatus(BotSessaoStatus.CONECTADO, socket.user?.id?.split(":")[0]);
         if (this.quedaEm) {
           const minutos = Math.max(1, Math.round((Date.now() - this.quedaEm.getTime()) / 60_000));
@@ -179,7 +211,10 @@ export class WhatsAppBot {
         );
       }
       if (connection === "close") {
-        if (this.socket === socket) this.socket = undefined;
+        // Eventos podem chegar depois de uma reconexão. Se este já não é o socket
+        // atual, ignorá-lo evita sobrescrever o estado da conexão mais nova.
+        if (this.socket !== socket) return;
+        this.socket = undefined;
         this.qr = undefined;
         await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
         const code = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)
@@ -245,14 +280,18 @@ export class WhatsAppBot {
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
-    this.socket?.end(undefined);
+    const socket = this.socket;
     this.socket = undefined;
     this.qr = undefined;
-    // Desconectar aqui também é um logout (não só fechar a conexão) — sem limpar as
-    // credenciais salvas, o próximo "conectar" reaproveitaria a sessão antiga e nunca
-    // geraria um QR code novo (ver comentário equivalente em connection.update).
-    await this.limparAuth();
-    await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
+    this.ultimaTentativaEm = undefined;
+    try {
+      // Remove este aparelho também no WhatsApp. Apenas encerrar o websocket deixaria
+      // o número vinculado no celular e não prepararia corretamente a troca de conta.
+      await socket?.logout();
+    } finally {
+      await this.limparAuth();
+      await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
+    }
   }
 
   async encerrarParaReinicio() {
@@ -264,6 +303,7 @@ export class WhatsAppBot {
     this.reconnectTimer = undefined;
     this.socket?.end(undefined);
     this.socket = undefined;
+    this.ultimaTentativaEm = undefined;
   }
 
   async comunidadesDisponiveis() {
@@ -403,14 +443,17 @@ export class WhatsAppBot {
     return this.enviar(
       socket,
       jidPrivado,
-      `Olá, ${monitor.nome}. Vamos continuar em privado. Qual lista você vai registrar?\n${listas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+      comOpcaoDeSaida(
+        `Olá, ${monitor.nome}. Vamos continuar em privado. Qual lista você vai registrar?\n${listas.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+      ),
     );
   }
 
   private async receber(socket: WASocket, message: WAMessage) {
     const jid = message.key.remoteJid;
     if (!jid || jid.endsWith("@g.us") || message.key.fromMe) return;
-    const texto = textoDaMensagem(message.message).toLowerCase();
+    const textoOriginal = textoDaMensagem(message.message);
+    const texto = textoOriginal.toLowerCase();
     if (!texto) return;
     // WhatsApp pode endereçar a conversa por "LID" (identificador de privacidade) em vez
     // do número de telefone; nesse caso o número real vem em remoteJidAlt. As respostas
@@ -419,7 +462,15 @@ export class WhatsAppBot {
     const jidTelefone = jid.endsWith("@lid") ? (message.key.remoteJidAlt ?? jid) : jid;
     const chave = numeroDoJid(jidTelefone);
     const conversa = this.conversas.get(chave);
-    if (!conversa || ["oi", "menu", "cancelar"].includes(texto)) {
+    if (comandoEncerraFluxo(textoOriginal)) {
+      this.conversas.delete(chave);
+      return this.enviar(
+        socket,
+        jid,
+        "Fluxo encerrado. Nenhuma informação foi gravada. Envie Registrar feedback quando quiser começar novamente.",
+      );
+    }
+    if (!conversa || comandoIniciaFluxo(textoOriginal)) {
       const monitores = await this.prisma.monitor.findMany({
         where: { whatsappNumero: { not: "" }, status: "ATIVO" },
       });
@@ -438,7 +489,7 @@ export class WhatsAppBot {
       }
       return this.iniciarConversa(socket, jid, chave, monitor);
     }
-    const responder = (text: string) => this.enviar(socket, jid, text);
+    const responder = (text: string) => this.enviar(socket, jid, comOpcaoDeSaida(text));
     if (conversa.etapa === "lista") {
       const listas = await this.listasPermitidas(conversa.monitorId, conversa.periodoId);
       const lista = listas[Number(texto) - 1];
@@ -541,19 +592,16 @@ export class WhatsAppBot {
       if (!["sim", "não", "nao"].includes(texto)) return responder("Responda sim ou não.");
       conversa.etapa = texto === "sim" ? "questoesProibicao" : "confirmar";
       return responder(
-        texto === "sim"
-          ? "Em quais questões? Ex.: 1, 5"
-          : "Envie CONFIRMAR para gravar ou CANCELAR para reiniciar.",
+        texto === "sim" ? "Em quais questões? Ex.: 1, 5" : "Envie CONFIRMAR para gravar.",
       );
     }
     if (conversa.etapa === "questoesProibicao") {
       conversa.proibicao = questoes(texto);
       conversa.etapa = "confirmar";
-      return responder("Envie CONFIRMAR para gravar ou CANCELAR para reiniciar.");
+      return responder("Envie CONFIRMAR para gravar.");
     }
     if (conversa.etapa === "confirmar") {
-      if (texto !== "confirmar")
-        return responder("Envie CONFIRMAR para gravar ou CANCELAR para reiniciar.");
+      if (texto !== "confirmar") return responder("Envie CONFIRMAR para gravar.");
       try {
         const feedback = await criarFeedback(this.prisma, {
           alunoId: conversa.alunoId!,
@@ -569,12 +617,14 @@ export class WhatsAppBot {
         if (this.sheets.configurado())
           void this.sheets.sincronizarFeedback(this.prisma, feedback.id);
         this.conversas.delete(chave);
-        return responder(
-          "Registrado ✅ A sincronização com a planilha será processada automaticamente.",
+        return this.enviar(
+          socket,
+          jid,
+          "Registrado ✅ A sincronização com a planilha será processada automaticamente. Envie Registrar feedback para iniciar outro registro.",
         );
       } catch (error) {
         return responder(
-          `Não foi possível registrar: ${error instanceof Error ? error.message : "dados inválidos"}. Envie CANCELAR e tente novamente.`,
+          `Não foi possível registrar: ${error instanceof Error ? error.message : "dados inválidos"}. Envie Registrar feedback para tentar novamente.`,
         );
       }
     }
