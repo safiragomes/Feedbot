@@ -13,6 +13,14 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/coverage/**",
       "**/generated/**",
+      // Marketplaces de skills baixados na raiz do repo (ver .gitignore) — não são
+      // código do app e não devem ser lintados.
+      "agent-skills/**",
+      "awesome-codex-skills/**",
+      "bencium-claude-code-design-skill/**",
+      "codex-skills/**",
+      "skills/**",
+      "ui-ux-pro-max-skill/**",
     ],
   },
   js.configs.recommended,
