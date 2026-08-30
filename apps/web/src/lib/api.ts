@@ -52,6 +52,13 @@ export function logout(token: string) {
   return request<void>("/auth/logout", token, { method: "POST" });
 }
 
+export function concluirConvite(tokenConvite: string, senha: string) {
+  return request<void>("/auth/convites/concluir", "", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenConvite, senha }),
+  });
+}
+
 function post<T>(path: string, token: string, data: unknown) {
   return request<T>(path, token, { method: "POST", body: JSON.stringify(data) });
 }
@@ -68,6 +75,7 @@ function del(path: string, token: string) {
 export const api = {
   login,
   logout,
+  concluirConvite,
   periodos: (token: string) => request<Periodo[]>("/periodos", token),
   criarPeriodo: (
     token: string,
@@ -112,6 +120,8 @@ export const api = {
 
   monitores: (token: string, periodoId: string) =>
     request<Monitor[]>(`/monitores?periodoId=${periodoId}`, token),
+  enviarConviteChefe: (token: string, monitorId: string, email: string) =>
+    post<{ email: string; expiraEm: string }>("/auth/convites", token, { monitorId, email }),
   criarMonitor: (
     token: string,
     data: {
@@ -144,6 +154,8 @@ export const api = {
     id: string,
     data: { duplaId?: string | null; isPcd?: boolean; monitorSemanaAId?: string | null },
   ) => patch<Aluno>(`/alunos/${id}`, token, data),
+  atribuirAlunosDupla: (token: string, alunoIds: string[], duplaId: string) =>
+    patch<{ atualizados: number }>("/alunos/atribuir-dupla", token, { alunoIds, duplaId }),
   salvarPrazoAluno: (
     token: string,
     alunoId: string,
@@ -191,7 +203,4 @@ export const api = {
     del(`/bot/periodos/${periodoId}/comunidade`, token),
   enviarLinkComunidadeWhatsapp: (token: string, periodoId: string) =>
     post<{ link: string }>(`/bot/periodos/${periodoId}/enviar-link`, token, {}),
-
-  criarContaChefe: (token: string, data: { monitorId: string; email: string; senha: string }) =>
-    post<{ id: string; monitorId: string; email: string }>("/auth/contas", token, data),
 };

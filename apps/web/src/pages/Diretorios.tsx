@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
-import { IconSearch, IconTrash } from "../components/icons";
+import { IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
+import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
+import { api } from "../lib/api";
 
 type TipoOcorrencia = "ia" | "plagio" | "proibicao";
 
@@ -228,6 +230,7 @@ export function DiretorioAlunos({
 
 export function DiretorioMonitores({
   token,
+  periodoId,
   monitores,
   grupos,
   duplas,
@@ -239,6 +242,7 @@ export function DiretorioMonitores({
   onRequestConfirm,
 }: {
   token: string;
+  periodoId: string;
   monitores: Monitor[];
   grupos: GrupoRevisao[];
   duplas: Dupla[];
@@ -254,6 +258,7 @@ export function DiretorioMonitores({
   const [somentePendentes, setSomentePendentes] = useState(false);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
+  const [modal, setModal] = useState<"novo" | Monitor | null>(null);
 
   const q = busca.trim().toLowerCase();
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
@@ -276,14 +281,31 @@ export function DiretorioMonitores({
     solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
   }
 
+  async function promoverChefe(monitor: Monitor, event: React.MouseEvent) {
+    event.stopPropagation();
+    setErro("");
+    try {
+      await api.atualizarMonitor(token, monitor.id, { isChefe: true });
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível promover o monitor");
+    }
+  }
+
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Monitores</h1>
           <div className="subtitle">
-            Diretório completo — encontre um monitor por grupo de revisão ou busca direta.
+            Cadastre monitores, defina chefes e gerencie convites de acesso em um só lugar.
           </div>
+        </div>
+        <div className="head-actions">
+          <button className="btn primary" onClick={() => setModal("novo")}>
+            <IconPlus />
+            Novo monitor
+          </button>
         </div>
       </div>
 
@@ -337,6 +359,7 @@ export function DiretorioMonitores({
               <th>Alunos · semana A</th>
               <th>Alunos · semana B</th>
               <th>Papel</th>
+              <th>Acesso</th>
               <th>Pendências</th>
               <th style={{ paddingRight: 20 }} />
             </tr>
@@ -361,6 +384,29 @@ export function DiretorioMonitores({
                   <td className="mono-cell">{alunosB}</td>
                   <td>
                     <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
+                  </td>
+                  <td>
+                    {!m.isChefe ? (
+                      <button className="btn sm" onClick={(event) => void promoverChefe(m, event)}>
+                        Tornar chefe
+                      </button>
+                    ) : m.contaChefe ? (
+                      <Chip tone="ok">{m.contaChefe.email}</Chip>
+                    ) : (
+                      <button
+                        className="btn sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setModal(m);
+                        }}
+                      >
+                        {m.conviteContaChefe &&
+                        !m.conviteContaChefe.usadoEm &&
+                        new Date(m.conviteContaChefe.expiraEm) > new Date()
+                          ? "Reenviar convite"
+                          : "Enviar convite"}
+                      </button>
+                    )}
                   </td>
                   <td>
                     {pendenciasVisiveis.filter((atraso) => atraso.monitorId === m.id).length ? (
@@ -392,6 +438,22 @@ export function DiretorioMonitores({
           />
         )}
       </div>
+      {modal === "novo" && (
+        <NovoMonitorModal
+          token={token}
+          periodoId={periodoId}
+          onClose={() => setModal(null)}
+          onCreated={() => void onReload()}
+        />
+      )}
+      {modal && modal !== "novo" && (
+        <ConvidarChefeModal
+          token={token}
+          monitor={modal}
+          onClose={() => setModal(null)}
+          onSent={() => void onReload()}
+        />
+      )}
     </>
   );
 }

@@ -1,21 +1,16 @@
-import { useState } from "react";
-import { api, ApiError } from "../lib/api";
-import type { Aluno, Dupla, GrupoRevisao, Lista, Monitor, Turma } from "../lib/types";
+import { useMemo, useState } from "react";
+import { api } from "../lib/api";
+import type { Aluno, Dupla, GrupoRevisao, Monitor, Turma } from "../lib/types";
 import { IconChevronDown, IconPlus, IconTrash, IconX } from "../components/icons";
 import type { ConfirmRequest } from "../components/ui";
-import { Chip, Modal, Panel } from "../components/ui";
-import { fimDoDiaIso, validarWhatsapp } from "../lib/format";
-import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
+import { Modal } from "../components/ui";
 import { monitorSemanaB } from "../lib/dupla";
 
 type ModalState =
   | { type: "novoGrupo" }
   | { type: "novaDupla"; grupoId: string }
   | { type: "vincularAluno"; grupoId: string }
-  | { type: "atribuirMonitor"; duplaId: string }
-  | { type: "novoMonitor" }
-  | { type: "criarLogin"; monitor: Monitor }
-  | { type: "editarLista"; lista: Lista };
+  | { type: "atribuirMonitor"; duplaId: string };
 
 export function Gestao({
   token,
@@ -25,7 +20,6 @@ export function Gestao({
   monitores,
   alunos,
   turmas,
-  listas,
   onReload,
   onRequestConfirm,
 }: {
@@ -36,7 +30,6 @@ export function Gestao({
   monitores: Monitor[];
   alunos: Aluno[];
   turmas: Turma[];
-  listas: Lista[];
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
@@ -104,15 +97,14 @@ export function Gestao({
       onConfirm: () => run(() => api.atualizarMonitor(token, monitor.id, { duplaId: null })),
     });
   }
-  function confirmarExclusaoAluno(aluno: Aluno) {
-    solicitarRemocaoAluno({ aluno, token, onRequestConfirm, onReload, onErro: setErro });
-  }
-  function confirmarExclusaoMonitor(monitor: Monitor) {
-    if (monitor.duplaId) {
-      setErro(`${monitor.nome} está vinculado a uma dupla — desvincule antes de excluir.`);
-      return;
-    }
-    solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
+  function confirmarDesvinculoAluno(aluno: Aluno) {
+    onRequestConfirm({
+      title: `Tirar ${aluno.nome} da dupla?`,
+      message:
+        "O aluno ficará sem dupla, mas seu cadastro e todo o histórico serão preservados. Você poderá vinculá-lo novamente depois.",
+      confirmLabel: "Tirar da dupla",
+      onConfirm: () => run(() => api.atualizarAluno(token, aluno.id, { duplaId: null })),
+    });
   }
   async function escolherPapel(
     aluno: Aluno,
@@ -131,8 +123,7 @@ export function Gestao({
         <div>
           <h1>Grupos &amp; duplas</h1>
           <div className="subtitle">
-            Estrutura de supervisão do período — crie, edite e remova grupos, duplas, monitores e
-            alunos.
+            Organize os chefes vigentes, as duplas de supervisão e os alunos atendidos no período.
           </div>
         </div>
         <div className="head-actions">
@@ -144,90 +135,6 @@ export function Gestao({
       </div>
 
       {erro && <div className="error-banner">{erro}</div>}
-
-      <div className="panel-grid" style={{ marginBottom: 20 }}>
-        <Panel
-          title="Monitores"
-          tag={`${monitores.length} no período`}
-          legend={
-            <button className="btn sm" onClick={() => setModal({ type: "novoMonitor" })}>
-              <IconPlus />
-              Novo monitor
-            </button>
-          }
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              maxHeight: 260,
-              overflowY: "auto",
-            }}
-          >
-            {monitores.map((m) => (
-              <div key={m.id} className="mini-row">
-                <span className="l">
-                  {m.nome} {m.isChefe && <Chip tone="warn">chefe</Chip>}
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="mono-cell">{m.dupla ? `${m.dupla.label}` : "sem dupla"}</span>
-                  {m.isChefe &&
-                    (m.contaChefe ? (
-                      <Chip tone="ok">login: {m.contaChefe.email}</Chip>
-                    ) : (
-                      <button
-                        className="btn sm"
-                        onClick={() => setModal({ type: "criarLogin", monitor: m })}
-                      >
-                        Criar login
-                      </button>
-                    ))}
-                  <button
-                    className="x-btn"
-                    title="Excluir monitor (apaga o cadastro — não confundir com remover da dupla)"
-                    onClick={() => confirmarExclusaoMonitor(m)}
-                  >
-                    <IconTrash />
-                  </button>
-                </span>
-              </div>
-            ))}
-            {!monitores.length && (
-              <p className="mono-cell">Nenhum monitor cadastrado neste período.</p>
-            )}
-          </div>
-        </Panel>
-        <Panel title="Listas" tag={`${listas.length} no período`}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              maxHeight: 260,
-              overflowY: "auto",
-            }}
-          >
-            {[...listas]
-              .sort((a, b) => a.ordem - b.ordem)
-              .map((lista) => (
-                <div key={lista.id} className="mini-row">
-                  <span className="l">{lista.nome}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="mono-cell">{lista.qtdQuestoesTotal} questões</span>
-                    <button
-                      className="btn sm"
-                      onClick={() => setModal({ type: "editarLista", lista })}
-                    >
-                      Editar
-                    </button>
-                  </span>
-                </div>
-              ))}
-            {!listas.length && <p className="mono-cell">Nenhuma lista cadastrada neste período.</p>}
-          </div>
-        </Panel>
-      </div>
 
       <div className="grupo-grid">
         {grupos.map((grupo) => {
@@ -342,8 +249,8 @@ export function Gestao({
                                     </select>
                                     <button
                                       className="x-btn"
-                                      title="Remover aluno"
-                                      onClick={() => confirmarExclusaoAluno(aluno)}
+                                      title="Tirar aluno da dupla"
+                                      onClick={() => confirmarDesvinculoAluno(aluno)}
                                     >
                                       <IconX />
                                     </button>
@@ -406,6 +313,7 @@ export function Gestao({
       {modal?.type === "vincularAluno" && (
         <VincularAlunoModal
           token={token}
+          alunos={alunos}
           turmas={turmas}
           duplas={duplas.filter((d) => d.grupoRevisaoId === modal.grupoId)}
           onClose={() => setModal(null)}
@@ -415,36 +323,10 @@ export function Gestao({
       {modal?.type === "atribuirMonitor" && (
         <AtribuirMonitorModal
           token={token}
-          periodoId={periodoId}
           duplaId={modal.duplaId}
           monitoresDisponiveis={monitores.filter((m) => !m.duplaId)}
           onClose={() => setModal(null)}
           onAssigned={() => run(() => Promise.resolve())}
-        />
-      )}
-      {modal?.type === "novoMonitor" && (
-        <NovoMonitorModal
-          token={token}
-          periodoId={periodoId}
-          onClose={() => setModal(null)}
-          onCreated={() => run(() => Promise.resolve())}
-        />
-      )}
-      {modal?.type === "criarLogin" && (
-        <CriarLoginModal
-          token={token}
-          monitor={modal.monitor}
-          onClose={() => setModal(null)}
-          onCreated={() => run(() => Promise.resolve())}
-        />
-      )}
-      {modal?.type === "editarLista" && (
-        <EditarListaModal
-          token={token}
-          lista={modal.lista}
-          turmas={turmas}
-          onClose={() => setModal(null)}
-          onSaved={() => run(() => Promise.resolve())}
         />
       )}
     </>
@@ -508,32 +390,17 @@ function NovoGrupoModal({
     (monitor) => monitor.isChefe && !grupos.some((grupo) => grupo.chefeId === monitor.id),
   );
   const [nome, setNome] = useState("");
-  const [chefeId, setChefeId] = useState(chefes[0]?.id ?? "__novo__");
-  const [novoChefeNome, setNovoChefeNome] = useState("");
-  const [novoChefeWhats, setNovoChefeWhats] = useState("");
+  const [chefeId, setChefeId] = useState(chefes[0]?.id ?? "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   async function submit() {
-    if (!nome.trim()) return setErro("Informe o nome do grupo");
+    if (!nome.trim() || !chefeId)
+      return setErro("Informe o nome e selecione um chefe vigente disponível");
     setSalvando(true);
     setErro("");
     try {
-      let id = chefeId;
-      if (chefeId === "__novo__") {
-        if (!novoChefeNome.trim() || !novoChefeWhats.trim())
-          throw new ApiError("Informe nome e WhatsApp do novo chefe");
-        const erroWhats = validarWhatsapp(novoChefeWhats);
-        if (erroWhats) throw new ApiError(erroWhats);
-        const criado = await api.criarMonitor(token, {
-          nome: novoChefeNome.trim(),
-          whatsappNumero: novoChefeWhats.trim(),
-          periodoId,
-          isChefe: true,
-        });
-        id = criado.id;
-      }
-      await api.criarGrupo(token, { periodoId, chefeId: id, nome: nome.trim() });
+      await api.criarGrupo(token, { periodoId, chefeId, nome: nome.trim() });
       onCreated();
       onClose();
     } catch (error) {
@@ -564,44 +431,23 @@ function NovoGrupoModal({
         <div className="field">
           <label>Chefe responsável</label>
           <select value={chefeId} onChange={(e) => setChefeId(e.target.value)}>
+            {!chefes.length && <option value="">Nenhum chefe disponível</option>}
             {chefes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nome}
               </option>
             ))}
-            <option value="__novo__">+ Criar novo chefe</option>
           </select>
         </div>
-        {chefeId === "__novo__" && (
-          <>
-            <div className="field">
-              <label>Nome do novo chefe</label>
-              <input
-                value={novoChefeNome}
-                onChange={(e) => setNovoChefeNome(e.target.value)}
-                placeholder="Nome completo"
-              />
-            </div>
-            <div className="field">
-              <label>WhatsApp do novo chefe</label>
-              <input
-                value={novoChefeWhats}
-                onChange={(e) => setNovoChefeWhats(e.target.value)}
-                placeholder="+55 81 9XXXX-XXXX"
-              />
-              <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
-                Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
-                WhatsApp.
-              </p>
-            </div>
-          </>
+        {!chefes.length && (
+          <p>Cadastre ou promova um monitor na tela Monitores antes de criar este grupo.</p>
         )}
         {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
         <div className="modal-actions">
           <button className="btn ghost" type="button" onClick={onClose}>
             Cancelar
           </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
+          <button className="btn primary" type="submit" disabled={salvando || !chefes.length}>
             Criar grupo
           </button>
         </div>
@@ -675,17 +521,23 @@ function NovaDuplaModal({
 
 function VincularAlunoModal({
   token,
+  alunos,
   turmas,
   duplas,
   onClose,
   onCreated,
 }: {
   token: string;
+  alunos: Aluno[];
   turmas: Turma[];
   duplas: Dupla[];
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const [modo, setModo] = useState<"existentes" | "novo">("existentes");
+  const [busca, setBusca] = useState("");
+  const [turmaFiltro, setTurmaFiltro] = useState("");
+  const [selecionados, setSelecionados] = useState(new Set<string>());
   const [nome, setNome] = useState("");
   const [matricula, setMatricula] = useState("");
   const [turmaId, setTurmaId] = useState(turmas[0]?.id ?? "");
@@ -693,7 +545,43 @@ function VincularAlunoModal({
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
-  async function submit() {
+  const alunosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase("pt-BR");
+    return alunos.filter(
+      (aluno) =>
+        (!turmaFiltro || aluno.turmaId === turmaFiltro) &&
+        (!termo ||
+          aluno.nome.toLocaleLowerCase("pt-BR").includes(termo) ||
+          aluno.matricula.includes(termo)),
+    );
+  }, [alunos, busca, turmaFiltro]);
+
+  function alternarAluno(id: string) {
+    setSelecionados((atuais) => {
+      const proximos = new Set(atuais);
+      if (proximos.has(id)) proximos.delete(id);
+      else proximos.add(id);
+      return proximos;
+    });
+  }
+
+  async function vincularExistentes() {
+    if (!duplaId || selecionados.size === 0)
+      return setErro("Selecione ao menos um aluno e uma dupla");
+    setSalvando(true);
+    setErro("");
+    try {
+      await api.atribuirAlunosDupla(token, [...selecionados], duplaId);
+      onCreated();
+      onClose();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular os alunos");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function cadastrarNovo() {
     if (!nome.trim() || !matricula.trim() || !turmaId || !duplaId)
       return setErro("Preencha todos os campos");
     setSalvando(true);
@@ -714,104 +602,206 @@ function VincularAlunoModal({
   }
 
   return (
-    <Modal onClose={onClose}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <h4>Vincular aluno</h4>
-        <p>Adicione um aluno a uma dupla deste grupo.</p>
-        <div className="field">
-          <label>Nome</label>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Nome completo"
-          />
-        </div>
-        <div className="field">
-          <label>Matrícula</label>
-          <input
-            value={matricula}
-            onChange={(e) => setMatricula(e.target.value)}
-            placeholder="Ex: 20260099999"
-          />
-        </div>
-        <div className="field">
-          <label>Turma</label>
-          <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)}>
-            {turmas.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nome}
-              </option>
+    <Modal onClose={onClose} wide>
+      <h4>Vincular aluno</h4>
+      <div className="student-link-tabs" role="tablist" aria-label="Forma de vínculo">
+        <button
+          type="button"
+          className={`btn sm${modo === "existentes" ? " primary" : ""}`}
+          onClick={() => setModo("existentes")}
+        >
+          Selecionar existentes
+        </button>
+        <button
+          type="button"
+          className={`btn sm${modo === "novo" ? " primary" : ""}`}
+          onClick={() => setModo("novo")}
+        >
+          Cadastrar novo
+        </button>
+      </div>
+
+      {modo === "existentes" ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void vincularExistentes();
+          }}
+        >
+          <p>
+            Pesquise e selecione alunos já cadastrados. Um novo vínculo substitui a dupla atual.
+          </p>
+          <div className="student-link-filters">
+            <div className="field">
+              <label htmlFor="busca-aluno">Nome ou matrícula</label>
+              <input
+                id="busca-aluno"
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Pesquisar aluno"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="filtro-turma-aluno">Turma</label>
+              <select
+                id="filtro-turma-aluno"
+                value={turmaFiltro}
+                onChange={(event) => setTurmaFiltro(event.target.value)}
+              >
+                <option value="">Todas as turmas</option>
+                {turmas.map((turma) => (
+                  <option key={turma.id} value={turma.id}>
+                    {turma.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="student-link-selection-bar">
+            <span>{selecionados.size} selecionado(s)</span>
+            <span>
+              <button
+                className="btn sm ghost"
+                type="button"
+                onClick={() =>
+                  setSelecionados(
+                    (atuais) => new Set([...atuais, ...alunosFiltrados.map((aluno) => aluno.id)]),
+                  )
+                }
+              >
+                Selecionar visíveis
+              </button>
+              <button
+                className="btn sm ghost"
+                type="button"
+                onClick={() => setSelecionados(new Set())}
+              >
+                Limpar
+              </button>
+            </span>
+          </div>
+          <div className="student-link-list">
+            {alunosFiltrados.map((aluno) => (
+              <label className="student-link-row" key={aluno.id}>
+                <input
+                  type="checkbox"
+                  checked={selecionados.has(aluno.id)}
+                  onChange={() => alternarAluno(aluno.id)}
+                />
+                <span className="student-link-identity">
+                  <strong>{aluno.nome}</strong>
+                  <small>{aluno.matricula}</small>
+                </span>
+                <span className="student-link-meta">
+                  <small>{aluno.turma.nome}</small>
+                  <small>{aluno.dupla?.label ?? "Sem dupla"}</small>
+                </span>
+              </label>
             ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>Dupla</label>
-          <select value={duplaId} onChange={(e) => setDuplaId(e.target.value)}>
-            {duplas.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
-        <div className="modal-actions">
-          <button className="btn ghost" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
-            Vincular aluno
-          </button>
-        </div>
-      </form>
+            {!alunosFiltrados.length && <p>Nenhum aluno encontrado com esses filtros.</p>}
+          </div>
+          <div className="field">
+            <label>Vincular à dupla</label>
+            <select value={duplaId} onChange={(e) => setDuplaId(e.target.value)}>
+              {duplas.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+          <div className="modal-actions">
+            <button className="btn ghost" type="button" onClick={onClose}>
+              Cancelar
+            </button>
+            <button className="btn primary" type="submit" disabled={salvando || !duplas.length}>
+              Vincular {selecionados.size || "alunos"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void cadastrarNovo();
+          }}
+        >
+          <p>Cadastre um aluno e já o adicione a uma dupla deste grupo.</p>
+          <div className="field">
+            <label>Nome</label>
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Nome completo"
+            />
+          </div>
+          <div className="field">
+            <label>Matrícula</label>
+            <input
+              value={matricula}
+              onChange={(e) => setMatricula(e.target.value)}
+              placeholder="Ex: 20260099999"
+            />
+          </div>
+          <div className="field">
+            <label>Turma</label>
+            <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)}>
+              {turmas.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Dupla</label>
+            <select value={duplaId} onChange={(e) => setDuplaId(e.target.value)}>
+              {duplas.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+          <div className="modal-actions">
+            <button className="btn ghost" type="button" onClick={onClose}>
+              Cancelar
+            </button>
+            <button className="btn primary" type="submit" disabled={salvando}>
+              Vincular aluno
+            </button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }
 
 function AtribuirMonitorModal({
   token,
-  periodoId,
   duplaId,
   monitoresDisponiveis,
   onClose,
   onAssigned,
 }: {
   token: string;
-  periodoId: string;
   duplaId: string;
   monitoresDisponiveis: Monitor[];
   onClose: () => void;
   onAssigned: () => void;
 }) {
-  const [monitorId, setMonitorId] = useState(monitoresDisponiveis[0]?.id ?? "__novo__");
-  const [novoNome, setNovoNome] = useState("");
-  const [novoWhats, setNovoWhats] = useState("");
+  const [monitorId, setMonitorId] = useState(monitoresDisponiveis[0]?.id ?? "");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   async function submit() {
+    if (!monitorId) return setErro("Não há monitor disponível para vincular");
     setSalvando(true);
     setErro("");
     try {
-      if (monitorId === "__novo__") {
-        if (!novoNome.trim() || !novoWhats.trim())
-          throw new ApiError("Informe nome e WhatsApp do novo monitor");
-        const erroWhats = validarWhatsapp(novoWhats);
-        if (erroWhats) throw new ApiError(erroWhats);
-        await api.criarMonitor(token, {
-          nome: novoNome.trim(),
-          whatsappNumero: novoWhats.trim(),
-          periodoId,
-          duplaId,
-        });
-      } else {
-        await api.atualizarMonitor(token, monitorId, { duplaId });
-      }
+      await api.atualizarMonitor(token, monitorId, { duplaId });
       onAssigned();
       onClose();
     } catch (error) {
@@ -831,309 +821,34 @@ function AtribuirMonitorModal({
       >
         <h4>Vincular monitor à dupla</h4>
         <p>
-          Escolha um monitor sem dupla neste período, ou cadastre um novo. Depois, escolha aluno a
-          aluno quem é a semana A e quem é a semana B entre os dois monitores da dupla.
+          Escolha um monitor já cadastrado e ainda sem dupla. Depois, defina aluno a aluno quem é a
+          semana A e quem é a semana B.
         </p>
         <div className="field">
           <label>Monitor</label>
           <select value={monitorId} onChange={(e) => setMonitorId(e.target.value)}>
+            {!monitoresDisponiveis.length && <option value="">Nenhum monitor disponível</option>}
             {monitoresDisponiveis.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.nome}
               </option>
             ))}
-            <option value="__novo__">+ Cadastrar novo monitor</option>
           </select>
         </div>
-        {monitorId === "__novo__" && (
-          <>
-            <div className="field">
-              <label>Nome</label>
-              <input
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
-                placeholder="Nome do monitor"
-              />
-            </div>
-            <div className="field">
-              <label>WhatsApp</label>
-              <input
-                value={novoWhats}
-                onChange={(e) => setNovoWhats(e.target.value)}
-                placeholder="+55 81 9XXXX-XXXX"
-              />
-              <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
-                Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
-                WhatsApp.
-              </p>
-            </div>
-          </>
+        {!monitoresDisponiveis.length && (
+          <p>Cadastre um monitor na tela Monitores e volte para vinculá-lo à dupla.</p>
         )}
         {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
         <div className="modal-actions">
           <button className="btn ghost" type="button" onClick={onClose}>
             Cancelar
           </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={salvando || !monitoresDisponiveis.length}
+          >
             Vincular
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function NovoMonitorModal({
-  token,
-  periodoId,
-  onClose,
-  onCreated,
-}: {
-  token: string;
-  periodoId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const [nome, setNome] = useState("");
-  const [whatsappNumero, setWhatsappNumero] = useState("");
-  const [isChefe, setIsChefe] = useState(false);
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  async function submit() {
-    if (!nome.trim() || !whatsappNumero.trim()) return setErro("Preencha nome e WhatsApp");
-    const erroWhats = validarWhatsapp(whatsappNumero);
-    if (erroWhats) return setErro(erroWhats);
-    setSalvando(true);
-    try {
-      await api.criarMonitor(token, {
-        nome: nome.trim(),
-        whatsappNumero: whatsappNumero.trim(),
-        periodoId,
-        isChefe,
-      });
-      onCreated();
-      onClose();
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível criar o monitor");
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <Modal onClose={onClose}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <h4>Novo monitor</h4>
-        <p>Cadastre um monitor no período. Vincule a uma dupla depois, na tela de grupos.</p>
-        <div className="field">
-          <label>Nome</label>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Nome completo"
-          />
-        </div>
-        <div className="field">
-          <label>WhatsApp</label>
-          <input
-            value={whatsappNumero}
-            onChange={(e) => setWhatsappNumero(e.target.value)}
-            placeholder="+55 81 9XXXX-XXXX"
-          />
-          <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
-            Não esqueça o 9 do celular — o bot só reconhece o número exatamente como aparece no
-            WhatsApp.
-          </p>
-        </div>
-        <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none" }}>
-            <input
-              type="checkbox"
-              checked={isChefe}
-              onChange={(e) => setIsChefe(e.target.checked)}
-            />
-            É chefe de monitoria
-          </label>
-        </div>
-        {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
-        <div className="modal-actions">
-          <button className="btn ghost" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
-            Criar monitor
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function EditarListaModal({
-  token,
-  lista,
-  turmas,
-  onClose,
-  onSaved,
-}: {
-  token: string;
-  lista: Lista;
-  turmas: Turma[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [nome, setNome] = useState(lista.nome);
-  const [qtdQuestoesTotal, setQtdQuestoesTotal] = useState(String(lista.qtdQuestoesTotal));
-  const [prazos, setPrazos] = useState(
-    new Map(
-      turmas.map((turma) => [
-        turma.id,
-        lista.prazos.find((p) => p.turmaId === turma.id)?.prazoEntregaFeedback.slice(0, 10) ?? "",
-      ]),
-    ),
-  );
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  async function submit() {
-    const qtd = Number(qtdQuestoesTotal);
-    if (!nome.trim() || !Number.isInteger(qtd) || qtd <= 0)
-      return setErro("Informe um nome e uma quantidade de questões válida");
-    setSalvando(true);
-    try {
-      if ([...prazos.values()].some((valor) => !valor))
-        return setErro("Defina o prazo de todas as turmas");
-      await api.atualizarLista(token, lista.id, {
-        nome: nome.trim(),
-        qtdQuestoesTotal: qtd,
-        prazos: [...prazos].map(([turmaId, valor]) => ({
-          turmaId,
-          prazoEntregaFeedback: fimDoDiaIso(valor),
-        })),
-      });
-      onSaved();
-      onClose();
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível salvar a lista");
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <Modal onClose={onClose}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <h4>Editar {lista.nome}</h4>
-        <p>Defina a quantidade de questões e o prazo de feedback de cada turma.</p>
-        <div className="field">
-          <label>Nome</label>
-          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Lista 1" />
-        </div>
-        {turmas.map((turma) => (
-          <div className="field" key={turma.id}>
-            <label>Prazo — {turma.nome}</label>
-            <input
-              type="date"
-              value={prazos.get(turma.id) ?? ""}
-              onChange={(e) => setPrazos((prev) => new Map(prev).set(turma.id, e.target.value))}
-            />
-          </div>
-        ))}
-        <div className="field">
-          <label>Quantidade de questões</label>
-          <input
-            type="number"
-            min={1}
-            value={qtdQuestoesTotal}
-            onChange={(e) => setQtdQuestoesTotal(e.target.value)}
-          />
-        </div>
-        {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
-        <div className="modal-actions">
-          <button className="btn ghost" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
-            Salvar
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function CriarLoginModal({
-  token,
-  monitor,
-  onClose,
-  onCreated,
-}: {
-  token: string;
-  monitor: Monitor;
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  async function submit() {
-    if (!email.trim() || senha.length < 12)
-      return setErro("E-mail válido e senha de ao menos 12 caracteres são obrigatórios");
-    setSalvando(true);
-    try {
-      await api.criarContaChefe(token, { monitorId: monitor.id, email: email.trim(), senha });
-      onCreated();
-      onClose();
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível criar o login");
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <Modal onClose={onClose}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <h4>Criar login para {monitor.nome}</h4>
-        <p>Cria uma conta de acesso ao dashboard para este chefe de monitoria.</p>
-        <div className="field">
-          <label>E-mail institucional</label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="nome@instituicao.edu.br"
-          />
-        </div>
-        <div className="field">
-          <label>Senha (mínimo 12 caracteres)</label>
-          <input value={senha} onChange={(e) => setSenha(e.target.value)} type="password" />
-        </div>
-        {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
-        <div className="modal-actions">
-          <button className="btn ghost" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn primary" type="submit" disabled={salvando}>
-            Criar login
           </button>
         </div>
       </form>

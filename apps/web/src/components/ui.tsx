@@ -5,10 +5,7 @@ import { IconX } from "./icons";
 export function Avatar({ nome, size = 30 }: { nome: string; size?: number }) {
   const [fg, bg] = avatarColor(nome);
   return (
-    <div
-      className="avatar"
-      style={{ width: size, height: size, color: fg, background: bg }}
-    >
+    <div className="avatar" style={{ width: size, height: size, color: fg, background: bg }}>
       {initials(nome)}
     </div>
   );
@@ -78,7 +75,15 @@ export function Panel({
   );
 }
 
-export function Modal({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+export function Modal({
+  onClose,
+  children,
+  wide = false,
+}: {
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+}) {
   return (
     <div
       className="overlay"
@@ -86,7 +91,7 @@ export function Modal({ onClose, children }: { onClose: () => void; children: Re
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="modal">{children}</div>
+      <div className={`modal${wide ? " modal-wide" : ""}`}>{children}</div>
     </div>
   );
 }

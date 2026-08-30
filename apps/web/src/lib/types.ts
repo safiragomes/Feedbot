@@ -54,6 +54,7 @@ export type Monitor = {
   duplaId: string | null;
   status: "ATIVO" | "INATIVO";
   contaChefe: { email: string } | null;
+  conviteContaChefe?: { email: string; expiraEm: string; usadoEm: string | null } | null;
   dupla?: { id: string; label: string; grupoRevisaoId: string } | null;
 };
 

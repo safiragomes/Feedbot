@@ -13,14 +13,12 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
   },
   {
     group: "Diretório",
-    items: [
-      { id: "diretorio-alunos", label: "Alunos", icon: <IconSearch /> },
-      { id: "diretorio-monitores", label: "Monitores", icon: <IconSearch /> },
-    ],
+    items: [{ id: "diretorio-alunos", label: "Alunos", icon: <IconSearch /> }],
   },
   {
     group: "Gestão",
     items: [
+      { id: "diretorio-monitores", label: "Monitores", icon: <IconSearch /> },
       { id: "gestao", label: "Grupos & duplas", icon: <IconGrid /> },
       { id: "planilha", label: "Planilha", icon: <IconGrid /> },
     ],

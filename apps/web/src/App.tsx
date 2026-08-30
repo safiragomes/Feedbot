@@ -229,6 +229,7 @@ function App() {
           {page === "diretorio-monitores" && (
             <DiretorioMonitores
               token={token}
+              periodoId={periodoId}
               monitores={monitores}
               grupos={grupos}
               duplas={duplas}
@@ -249,7 +250,6 @@ function App() {
               monitores={monitores}
               alunos={alunos}
               turmas={turmas}
-              listas={listas}
               onReload={load}
               onRequestConfirm={setConfirm}
             />
@@ -268,6 +268,7 @@ function App() {
               token={token}
               periodo={periodos.find((p) => p.id === periodoId)!}
               turmas={turmas}
+              listas={listas}
               onReload={load}
               onRequestConfirm={setConfirm}
             />

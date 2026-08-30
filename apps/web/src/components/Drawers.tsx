@@ -95,7 +95,7 @@ export function AlunoDrawer({
                 }
               }}
             />
-            PCD/ND · meta de 75%
+            PCD/ND · meta de 2/3
           </label>
         </MiniRow>
         <MiniRow label="Monitor semana A">{aluno.monitorSemanaA?.nome ?? "não atribuído"}</MiniRow>

@@ -1,18 +1,27 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import type { ConfiguracaoPlanilha, Periodo, PreviaImportacaoAlunos, Turma } from "../lib/types";
+import type {
+  ConfiguracaoPlanilha,
+  Lista,
+  Periodo,
+  PreviaImportacaoAlunos,
+  Turma,
+} from "../lib/types";
 import { Chip, Panel, type ConfirmRequest } from "../components/ui";
+import { ListasPanel } from "../components/ListasPanel";
 
 export function PlanilhaPage({
   token,
   periodo,
   turmas,
+  listas,
   onReload,
   onRequestConfirm,
 }: {
   token: string;
   periodo: Periodo;
   turmas: Turma[];
+  listas: Lista[];
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
@@ -220,6 +229,10 @@ export function PlanilhaPage({
             </button>
           </div>
         </Panel>
+
+        <div className="sheet-import">
+          <ListasPanel token={token} listas={listas} turmas={turmas} onReload={onReload} />
+        </div>
 
         {periodo.planilhaId && (
           <div className="sheet-import">
