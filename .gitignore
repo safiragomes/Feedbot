@@ -31,3 +31,17 @@ coverage/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# mcp config — contains local API keys, never commit
+.mcp.json
+
+# pnpm local store
+.pnpm-store/
+
+# skill/plugin marketplaces downloaded locally — not part of the app
+/agent-skills/
+/awesome-codex-skills/
+/bencium-claude-code-design-skill/
+/codex-skills/
+/skills/
+/ui-ux-pro-max-skill/
