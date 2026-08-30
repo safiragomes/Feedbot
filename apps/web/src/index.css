@@ -796,6 +796,16 @@ tbody tr.clickable {
   color: var(--text-2);
   font-weight: 700;
 }
+.sheet-link-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
 .chip {
   display: inline-flex;
   align-items: center;
@@ -1108,6 +1118,14 @@ tbody tr.clickable {
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+}
+.monitor-link-list {
+  margin-top: 8px;
+}
+.empty-selection-message {
+  margin: 0;
+  padding: 18px 12px;
+  text-align: center;
 }
 .modal label.student-link-row {
   display: grid;

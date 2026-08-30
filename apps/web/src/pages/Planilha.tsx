@@ -147,9 +147,6 @@ export function PlanilhaPage({
           <h1>Planilha da disciplina</h1>
           <div className="subtitle">Vincule a planilha online usada no período {periodo.nome}.</div>
         </div>
-        <Chip tone={periodo.planilhaId ? "ok" : "warn"}>
-          {periodo.planilhaId ? "vinculada" : "não vinculada"}
-        </Chip>
       </div>
 
       <section className="sheet-guide" aria-labelledby="como-funciona-planilha">
@@ -204,6 +201,12 @@ export function PlanilhaPage({
         </Panel>
 
         <Panel title="Vínculo do período" tag={periodo.nome}>
+          <div className="sheet-link-status">
+            <span>Status da planilha</span>
+            <Chip tone={periodo.planilhaId ? "ok" : "warn"}>
+              {periodo.planilhaId ? "Vinculada" : "Não vinculada"}
+            </Chip>
+          </div>
           <div className="field">
             <label>Link do Google Sheets</label>
             <input
