@@ -15,12 +15,13 @@ import {
   comandoEncerraFluxo,
   comandoIniciaFluxo,
   comOpcaoDeSaida,
+  validarQuestoesInformadas,
 } from "../domain/comandos-bot.js";
 import { semanasCobertasPorMonitorNaDupla } from "../domain/monitorSemana.js";
 import { variantesWhatsapp } from "../domain/telefone.js";
 import { criarFeedback } from "./feedback.js";
 import { GoogleSheetsSync } from "./google-sheets.js";
-import { buscarPendenciasAtrasadas } from "./atrasos.js";
+import { SmtpEmailSender, type EmailSender } from "./email.js";
 
 type Etapa =
   | "lista"
@@ -40,6 +41,7 @@ type Conversa = {
   periodoId: string;
   etapa: Etapa;
   listaId?: string;
+  totalQuestoes?: number;
   alunoId?: string;
   pontuacao?: number;
   ia: number[];
@@ -62,17 +64,6 @@ function textoDaMensagem(
 ) {
   return (message?.conversation ?? message?.extendedTextMessage?.text ?? "").trim();
 }
-function questoes(texto: string) {
-  return [
-    ...new Set(
-      texto
-        .split(/[,\s]+/)
-        .map((item) => Number(item.replace(/^q/i, "")))
-        .filter(Number.isInteger),
-    ),
-  ];
-}
-
 export class WhatsAppBot {
   private socket?: WASocket;
   private qr?: string;
@@ -81,13 +72,14 @@ export class WhatsAppBot {
   private reconnectTimer?: NodeJS.Timeout;
   private tentativasReconexao = 0;
   private ultimaTentativaEm?: Date;
-  private quedaEm?: Date;
-  private lembretesEmExecucao = false;
+  private quedaDesde?: Date;
+  private avisoQuedaEnviado = false;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly authDir = process.env["BAILEYS_AUTH_DIR"] ?? ".baileys-auth",
     private readonly sheets = new GoogleSheetsSync(),
+    private readonly emailSender: EmailSender = new SmtpEmailSender(),
   ) {}
 
   async status() {
@@ -130,48 +122,7 @@ export class WhatsAppBot {
       this.socket = undefined;
       socketTravado.end(new Error("Tempo limite ao conectar o WhatsApp"));
     }
-    this.quedaEm ??= new Date();
     await this.conectar();
-  }
-
-  async enviarLembretesDeAtraso(agora = new Date()) {
-    if (!this.socket?.user || this.lembretesEmExecucao) return 0;
-    this.lembretesEmExecucao = true;
-    try {
-      const pendencias = await buscarPendenciasAtrasadas(this.prisma, agora);
-      if (!pendencias.length) return 0;
-      const enviados = await this.prisma.lembreteAtraso.findMany({
-        where: { OR: pendencias.map((p) => ({ alunoId: p.alunoId, listaId: p.listaId })) },
-      });
-      const jaEnviados = new Set(enviados.map((l) => `${l.alunoId}:${l.listaId}`));
-      const porMonitor = new Map<string, typeof pendencias>();
-      for (const p of pendencias) {
-        if (jaEnviados.has(`${p.alunoId}:${p.listaId}`)) continue;
-        const grupo = porMonitor.get(p.monitorId) ?? [];
-        grupo.push(p);
-        porMonitor.set(p.monitorId, grupo);
-      }
-      let total = 0;
-      for (const grupo of porMonitor.values()) {
-        const primeiro = grupo[0]!;
-        const numero = primeiro.whatsappNumero.replace(/\D/g, "");
-        if (!numero) continue;
-        const itens = grupo.map((p) => `• ${p.listaNome}: ${p.alunoNome}`).join("\n");
-        await this.enviar(
-          this.socket,
-          `${numero}@s.whatsapp.net`,
-          `Olá, ${primeiro.monitorNome}. O prazo do feedback passou e ainda faltam:\n${itens}\n\nSe houve prorrogação, peça ao chefe para registrá-la no perfil do aluno.`,
-        );
-        await this.prisma.lembreteAtraso.createMany({
-          data: grupo.map((p) => ({ alunoId: p.alunoId, listaId: p.listaId })),
-          skipDuplicates: true,
-        });
-        total += grupo.length;
-      }
-      return total;
-    } finally {
-      this.lembretesEmExecucao = false;
-    }
   }
 
   async conectar() {
@@ -200,16 +151,22 @@ export class WhatsAppBot {
         this.tentativasReconexao = 0;
         this.ultimaTentativaEm = undefined;
         await this.atualizarStatus(BotSessaoStatus.CONECTADO, socket.user?.id?.split(":")[0]);
-        if (this.quedaEm) {
-          const minutos = Math.max(1, Math.round((Date.now() - this.quedaEm.getTime()) / 60_000));
-          this.quedaEm = undefined;
-          void this.avisarChefes(
-            `✅ O Feedbot recuperou a conexão com o WhatsApp após aproximadamente ${minutos} minuto${minutos === 1 ? "" : "s"} offline.`,
-          );
+        void socket
+          .updateProfileName(process.env["WHATSAPP_PROFILE_NAME"]?.trim() || "Feedbot")
+          .catch((error) => console.error("[bot] nome do perfil:", error));
+        if (this.avisoQuedaEnviado) {
+          const minutos = this.quedaDesde
+            ? Math.max(1, Math.round((Date.now() - this.quedaDesde.getTime()) / 60_000))
+            : undefined;
+          this.avisoQuedaEnviado = false;
+          this.quedaDesde = undefined;
+          void this.avisarChefesPorEmail(
+            "✅ Feedbot reconectado ao WhatsApp",
+            minutos
+              ? `O Feedbot recuperou a conexão com o WhatsApp após aproximadamente ${minutos} minuto${minutos === 1 ? "" : "s"} offline.`
+              : "O Feedbot recuperou a conexão com o WhatsApp.",
+          ).catch((error) => console.error("[bot] aviso de reconexão:", error));
         }
-        void this.enviarLembretesDeAtraso().catch((error) =>
-          console.error("[bot] lembretes:", error),
-        );
       }
       if (connection === "close") {
         // Eventos podem chegar depois de uma reconexão. Se este já não é o socket
@@ -227,8 +184,19 @@ export class WhatsAppBot {
           // morta em vez de iniciar um pareamento novo, e nunca chega a gerar QR code.
           this.devePermanecerConectado = false;
           await this.limparAuth();
+          void this.avisarChefesPorEmail(
+            "⚠️ Feedbot desconectado do WhatsApp",
+            "O dispositivo foi desvinculado do WhatsApp e o Feedbot parou de responder aos monitores. É necessário reconectá-lo manualmente pelo painel (gera um novo QR code).",
+          ).catch((error) => console.error("[bot] aviso de queda:", error));
         } else if (this.devePermanecerConectado) {
-          this.quedaEm ??= new Date();
+          this.quedaDesde ??= new Date();
+          if (!this.avisoQuedaEnviado) {
+            this.avisoQuedaEnviado = true;
+            void this.avisarChefesPorEmail(
+              "⚠️ Feedbot desconectado do WhatsApp",
+              "O Feedbot perdeu a conexão com o WhatsApp e está tentando reconectar automaticamente. Nenhuma ação é necessária a menos que a reconexão não se resolva sozinha.",
+            ).catch((error) => console.error("[bot] aviso de queda:", error));
+          }
           this.agendarReconexao();
         }
       }
@@ -237,6 +205,23 @@ export class WhatsAppBot {
       if (type !== "notify") return;
       for (const message of messages) void this.receber(socket, message);
     });
+  }
+
+  private async avisarChefesPorEmail(assunto: string, mensagem: string) {
+    const chefes = await this.prisma.monitor.findMany({
+      where: { isChefe: true, status: "ATIVO", contaChefe: { isNot: null } },
+      select: { nome: true, contaChefe: { select: { email: true } } },
+    });
+    await Promise.allSettled(
+      chefes.map((chefe) =>
+        this.emailSender.enviarAvisoBot({
+          destinatario: chefe.contaChefe!.email,
+          nome: chefe.nome,
+          assunto,
+          mensagem,
+        }),
+      ),
+    );
   }
 
   private async limparAuth() {
@@ -258,26 +243,7 @@ export class WhatsAppBot {
     this.reconnectTimer.unref();
   }
 
-  private async avisarChefes(texto: string) {
-    if (!this.socket?.user) return;
-    const chefes = await this.prisma.monitor.findMany({
-      where: { isChefe: true, status: "ATIVO", whatsappNumero: { not: "" } },
-      select: { whatsappNumero: true },
-    });
-    await Promise.allSettled(
-      chefes.map((chefe) => {
-        const numero = chefe.whatsappNumero.replace(/\D/g, "");
-        return numero
-          ? this.enviar(this.socket!, `${numero}@s.whatsapp.net`, texto)
-          : Promise.resolve();
-      }),
-    );
-  }
-
   async desconectar() {
-    await this.avisarChefes(
-      "⚠️ O Feedbot será desconectado manualmente agora. Será necessário conectá-lo novamente pelo painel.",
-    );
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
@@ -288,7 +254,15 @@ export class WhatsAppBot {
     try {
       // Remove este aparelho também no WhatsApp. Apenas encerrar o websocket deixaria
       // o número vinculado no celular e não prepararia corretamente a troca de conta.
-      await socket?.logout();
+      if (socket) {
+        await Promise.race([
+          socket.logout().catch(() => undefined),
+          new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 3_000);
+            timer.unref();
+          }),
+        ]);
+      }
     } finally {
       await this.limparAuth();
       await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
@@ -296,9 +270,6 @@ export class WhatsAppBot {
   }
 
   async encerrarParaReinicio() {
-    await this.avisarChefes(
-      "⚠️ O Feedbot ficará indisponível por alguns instantes para uma reinicialização. A conexão será restaurada automaticamente.",
-    );
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
@@ -501,6 +472,7 @@ export class WhatsAppBot {
       const lista = listas[Number(texto) - 1];
       if (!lista) return responder("Escolha o número de uma lista válida.");
       conversa.listaId = lista.id;
+      conversa.totalQuestoes = lista.qtdQuestoesTotal;
       conversa.etapa = "aluno";
       const alunos = await this.alunosElegiveis(conversa.monitorId, lista.id, conversa.periodoId);
       return responder(
@@ -536,7 +508,12 @@ export class WhatsAppBot {
       );
     }
     if (conversa.etapa === "questoesIa") {
-      conversa.ia = questoes(texto);
+      const resultado = validarQuestoesInformadas(texto, conversa.totalQuestoes ?? 0);
+      if (!resultado.valido)
+        return responder(
+          `Informe somente números de questões entre 1 e ${conversa.totalQuestoes ?? 0}. Ex.: 1, 3`,
+        );
+      conversa.ia = resultado.questoes;
       conversa.etapa = "plagio";
       return responder("Houve plágio? Responda sim ou não.");
     }
@@ -550,7 +527,12 @@ export class WhatsAppBot {
       );
     }
     if (conversa.etapa === "questoesPlagio") {
-      conversa.plagio = questoes(texto);
+      const resultado = validarQuestoesInformadas(texto, conversa.totalQuestoes ?? 0);
+      if (!resultado.valido)
+        return responder(
+          `Informe somente números de questões entre 1 e ${conversa.totalQuestoes ?? 0}. Ex.: 2, 4`,
+        );
+      conversa.plagio = resultado.questoes;
       conversa.etapa = "cursoEnvolvido";
       const turmas = await this.prisma.turma.findMany({
         where: { periodoId: conversa.periodoId },
@@ -602,7 +584,12 @@ export class WhatsAppBot {
       );
     }
     if (conversa.etapa === "questoesProibicao") {
-      conversa.proibicao = questoes(texto);
+      const resultado = validarQuestoesInformadas(texto, conversa.totalQuestoes ?? 0);
+      if (!resultado.valido)
+        return responder(
+          `Informe somente números de questões entre 1 e ${conversa.totalQuestoes ?? 0}. Ex.: 1, 5`,
+        );
+      conversa.proibicao = resultado.questoes;
       conversa.etapa = "confirmar";
       return responder("Envie CONFIRMAR para gravar.");
     }

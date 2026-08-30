@@ -50,8 +50,44 @@ describe("SmtpEmailSender", () => {
       expect.objectContaining({
         to: "chefe@example.test",
         html: expect.stringContaining("Chefe &lt;Teste&gt;"),
+        attachments: [
+          expect.objectContaining({
+            cid: "feedbot-logo",
+            contentType: "image/jpeg",
+          }),
+        ],
       }),
     );
-    expect(sendMail.mock.calls[0]![0].html).toContain("a&amp;b");
+    const mensagem = sendMail.mock.calls[0]![0];
+    expect(mensagem.html).toContain("a&amp;b");
+    expect(mensagem.html).toContain('src="cid:feedbot-logo"');
+    expect(mensagem.html).toContain("background-color:#08111f");
+    expect(mensagem.html).toContain("Definir minha senha");
+    expect(mensagem.attachments[0].content).toBeInstanceOf(Buffer);
+  });
+
+  it("envia a recuperação com identidade visual e validade de uma hora", async () => {
+    Object.assign(process.env, {
+      SMTP_HOST: "smtp.example",
+      SMTP_PORT: "465",
+      SMTP_USER: "feedbot@example.test",
+      SMTP_PASS: "abcdefgh",
+      SMTP_SECURE: "true",
+      EMAIL_FROM: "Feedbot <feedbot@example.test>",
+    });
+    sendMail.mockResolvedValue(undefined);
+
+    await new SmtpEmailSender().enviarRecuperacao({
+      destinatario: "chefe@example.test",
+      nome: "Chefe",
+      link: "https://example.test/#recuperacao=seguro",
+    });
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Redefinição de senha do Feedbot",
+        html: expect.stringMatching(/Redefina sua senha[\s\S]*expira em 1 hora/),
+      }),
+    );
   });
 });

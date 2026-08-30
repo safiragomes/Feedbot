@@ -14,6 +14,8 @@ describe("convites de acesso", () => {
     async enviarConvite(convite) {
       emailsEnviados.push(convite);
     },
+    async enviarRecuperacao() {},
+    async enviarAvisoBot() {},
   };
   const app = buildApp({ prisma, emailSender });
   let periodoId: string;
@@ -99,10 +101,17 @@ describe("convites de acesso", () => {
     expect(persistido?.tokenHash).toBe(await hashToken(tokenConvite!));
     expect(persistido?.tokenHash).not.toBe(tokenConvite);
 
+    const senhaCurta = await app.inject({
+      method: "POST",
+      url: "/auth/convites/concluir",
+      payload: { token: tokenConvite, senha: "1234567" },
+    });
+    expect(senhaCurta.statusCode).toBe(400);
+
     const conclusao = await app.inject({
       method: "POST",
       url: "/auth/convites/concluir",
-      payload: { token: tokenConvite, senha: "minha-senha-segura-123" },
+      payload: { token: tokenConvite, senha: "12345678" },
     });
     expect(conclusao.statusCode).toBe(204);
     expect(await prisma.contaChefe.findUnique({ where: { email } })).toMatchObject({

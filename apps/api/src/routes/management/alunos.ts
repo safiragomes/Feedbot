@@ -157,18 +157,15 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
       return reply.badRequest("A lista deve pertencer ao período do aluno");
     if (body.prazoEntregaFeedback === null) {
       await prisma.prazoAlunoLista.deleteMany({ where: { alunoId, listaId } });
-      await prisma.lembreteAtraso.deleteMany({ where: { alunoId, listaId } });
       return reply.code(204).send();
     }
     const prazoEntregaFeedback = parseDate(body.prazoEntregaFeedback);
     if (!prazoEntregaFeedback) return reply.badRequest("Prazo inválido");
-    const prazo = await prisma.prazoAlunoLista.upsert({
+    return prisma.prazoAlunoLista.upsert({
       where: { alunoId_listaId: { alunoId, listaId } },
       create: { alunoId, listaId, prazoEntregaFeedback },
       update: { prazoEntregaFeedback },
     });
-    await prisma.lembreteAtraso.deleteMany({ where: { alunoId, listaId } });
-    return prazo;
   });
 
   app.post("/alunos/importar-csv", protectedRoute, async (request, reply) => {

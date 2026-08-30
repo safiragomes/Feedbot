@@ -24,8 +24,8 @@ async function main() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
     throw new Error("BOOTSTRAP_CHIEF_EMAIL deve ser um e-mail válido");
   }
-  if (senha.length < 12 || senha.length > 256) {
-    throw new Error("BOOTSTRAP_CHIEF_PASSWORD deve ter entre 12 e 256 caracteres");
+  if (senha.length < 8 || senha.length > 256) {
+    throw new Error("BOOTSTRAP_CHIEF_PASSWORD deve ter entre 8 e 256 caracteres");
   }
   if (!whatsappNumero) throw new Error("BOOTSTRAP_CHIEF_WHATSAPP deve ser um número válido");
 

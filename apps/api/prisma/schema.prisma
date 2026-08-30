@@ -133,6 +133,21 @@ model ContaChefe {
 
   monitor Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   sessoes SessaoChefe[]
+  recuperacoesSenha RecuperacaoSenha[]
+}
+
+model RecuperacaoSenha {
+  id            String    @id @default(cuid())
+  contaChefeId  String
+  tokenHash     String    @unique
+  expiraEm      DateTime
+  usadoEm       DateTime?
+  criadoEm      DateTime  @default(now())
+
+  contaChefe ContaChefe @relation(fields: [contaChefeId], references: [id], onDelete: Cascade)
+
+  @@index([contaChefeId])
+  @@index([expiraEm])
 }
 
 /// Convite de uso único para o próprio chefe definir sua senha. O token em texto
@@ -181,7 +196,6 @@ model Aluno {
   feedbacks                  Feedback[]
   ocorrenciasPlagioEnvolvido FeedbackQuestaoPlagio[]
   prazosIndividuais          PrazoAlunoLista[]
-  lembretesAtraso            LembreteAtraso[]
 }
 
 model Lista {
@@ -197,7 +211,6 @@ model Lista {
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
   prazos                   PrazoLista[]
   prazosIndividuais        PrazoAlunoLista[]
-  lembretesAtraso          LembreteAtraso[]
 
   @@unique([periodoId, nome])
   @@unique([periodoId, ordem])
@@ -221,25 +234,12 @@ model PrazoLista {
 }
 
 /// Exceção ao prazo da turma para um aluno específico. Quando existe, este é o
-/// prazo efetivo usado tanto nos indicadores quanto nos lembretes do WhatsApp.
+/// prazo efetivo usado nos indicadores de atraso.
 model PrazoAlunoLista {
   id                   String   @id @default(cuid())
   alunoId              String
   listaId              String
   prazoEntregaFeedback DateTime
-
-  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)
-
-  @@unique([alunoId, listaId])
-}
-
-/// Impede que o mesmo atraso gere um lembrete a cada execução do verificador.
-model LembreteAtraso {
-  id        String   @id @default(cuid())
-  alunoId   String
-  listaId   String
-  enviadoEm DateTime @default(now())
 
   aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)

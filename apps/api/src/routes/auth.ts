@@ -15,10 +15,16 @@ import {
   enviarConviteContaChefe,
   type EmailSender,
 } from "../application/auth/convites-service.js";
+import {
+  alterarSenha,
+  concluirRecuperacaoSenha,
+  SenhaErro,
+  solicitarRecuperacaoSenha,
+} from "../application/auth/senhas-service.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 256;
 
 function credenciaisValidas(email: string, senha: string) {
@@ -49,7 +55,7 @@ export function authRoutes(
         return reply.unauthorized("Segredo de inicialização inválido");
       if (!monitorId || !credenciaisValidas(email, senha))
         return reply.badRequest(
-          "Monitor, e-mail válido e senha entre 12 e 256 caracteres são obrigatórios",
+          "Monitor, e-mail válido e senha entre 8 e 256 caracteres são obrigatórios",
         );
       const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
       if (!monitor?.isChefe || monitor.status !== "ATIVO")
@@ -180,6 +186,91 @@ export function authRoutes(
       };
       // Clientes de API continuam podendo usar Bearer; o frontend nunca recebe o token.
       return request.headers["x-feedbot-client"] === "web" ? resposta : { ...resposta, token };
+    },
+  );
+
+  app.post(
+    "/auth/senha/solicitar-recuperacao",
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
+      const body = request.body as { email?: unknown } | undefined;
+      const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+      if (!EMAIL_RE.test(email) || email.length > MAX_EMAIL_LENGTH)
+        return reply.badRequest("Informe um e-mail válido");
+      const appUrl = process.env["APP_URL"];
+      if (!appUrl) return reply.serviceUnavailable("URL pública do Feedbot não configurada");
+      try {
+        const resultado = await solicitarRecuperacaoSenha(prisma, emailSender, {
+          email,
+          appUrl: new URL(appUrl),
+        });
+        request.log.info(
+          { recuperacaoEnviada: resultado === "ENVIADA" },
+          "solicitação de recuperação de senha processada",
+        );
+      } catch (error) {
+        if (error instanceof TypeError)
+          return reply.serviceUnavailable("URL pública do Feedbot inválida");
+        if (error instanceof SenhaErro && error.codigo === "ENVIO_FALHOU")
+          request.log.error({ err: error }, "falha ao enviar recuperação de senha");
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    "/auth/senha/redefinir",
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
+      const body = request.body as { token?: unknown; novaSenha?: unknown } | undefined;
+      const token = typeof body?.token === "string" ? body.token : "";
+      const novaSenha = typeof body?.novaSenha === "string" ? body.novaSenha : "";
+      if (
+        !token ||
+        novaSenha.length < MIN_PASSWORD_LENGTH ||
+        novaSenha.length > MAX_PASSWORD_LENGTH
+      )
+        return reply.badRequest("Link ou senha inválidos");
+      try {
+        await concluirRecuperacaoSenha(prisma, { token, novaSenha });
+      } catch (error) {
+        if (error instanceof SenhaErro && error.codigo === "TOKEN_INVALIDO")
+          return reply.badRequest("Link de recuperação inválido ou expirado");
+        throw error;
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  app.patch(
+    "/auth/senha",
+    {
+      preHandler: requireChief(prisma),
+      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    },
+    async (request, reply) => {
+      const body = request.body as { senhaAtual?: unknown; novaSenha?: unknown } | undefined;
+      const senhaAtual = typeof body?.senhaAtual === "string" ? body.senhaAtual : "";
+      const novaSenha = typeof body?.novaSenha === "string" ? body.novaSenha : "";
+      if (
+        !senhaAtual ||
+        novaSenha.length < MIN_PASSWORD_LENGTH ||
+        novaSenha.length > MAX_PASSWORD_LENGTH
+      )
+        return reply.badRequest("A nova senha deve ter entre 8 e 256 caracteres");
+      try {
+        await alterarSenha(prisma, {
+          contaId: request.chefe!.contaId,
+          senhaAtual,
+          novaSenha,
+          sessaoTokenHash: await hashToken(sessionToken(request)!),
+        });
+      } catch (error) {
+        if (error instanceof SenhaErro && error.codigo === "SENHA_ATUAL_INVALIDA")
+          return reply.badRequest("Senha atual incorreta");
+        throw error;
+      }
+      return reply.code(204).send();
     },
   );
 

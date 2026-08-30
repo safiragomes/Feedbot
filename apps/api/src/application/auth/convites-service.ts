@@ -7,8 +7,17 @@ export interface ConviteEmail {
   link: string;
 }
 
+export interface AvisoBotEmail {
+  destinatario: string;
+  nome: string;
+  assunto: string;
+  mensagem: string;
+}
+
 export interface EmailSender {
   enviarConvite(convite: ConviteEmail): Promise<void>;
+  enviarRecuperacao(email: ConviteEmail): Promise<void>;
+  enviarAvisoBot(aviso: AvisoBotEmail): Promise<void>;
 }
 
 export type ConviteErroCodigo =

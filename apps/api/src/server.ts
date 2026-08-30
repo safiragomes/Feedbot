@@ -27,19 +27,8 @@ const conexaoBotTimer = setInterval(
 );
 conexaoBotTimer.unref();
 
-// Verifica periodicamente. O registro LembreteAtraso torna a operação idempotente,
-// inclusive depois de reinícios do processo.
-const lembretesTimer = setInterval(
-  () => {
-    void bot.enviarLembretesDeAtraso().catch((error) => app.log.error(error));
-  },
-  15 * 60 * 1000,
-);
-lembretesTimer.unref();
-
 app.addHook("onClose", async () => {
   clearInterval(conexaoBotTimer);
-  clearInterval(lembretesTimer);
   await bot.encerrarParaReinicio();
 });
 

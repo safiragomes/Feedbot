@@ -13,8 +13,8 @@ export type PendenciaAtrasada = {
   prazoEntregaFeedback: Date;
 };
 
-/** Feedbacks esperados cujo prazo efetivo (exceção individual ou turma) venceu. */
-export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = new Date()) {
+/** Feedbacks esperados ainda não entregues e que possuem prazo configurado. */
+export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
   const alunos = await prisma.aluno.findMany({
     include: {
       turma: true,
@@ -39,7 +39,7 @@ export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = ne
       const prazo =
         aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
         lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
-      if (!prazo || prazo >= agora) continue;
+      if (!prazo) continue;
       const semana = calcularSemana({
         posicaoLista: lista.ordem,
         semanaOverride: lista.semanaOverride,
@@ -65,4 +65,10 @@ export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = ne
     }
   }
   return pendencias;
+}
+
+/** Feedbacks esperados cujo prazo efetivo (exceção individual ou turma) venceu. */
+export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = new Date()) {
+  const pendencias = await buscarFeedbacksPendentesComPrazo(prisma);
+  return pendencias.filter((pendencia) => pendencia.prazoEntregaFeedback < agora);
 }

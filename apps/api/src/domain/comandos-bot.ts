@@ -20,3 +20,22 @@ export function comandoEncerraFluxo(texto: string) {
 export function comOpcaoDeSaida(mensagem: string) {
   return `${mensagem}\n\nDigite SAIR para desistir.`;
 }
+
+export type ValidacaoQuestoes =
+  { valido: true; questoes: number[] } | { valido: false; questoes: number[] };
+
+export function validarQuestoesInformadas(texto: string, totalQuestoes: number): ValidacaoQuestoes {
+  const itens = texto
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const questoes = [...new Set(itens.map((item) => Number(item.replace(/^q/i, ""))))];
+  const valido =
+    itens.length > 0 &&
+    Number.isInteger(totalQuestoes) &&
+    totalQuestoes > 0 &&
+    questoes.every(
+      (questao) => Number.isInteger(questao) && questao >= 1 && questao <= totalQuestoes,
+    );
+  return { valido, questoes: valido ? questoes : [] };
+}
