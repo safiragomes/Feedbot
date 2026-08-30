@@ -27,9 +27,31 @@
   --radius-lg: var(--r-lg);
   --radius-md: var(--r-md);
   --radius-sm: var(--r-sm);
+  --radius-xl: var(--r-lg);
   --radius-pill: var(--r-pill);
   --font-display: var(--display);
   --font-sans: var(--sans);
+
+  /* Ponte para componentes shadcn/ui: mesmos tokens de marca acima, só com os
+     nomes semânticos que o shadcn espera (background/foreground/primary/...). */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 :root {
@@ -71,6 +93,27 @@
   --chart-grid: rgba(57, 82, 118, 0.36);
   --chart-surface: #101b2d;
   --sidebar-width: 270px;
+
+  /* Nomes semânticos shadcn/ui — apontam para os tokens de marca acima. */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--gold);
+  --primary-foreground: #041117;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-3);
+  --accent: var(--sky-dim);
+  --accent-foreground: var(--sky);
+  --destructive: var(--rose);
+  --destructive-foreground: #3a1512;
+  --input: var(--border);
+  --ring: var(--gold);
+  --radius: var(--r-md);
 }
 [data-theme="light"] {
   --bg: #eef4fb;
@@ -104,6 +147,7 @@
   --chart-grid: rgba(153, 174, 198, 0.5);
   --chart-surface: #ffffff;
   --shadow: 0 16px 40px rgba(53, 79, 110, 0.12);
+  --primary-foreground: #ffffff;
   --surface-tint: rgba(255, 255, 255, 0.92);
   --surface-tint-2: rgba(232, 238, 247, 0.92);
   --surface-tint-3: rgba(216, 227, 240, 0.78);
