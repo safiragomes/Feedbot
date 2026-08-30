@@ -15,6 +15,11 @@ COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @feedbot/api...
 
 COPY apps/api apps/api
+# apps/api/src/generated fica fora do git (.gitignore); num clone limpo esse
+# diretório não existe até este passo — sem ele, o build depende por acidente
+# de sobra de um `prisma generate` local anterior, o que falha silenciosamente
+# em CI/deploy de verdade.
+RUN pnpm --filter @feedbot/api exec prisma generate
 RUN pnpm --filter @feedbot/api build
 RUN chmod +x apps/api/docker-entrypoint.sh
 
