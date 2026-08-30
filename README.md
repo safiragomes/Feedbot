@@ -129,12 +129,17 @@ Antes de atualizar, crie um backup. Confira a instalação com `docker compose .
 | ------------------------------ | ---------------------------------------- |
 | `pnpm dev`                     | sobe `apps/api` e `apps/web` em paralelo |
 | `pnpm test`                    | roda os testes de todos os workspaces    |
+| `pnpm test:coverage`           | testes com pisos mínimos de cobertura    |
 | `pnpm typecheck`               | `tsc --noEmit` em todos os workspaces    |
 | `pnpm lint`                    | ESLint no repositório inteiro            |
 | `pnpm format` / `format:check` | Prettier (aplica / só verifica)          |
 | `pnpm build`                   | build de produção de todos os workspaces |
 
 Cada app também tem `test:watch` (`pnpm --filter @feedbot/api test:watch`) para o loop de TDD.
+
+Os limites de cobertura ficam na configuração do Vitest de cada aplicação e representam o piso
+atual, não a meta final: mudanças devem manter ou elevar esses valores. Reduzir um limite exige
+justificativa explícita na revisão. O relatório HTML é gerado em `coverage/`.
 
 ## Estrutura
 

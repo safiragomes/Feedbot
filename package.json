@@ -11,6 +11,7 @@
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:coverage": "pnpm -r test:coverage",
     "test:watch": "pnpm -r --parallel test:watch",
     "lint": "eslint .",
     "format": "prettier --write .",
