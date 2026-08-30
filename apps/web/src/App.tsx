@@ -19,6 +19,7 @@ import { Topbar } from "./components/Topbar";
 import { AlunoDrawer, MonitorDrawer } from "./components/Drawers";
 import { ConfirmModal, type ConfirmRequest } from "./components/ui";
 import { Toaster } from "./components/ui/sonner";
+import { PageSkeleton } from "./components/PageSkeleton";
 import { Login } from "./pages/Login";
 import { AlunosDashboard } from "./pages/AlunosDashboard";
 import { MonitoresDashboard } from "./pages/MonitoresDashboard";
@@ -76,6 +77,7 @@ function App() {
 
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const [carregando, setCarregando] = useState(true);
 
   // Ações no painel disparam `load()` em sequência rápida (ex.: escolher o papel de
   // vários alunos seguidos, sem esperar o carregamento anterior terminar) — sem essa
@@ -134,6 +136,8 @@ function App() {
     } catch (error) {
       if (requestId !== loadRequestId.current) return;
       setErro(error instanceof Error ? error.message : "Falha ao carregar dados");
+    } finally {
+      if (requestId === loadRequestId.current) setCarregando(false);
     }
   }, [token, periodoId]);
 
@@ -141,6 +145,7 @@ function App() {
     // Data-fetching effect: `load` awaits before touching state, but the
     // compiler-based lint rule can't see across the async boundary.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCarregando(true);
     void load();
   }, [load]);
 
@@ -321,85 +326,91 @@ function App() {
           </section>
           <div className="content">
             {erro && <div className="error-banner">{erro}</div>}
-            {page === "dashboard" && (
+            {carregando ? (
+              <PageSkeleton />
+            ) : (
               <>
-                {dashboardView === "alunos" ? (
-                  <AlunosDashboard
+                {page === "dashboard" && (
+                  <>
+                    {dashboardView === "alunos" ? (
+                      <AlunosDashboard
+                        alunos={alunos}
+                        grupos={grupos}
+                        listas={listas}
+                        feedbacks={feedbacks}
+                      />
+                    ) : (
+                      <MonitoresDashboard
+                        grupos={grupos}
+                        duplas={duplas}
+                        listas={listas}
+                        feedbacks={feedbacks}
+                        atrasos={atrasos}
+                      />
+                    )}
+                  </>
+                )}
+                {page === "diretorio-alunos" && (
+                  <DiretorioAlunos
+                    token={token}
                     alunos={alunos}
                     grupos={grupos}
                     listas={listas}
                     feedbacks={feedbacks}
+                    onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
+                    onReload={load}
+                    onRequestConfirm={setConfirm}
                   />
-                ) : (
-                  <MonitoresDashboard
+                )}
+                {page === "diretorio-monitores" && (
+                  <DiretorioMonitores
+                    token={token}
+                    periodoId={periodoId}
+                    monitores={monitores}
                     grupos={grupos}
                     duplas={duplas}
+                    alunos={alunos}
                     listas={listas}
-                    feedbacks={feedbacks}
                     atrasos={atrasos}
+                    onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
+                    onReload={load}
+                    onRequestConfirm={setConfirm}
+                  />
+                )}
+                {page === "gestao" && (
+                  <Gestao
+                    token={token}
+                    periodoId={periodoId}
+                    grupos={grupos}
+                    duplas={duplas}
+                    monitores={monitores}
+                    alunos={alunos}
+                    turmas={turmas}
+                    onReload={load}
+                    onRequestConfirm={setConfirm}
+                  />
+                )}
+                {page === "bot" && (
+                  <BotPage
+                    token={token}
+                    bot={bot}
+                    periodo={periodos.find((p) => p.id === periodoId)!}
+                    onReload={load}
+                    onRequestConfirm={setConfirm}
+                  />
+                )}
+                {page === "planilha" && periodos.find((p) => p.id === periodoId) && (
+                  <PlanilhaPage
+                    key={periodoId}
+                    token={token}
+                    periodo={periodos.find((p) => p.id === periodoId)!}
+                    turmas={turmas}
+                    listas={listas}
+                    onReload={load}
+                    onRequestConfirm={setConfirm}
                   />
                 )}
               </>
-            )}
-            {page === "diretorio-alunos" && (
-              <DiretorioAlunos
-                token={token}
-                alunos={alunos}
-                grupos={grupos}
-                listas={listas}
-                feedbacks={feedbacks}
-                onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
-                onReload={load}
-                onRequestConfirm={setConfirm}
-              />
-            )}
-            {page === "diretorio-monitores" && (
-              <DiretorioMonitores
-                token={token}
-                periodoId={periodoId}
-                monitores={monitores}
-                grupos={grupos}
-                duplas={duplas}
-                alunos={alunos}
-                listas={listas}
-                atrasos={atrasos}
-                onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
-                onReload={load}
-                onRequestConfirm={setConfirm}
-              />
-            )}
-            {page === "gestao" && (
-              <Gestao
-                token={token}
-                periodoId={periodoId}
-                grupos={grupos}
-                duplas={duplas}
-                monitores={monitores}
-                alunos={alunos}
-                turmas={turmas}
-                onReload={load}
-                onRequestConfirm={setConfirm}
-              />
-            )}
-            {page === "bot" && (
-              <BotPage
-                token={token}
-                bot={bot}
-                periodo={periodos.find((p) => p.id === periodoId)!}
-                onReload={load}
-                onRequestConfirm={setConfirm}
-              />
-            )}
-            {page === "planilha" && periodos.find((p) => p.id === periodoId) && (
-              <PlanilhaPage
-                key={periodoId}
-                token={token}
-                periodo={periodos.find((p) => p.id === periodoId)!}
-                turmas={turmas}
-                listas={listas}
-                onReload={load}
-                onRequestConfirm={setConfirm}
-              />
             )}
           </div>
         </div>
