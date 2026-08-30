@@ -16,6 +16,7 @@ RUN pnpm install --frozen-lockfile --filter @feedbot/api...
 
 COPY apps/api apps/api
 RUN pnpm --filter @feedbot/api build
+RUN chmod +x apps/api/docker-entrypoint.sh
 
 WORKDIR /app/apps/api
-CMD ["node", "dist/server.js"]
+CMD ["./docker-entrypoint.sh"]

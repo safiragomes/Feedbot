@@ -30,11 +30,98 @@ pnpm --filter @feedbot/api prisma:migrate
 pnpm --filter @feedbot/api prisma:seed
 ```
 
-Para habilitar o primeiro acesso ao painel, defina `AUTH_BOOTSTRAP_SECRET` em
-`apps/api/.env`. Depois de subir a API, envie uma única vez `POST /auth/bootstrap`
-com `{ "segredo", "monitorId", "email", "senha" }`, usando o ID de um monitor
-marcado como chefe. As demais contas de chefe são criadas por `POST /auth/contas`
-com a sessão autenticada.
+Para habilitar o primeiro acesso no desenvolvimento, defina `AUTH_BOOTSTRAP_SECRET` em
+`apps/api/.env`. Depois de subir a API, envie uma única vez `POST /auth/bootstrap` com
+`{ "segredo", "monitorId", "email", "senha" }`, usando o ID de um monitor marcado como chefe.
+As demais contas são criadas pela tela **Monitores**: um chefe envia o convite e o convidado
+define a própria senha pelo link pessoal recebido por e-mail.
+
+## Deploy de produção com Docker Compose
+
+O arquivo `docker-compose.production.yml` entrega uma instalação completa:
+
+- PostgreSQL sem porta pública;
+- API com migrações automáticas antes de cada inicialização;
+- frontend React compilado e servido por Nginx;
+- proxy Caddy com certificado HTTPS automático;
+- volumes persistentes para banco, certificados e sessão do WhatsApp.
+
+### 1. Preparar DNS e arquivos de ambiente
+
+Use um domínio ou subdomínio que você realmente controle e crie um registro `A` apontando para o
+IP público do servidor. As portas 80 e 443 precisam estar liberadas. Depois:
+
+```bash
+cp .env.production.example .env.production
+cp apps/api/.env.production.example apps/api/.env.production
+chmod 600 .env.production apps/api/.env.production
+```
+
+Em `.env.production`, preencha `DOMAIN` sem protocolo e uma senha aleatória forte para o banco.
+Em `apps/api/.env.production`, preencha OAuth, chave de criptografia e SMTP. Gere a chave Google
+com `openssl rand -base64 32`. Os dois arquivos reais são ignorados pelo Git.
+
+No Google Cloud, cadastre exatamente:
+
+- origem JavaScript: `https://SEU_DOMINIO`;
+- URI de redirecionamento: `https://SEU_DOMINIO/api/google/oauth/callback`.
+
+### 2. Construir e iniciar
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.production.yml ps
+```
+
+A API executa `prisma migrate deploy` antes de abrir a porta. Nunca execute `prisma:seed` em
+produção: a seed contém dados fictícios e limpa tabelas existentes.
+
+### 3. Criar o primeiro acesso, sem seed
+
+Preencha temporariamente em `apps/api/.env.production`:
+
+- `BOOTSTRAP_CHIEF_NAME`, `BOOTSTRAP_CHIEF_EMAIL`, `BOOTSTRAP_CHIEF_PASSWORD` e
+  `BOOTSTRAP_CHIEF_WHATSAPP`;
+- `BOOTSTRAP_PERIOD_NAME`, `BOOTSTRAP_PERIOD_START`, `BOOTSTRAP_PERIOD_END` e
+  `BOOTSTRAP_ROTATION_REFERENCE`, usando datas ISO.
+
+Então execute:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml run --rm api \
+  node dist/scripts/bootstrap-producao.js
+```
+
+O comando usa transação e lock no banco, recusa uma segunda inicialização e cria somente o período,
+o primeiro monitor-chefe e sua conta. Depois, apague as variáveis `BOOTSTRAP_*` do arquivo e recrie
+a API para que a senha deixe de existir no ambiente do container:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml up -d --force-recreate api
+```
+
+Se o período já existir, informe somente `BOOTSTRAP_PERIOD_ID` no lugar dos quatro campos de período.
+
+### 4. Backups
+
+O script abaixo cria um dump compactado e com permissão somente para o usuário atual:
+
+```bash
+BACKUP_DIR=/caminho/fora-do-projeto ./scripts/backup-database.sh
+```
+
+Agende-o no `cron` do servidor e copie os arquivos para outro equipamento ou armazenamento. Teste
+periodicamente a restauração. O script não apaga backups antigos automaticamente.
+
+### Atualizações
+
+```bash
+git pull --ff-only
+docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
+```
+
+Antes de atualizar, crie um backup. Confira a instalação com `docker compose ... ps` e com
+`https://SEU_DOMINIO/api/health`.
 
 ## Scripts (raiz)
 

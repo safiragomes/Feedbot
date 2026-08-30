@@ -58,7 +58,10 @@ export function authRoutes(
       const conta = await prisma.$transaction(async (tx) => {
         // Serializa tentativas de bootstrap. Sem o lock, duas requisições simultâneas
         // poderiam observar count=0 e criar dois primeiros administradores.
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(937421)`;
+        await tx.$queryRaw`
+          WITH lock AS MATERIALIZED (SELECT pg_advisory_xact_lock(937421))
+          SELECT true AS acquired FROM lock
+        `;
         if ((await tx.contaChefe.count()) > 0) return null;
         return tx.contaChefe.create({
           data: { monitorId, email, senhaHash },
