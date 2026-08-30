@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { avatarColor, initials } from "../lib/format";
 import { IconX } from "./icons";
 
@@ -27,15 +28,17 @@ export function StatCard({
   sub,
   icon,
   color,
+  compact = false,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: ReactNode;
   color: "sky" | "plum" | "rose" | "gold" | "sage";
+  compact?: boolean;
 }) {
   return (
-    <div className="stat">
+    <div className={`stat${compact ? " stat-compact" : ""}`}>
       <div className="stat-top">
         <span className="label">{label}</span>
         <div className="icon-wrap" style={{ background: `var(--${color}-dim)` }}>
@@ -53,16 +56,18 @@ export function Panel({
   tag,
   legend,
   fit,
+  className,
   children,
 }: {
   title?: string;
   tag?: string;
   legend?: ReactNode;
   fit?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={`panel${fit ? " panel-fit" : ""}`}>
+    <div className={`panel${fit ? " panel-fit" : ""}${className ? ` ${className}` : ""}`}>
       {(title || tag || legend) && (
         <div className="panel-head">
           {title && <h3>{title}</h3>}
@@ -84,7 +89,7 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
-  return (
+  return createPortal(
     <div
       className="overlay"
       onClick={(event) => {
@@ -92,7 +97,8 @@ export function Modal({
       }}
     >
       <div className={`modal${wide ? " modal-wide" : ""}`}>{children}</div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

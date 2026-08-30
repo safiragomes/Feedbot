@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Periodo } from "../lib/types";
-import { IconPlus, IconTrash } from "./icons";
+import { IconMoon, IconPlus, IconSun, IconTrash } from "./icons";
 import { ConfirmModal, Modal } from "./ui";
 
 export function Topbar({
@@ -10,12 +10,16 @@ export function Topbar({
   periodoId,
   onChangePeriodo,
   onCriado,
+  theme,
+  onToggleTheme,
 }: {
   token: string;
   periodos: Periodo[];
   periodoId: string;
   onChangePeriodo: (id: string) => void;
   onCriado: (id: string) => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }) {
   const [novoAberto, setNovoAberto] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -23,14 +27,21 @@ export function Topbar({
   const atual = periodos.find((item) => item.id === periodoId);
   return (
     <div className="topbar">
-      <div className="breadcrumb">
-        Período <span className="sep">›</span>
-        <b>{atual?.nome ?? "—"}</b>
+      <div className="topbar-heading">
+        <span className="topbar-kicker">Ciclo ativo</span>
+        <div className="breadcrumb">
+          Período <span className="sep">›</span>
+          <b>{atual?.nome ?? "—"}</b>
+        </div>
       </div>
       <div className="topbar-right">
         {erro && (
           <span style={{ color: "var(--rose)", fontSize: 12, fontWeight: 700 }}>{erro}</span>
         )}
+        <button className="theme-toggle" onClick={onToggleTheme} title="Alternar tema">
+          {theme === "dark" ? <IconSun /> : <IconMoon />}
+          {theme === "dark" ? "Modo diurno" : "Modo noturno"}
+        </button>
         <select
           className="periodo"
           value={periodoId}

@@ -27,10 +27,16 @@ export function ListasPanel({
           {[...listas]
             .sort((a, b) => a.ordem - b.ordem)
             .map((lista) => (
-              <div key={lista.id} className="mini-row">
-                <span className="l">{lista.nome}</span>
-                <span className="settings-list-actions">
+              <div key={lista.id} className="settings-card">
+                <div className="settings-card-head">
+                  <span className="l">{lista.nome}</span>
+                  <span className="settings-order">#{lista.ordem}</span>
+                </div>
+                <div className="settings-card-meta">
                   <span className="mono-cell">{lista.qtdQuestoesTotal} questões</span>
+                  <span className="mono-cell">{lista.prazos.length} prazo(s)</span>
+                </div>
+                <span className="settings-list-actions">
                   <button className="btn sm" onClick={() => setListaEditando(lista)}>
                     Editar
                   </button>

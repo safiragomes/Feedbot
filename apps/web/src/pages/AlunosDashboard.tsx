@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import type { ScriptableContext } from "chart.js";
 import type { ChartConfiguration } from "chart.js/auto";
 import type { Aluno, Feedback, GrupoRevisao, Lista } from "../lib/types";
-import { CHART_GRID, CHART_TEXT, ChartCanvas } from "../components/ChartCanvas";
+import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconAluno, IconIa, IconPlagio, IconProibicao } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
 
@@ -22,11 +23,12 @@ export function AlunosDashboard({
   const [grupoId, setGrupoId] = useState("");
   const [duplaId, setDuplaId] = useState("");
   const [listaId, setListaId] = useState("");
-
+  const palette = chartPalette();
   const turmas = useMemo(
     () => [...new Set(alunos.map((a) => a.turma.nome))].sort((a, b) => a.localeCompare(b)),
     [alunos],
   );
+
   const duplasDoGrupo = useMemo(
     () => grupos.find((g) => g.id === grupoId)?.duplas ?? [],
     [grupos, grupoId],
@@ -71,22 +73,37 @@ export function AlunosDashboard({
         {
           label: "IA",
           data: dIA,
-          backgroundColor: "#B79EE0",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.plum;
+            return chartGradient(context.chart.ctx, area, `${palette.plum}ee`, `${palette.sky}88`);
+          },
+          borderRadius: 8,
+          borderSkipped: false,
           maxBarThickness: 22,
         },
         {
           label: "Plágio",
           data: dPL,
-          backgroundColor: "#E5938A",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.rose;
+            return chartGradient(context.chart.ctx, area, `${palette.rose}ee`, `${palette.gold}88`);
+          },
+          borderRadius: 8,
+          borderSkipped: false,
           maxBarThickness: 22,
         },
         {
           label: "Proibição",
           data: dPR,
-          backgroundColor: "#E7B65C",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.gold;
+            return chartGradient(context.chart.ctx, area, `${palette.gold}ee`, `${palette.sage}88`);
+          },
+          borderRadius: 8,
+          borderSkipped: false,
           maxBarThickness: 22,
         },
       ],
@@ -94,13 +111,22 @@ export function AlunosDashboard({
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          position: "top",
+          align: "start",
+          labels: { color: palette.text, usePointStyle: true, boxWidth: 8, padding: 14 },
+        },
+      },
       scales: {
-        x: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+        x: {
+          grid: { display: false },
+          ticks: { color: palette.muted, font: { weight: 700 } },
+        },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, color: CHART_TEXT },
-          grid: { color: CHART_GRID },
+          ticks: { precision: 0, color: palette.muted },
+          grid: { color: palette.grid },
         },
       },
     },
@@ -116,9 +142,11 @@ export function AlunosDashboard({
       datasets: [
         {
           data: [totIA, totPL, totPR],
-          backgroundColor: ["#B79EE0", "#E5938A", "#E7B65C"],
-          borderColor: "#141D30",
-          borderWidth: 3,
+          backgroundColor: [palette.plum, palette.rose, palette.gold],
+          borderColor: palette.isLight ? "transparent" : palette.surface,
+          borderWidth: palette.isLight ? 0 : 6,
+          hoverOffset: 6,
+          spacing: 4,
         },
       ],
     },
@@ -130,10 +158,10 @@ export function AlunosDashboard({
         legend: {
           position: "bottom",
           labels: {
-            color: CHART_TEXT,
+            color: palette.text,
             font: { weight: 700, size: 11.5 },
             boxWidth: 10,
-            padding: 14,
+            padding: 10,
             usePointStyle: true,
             pointStyle: "circle",
           },
@@ -154,7 +182,17 @@ export function AlunosDashboard({
     data: {
       labels: listasChart.map((l) => shortLista(l.nome)),
       datasets: [
-        { data: qtdMedia, backgroundColor: "#7FB8E0", borderRadius: 5, maxBarThickness: 34 },
+        {
+          data: qtdMedia,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.sky;
+            return chartGradient(context.chart.ctx, area, `${palette.sky}ee`, `${palette.gold}88`);
+          },
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 28,
+        },
       ],
     },
     options: {
@@ -169,12 +207,12 @@ export function AlunosDashboard({
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+        x: { grid: { display: false }, ticks: { color: palette.muted, font: { weight: 700 } } },
         y: {
           beginAtZero: true,
           max: maxQuestoesEixo,
-          ticks: { color: CHART_TEXT, stepSize: 1 },
-          grid: { color: CHART_GRID },
+          ticks: { color: palette.muted, stepSize: 1 },
+          grid: { color: palette.grid },
         },
       },
     },
@@ -225,8 +263,13 @@ export function AlunosDashboard({
       datasets: [
         {
           data: top10.map((r) => r.v),
-          backgroundColor: "#E5938A",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.rose;
+            return chartGradient(context.chart.ctx, area, `${palette.rose}ee`, `${palette.plum}88`);
+          },
+          borderRadius: 10,
+          borderSkipped: false,
           maxBarThickness: 16,
         },
       ],
@@ -242,10 +285,10 @@ export function AlunosDashboard({
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { precision: 0, color: CHART_TEXT },
-          grid: { color: CHART_GRID },
+          ticks: { precision: 0, color: palette.muted },
+          grid: { color: palette.grid },
         },
-        y: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+        y: { grid: { display: false }, ticks: { color: palette.muted, font: { weight: 700 } } },
       },
     },
   };
@@ -313,6 +356,7 @@ export function AlunosDashboard({
           sub={`${pcd} PCD/ND`}
           icon={<IconAluno />}
           color="sky"
+          compact
         />
         <StatCard
           label="Uso de IA"
@@ -320,6 +364,7 @@ export function AlunosDashboard({
           sub={`${Math.round((comIA / total) * 100)}% dos alunos`}
           icon={<IconIa />}
           color="plum"
+          compact
         />
         <StatCard
           label="Plágio"
@@ -327,6 +372,7 @@ export function AlunosDashboard({
           sub={`${Math.round((comPlagio / total) * 100)}% dos alunos`}
           icon={<IconPlagio />}
           color="rose"
+          compact
         />
         <StatCard
           label="Uso de proibição"
@@ -334,11 +380,13 @@ export function AlunosDashboard({
           sub={`${Math.round((comProib / total) * 100)}% dos alunos`}
           icon={<IconProibicao />}
           color="gold"
+          compact
         />
       </div>
 
       <Panel
         title="Ocorrências por lista"
+        className="panel-chart panel-chart-hero"
         legend={
           <div className="legend-row">
             <span>
@@ -440,19 +488,23 @@ export function AlunosDashboard({
               </span>
             </div>
           </Panel>
-          <Panel title="Ranking de questões problemáticas" tag="por lista · top 10">
+          <Panel title="Ranking de questões problemáticas" tag="por lista · top 10" className="panel-chart">
             <div className="chart-wrap md">
               <ChartCanvas config={rankingConfig} />
             </div>
           </Panel>
         </div>
         <div className="panel-stack">
-          <Panel title="Composição das ocorrências">
+          <Panel title="Composição das ocorrências" className="panel-chart">
             <div className="chart-wrap md">
               <ChartCanvas config={donutConfig} />
             </div>
           </Panel>
-          <Panel title="Questões corretas por lista" tag="média informada pelos monitores">
+          <Panel
+            title="Questões corretas por lista"
+            tag="média informada pelos monitores"
+            className="panel-chart"
+          >
             <div className="chart-wrap md">
               <ChartCanvas config={qtdConfig} />
             </div>

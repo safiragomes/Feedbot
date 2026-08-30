@@ -79,6 +79,25 @@ export function DiretorioAlunos({
         (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome));
+  const alunosComOcorrencias = filtrados.filter((aluno) =>
+    feedbacksCompativeis.some(
+      (feedback) =>
+        feedback.alunoId === aluno.id &&
+        (feedback.usouIa || feedback.plagiou || feedback.usouProibicao),
+    ),
+  ).length;
+  const alunosSemDupla = filtrados.filter((aluno) => !aluno.duplaId).length;
+  const filtrosAtivos = [turma, grupoId, listaId, busca.trim(), ocorrencias.join(",")].filter(
+    Boolean,
+  ).length;
+
+  function limparFiltros() {
+    setTurma("");
+    setGrupoId("");
+    setListaId("");
+    setOcorrencias([]);
+    setBusca("");
+  }
 
   function confirmarExclusao(aluno: Aluno, event: React.MouseEvent) {
     event.stopPropagation();
@@ -93,6 +112,34 @@ export function DiretorioAlunos({
           <div className="subtitle">
             Diretório completo — encontre um aluno por turma, grupo ou busca direta.
           </div>
+        </div>
+        <div className="head-actions">
+          <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+
+      <div className="context-band">
+        <div className="context-card">
+          <span>Visíveis agora</span>
+          <strong>{filtrados.length}</strong>
+          <p>Alunos na seleção atual.</p>
+        </div>
+        <div className="context-card">
+          <span>Com ocorrências</span>
+          <strong>{alunosComOcorrencias}</strong>
+          <p>IA, plágio ou proibição nas listas filtradas.</p>
+        </div>
+        <div className="context-card">
+          <span>Sem dupla</span>
+          <strong>{alunosSemDupla}</strong>
+          <p>Cadastro ativo ainda sem alocação.</p>
+        </div>
+        <div className="context-card compact">
+          <span>Filtros ativos</span>
+          <strong>{filtrosAtivos}</strong>
+          <p>{filtrosAtivos ? "Há restrições em vigor." : "Visão aberta do diretório."}</p>
         </div>
       </div>
 
@@ -255,7 +302,7 @@ export function DiretorioMonitores({
 }) {
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
-  const [somentePendentes, setSomentePendentes] = useState(false);
+  const [somenteAtrasados, setSomenteAtrasados] = useState(false);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
   const [modal, setModal] = useState<"novo" | Monitor | null>(null);
@@ -263,18 +310,35 @@ export function DiretorioMonitores({
   const q = busca.trim().toLowerCase();
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
   const duplaPorId = new Map(duplas.map((d) => [d.id, d]));
-  const pendenciasVisiveis = atrasos.filter((atraso) => !listaId || atraso.listaId === listaId);
-  const monitoresPendentes = new Set(pendenciasVisiveis.map((atraso) => atraso.monitorId));
+  const atrasosVisiveis = atrasos.filter((atraso) => !listaId || atraso.listaId === listaId);
+  const monitoresAtrasados = new Set(atrasosVisiveis.map((atraso) => atraso.monitorId));
   const filtrados = monitores
     .filter((m) => {
       const pertenceAoGrupo = !grupoId || (!!m.duplaId && grupoDaDupla.get(m.duplaId) === grupoId);
       return (
         pertenceAoGrupo &&
         (!q || m.nome.toLowerCase().includes(q)) &&
-        ((!listaId && !somentePendentes) || monitoresPendentes.has(m.id))
+        ((!listaId && !somenteAtrasados) || monitoresAtrasados.has(m.id))
       );
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
+  const monitoresChefes = filtrados.filter((monitor) => monitor.isChefe).length;
+  const convitesPendentes = filtrados.filter(
+    (monitor) =>
+      monitor.conviteContaChefe &&
+      !monitor.conviteContaChefe.usadoEm &&
+      new Date(monitor.conviteContaChefe.expiraEm) > new Date(),
+  ).length;
+  const filtrosAtivos = [grupoId, listaId, somenteAtrasados ? "atrasado" : "", busca.trim()].filter(
+    Boolean,
+  ).length;
+
+  function limparFiltros() {
+    setGrupoId("");
+    setListaId("");
+    setSomenteAtrasados(false);
+    setBusca("");
+  }
 
   function confirmarExclusao(monitor: Monitor, event: React.MouseEvent) {
     event.stopPropagation();
@@ -302,10 +366,36 @@ export function DiretorioMonitores({
           </div>
         </div>
         <div className="head-actions">
+          <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
+            Limpar filtros
+          </button>
           <button className="btn primary" onClick={() => setModal("novo")}>
             <IconPlus />
             Novo monitor
           </button>
+        </div>
+      </div>
+
+      <div className="context-band">
+        <div className="context-card">
+          <span>Visíveis agora</span>
+          <strong>{filtrados.length}</strong>
+          <p>Monitores que atendem os filtros atuais.</p>
+        </div>
+        <div className="context-card">
+          <span>Chefes ativos</span>
+          <strong>{monitoresChefes}</strong>
+          <p>Monitores com papel de liderança.</p>
+        </div>
+        <div className="context-card">
+          <span>Atrasos abertos</span>
+          <strong>{monitoresAtrasados.size}</strong>
+          <p>Monitores com feedback não entregue após o prazo.</p>
+        </div>
+        <div className="context-card compact">
+          <span>Convites abertos</span>
+          <strong>{convitesPendentes}</strong>
+          <p>Convites de acesso ainda válidos.</p>
         </div>
       </div>
 
@@ -319,7 +409,7 @@ export function DiretorioMonitores({
             </option>
           ))}
         </select>
-        <span className="flag">Lista pendente</span>
+        <span className="flag">Lista em atraso</span>
         <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
           <option value="">todas as listas</option>
           {listas.map((lista) => (
@@ -331,10 +421,10 @@ export function DiretorioMonitores({
         <label style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <input
             type="checkbox"
-            checked={somentePendentes}
-            onChange={(e) => setSomentePendentes(e.target.checked)}
+            checked={somenteAtrasados}
+            onChange={(e) => setSomenteAtrasados(e.target.checked)}
           />
-          <span className="flag">somente com pendências</span>
+          <span className="flag">somente com atrasos</span>
         </label>
         <div className="search-wrap">
           <div className="search-box">
@@ -360,7 +450,7 @@ export function DiretorioMonitores({
               <th>Alunos · semana B</th>
               <th>Papel</th>
               <th>Acesso</th>
-              <th>Pendências</th>
+              <th>Atrasos abertos</th>
               <th style={{ paddingRight: 20 }} />
             </tr>
           </thead>
@@ -409,9 +499,9 @@ export function DiretorioMonitores({
                     )}
                   </td>
                   <td>
-                    {pendenciasVisiveis.filter((atraso) => atraso.monitorId === m.id).length ? (
+                    {atrasosVisiveis.filter((atraso) => atraso.monitorId === m.id).length ? (
                       <Chip tone="danger">
-                        {pendenciasVisiveis.filter((atraso) => atraso.monitorId === m.id).length}
+                        {atrasosVisiveis.filter((atraso) => atraso.monitorId === m.id).length}
                       </Chip>
                     ) : (
                       <span className="mono-cell">—</span>

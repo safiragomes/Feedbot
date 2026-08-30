@@ -181,6 +181,7 @@ function ComunidadeWhatsapp({
       setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+      await onReload();
     }
   }
 
@@ -189,9 +190,10 @@ function ComunidadeWhatsapp({
     api
       .comunidadesWhatsappDisponiveis(token)
       .then(setDisponiveis)
-      .catch((error) =>
-        setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades"),
-      );
+      .catch(async (error) => {
+        setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+        await onReload();
+      });
   }, [token, conectado]);
 
   async function vincular() {

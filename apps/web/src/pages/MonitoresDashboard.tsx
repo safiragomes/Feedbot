@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import type { ScriptableContext } from "chart.js";
 import type { ChartConfiguration } from "chart.js/auto";
 import type { Atraso, Dupla, Feedback, GrupoRevisao, Lista } from "../lib/types";
-import { CHART_GRID, CHART_TEXT, ChartCanvas } from "../components/ChartCanvas";
+import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconCheckCircle, IconClock, IconGrid, IconMonitor } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
 import { noPrazo } from "../lib/format";
+import { classificarMonitoresComAtraso } from "../lib/monitor-risco";
 
 export function MonitoresDashboard({
   grupos,
@@ -21,6 +23,7 @@ export function MonitoresDashboard({
 }) {
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
+  const palette = chartPalette();
 
   const duplaGrupo = useMemo(() => new Map(duplas.map((d) => [d.id, d.grupoRevisaoId])), [duplas]);
 
@@ -36,10 +39,11 @@ export function MonitoresDashboard({
 
   const byMonitor = new Map<
     string,
-    { nome: string; total: number; comPrazo: number; noPrazo: number }
+    { id: string; nome: string; total: number; comPrazo: number; noPrazo: number }
   >();
   fb.forEach((f) => {
     const atual = byMonitor.get(f.monitorId) ?? {
+      id: f.monitorId,
       nome: f.monitor.nome,
       total: 0,
       comPrazo: 0,
@@ -62,10 +66,7 @@ export function MonitoresDashboard({
     (a) =>
       (!grupoId || duplaGrupo.get(a.duplaId) === grupoId) && (!listaId || a.listaId === listaId),
   );
-  const atrasados = new Set([
-    ...arr.filter((m) => m.comPrazo > 0 && m.noPrazo / m.comPrazo < 0.7).map((m) => m.nome),
-    ...atrasosVisiveis.map((a) => a.monitorNome),
-  ]).size;
+  const monitoresComAtraso = new Set(atrasosVisiveis.map((a) => a.monitorId)).size;
 
   const gruposVisiveis = grupos.filter((g) => !grupoId || g.id === grupoId);
   const porGrupo = gruposVisiveis.map((g) => {
@@ -86,15 +87,25 @@ export function MonitoresDashboard({
         {
           label: "No prazo",
           data: porGrupo.map((g) => g.prazo),
-          backgroundColor: "#8FC29B",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.sage;
+            return chartGradient(context.chart.ctx, area, `${palette.sage}ee`, `${palette.gold}88`);
+          },
+          borderRadius: 8,
+          borderSkipped: false,
           maxBarThickness: 26,
         },
         {
           label: "Atrasado",
           data: porGrupo.map((g) => g.atraso),
-          backgroundColor: "#E5938A",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.rose;
+            return chartGradient(context.chart.ctx, area, `${palette.rose}ee`, `${palette.plum}88`);
+          },
+          borderRadius: 8,
+          borderSkipped: false,
           maxBarThickness: 26,
         },
       ],
@@ -102,17 +113,23 @@ export function MonitoresDashboard({
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          position: "top",
+          align: "start",
+          labels: { color: palette.text, usePointStyle: true, boxWidth: 8, padding: 14 },
+        },
+      },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: CHART_TEXT, font: { weight: 700 } },
+          ticks: { color: palette.muted, font: { weight: 700 } },
           stacked: true,
         },
         y: {
           beginAtZero: true,
-          ticks: { precision: 0, color: CHART_TEXT },
-          grid: { color: CHART_GRID },
+          ticks: { precision: 0, color: palette.muted },
+          grid: { color: palette.grid },
           stacked: true,
         },
       },
@@ -125,10 +142,12 @@ export function MonitoresDashboard({
       labels: ["No prazo", "Atrasado"],
       datasets: [
         {
-          data: [totalPrazo, totalEntregas - totalPrazo],
-          backgroundColor: ["#8FC29B", "#E5938A"],
-          borderColor: "#141D30",
-          borderWidth: 3,
+          data: [totalPrazo, comPrazo.length - totalPrazo],
+          backgroundColor: [palette.sage, palette.rose],
+          borderColor: palette.isLight ? "transparent" : palette.surface,
+          borderWidth: palette.isLight ? 0 : 6,
+          hoverOffset: 6,
+          spacing: 4,
         },
       ],
     },
@@ -140,10 +159,10 @@ export function MonitoresDashboard({
         legend: {
           position: "bottom",
           labels: {
-            color: CHART_TEXT,
+            color: palette.text,
             font: { weight: 700, size: 11.5 },
             boxWidth: 10,
-            padding: 14,
+            padding: 10,
             usePointStyle: true,
             pointStyle: "circle",
           },
@@ -153,6 +172,27 @@ export function MonitoresDashboard({
   };
 
   const ranking = [...arr].sort((a, b) => b.total - a.total).slice(0, 8);
+  const riscoPrazo = classificarMonitoresComAtraso(atrasosVisiveis, arr).slice(0, 4);
+  const sinais = [
+    {
+      label: "SLA da operação",
+      value: `${pctPrazo}%`,
+      hint: `${totalPrazo} entregas no prazo entre ${comPrazo.length} com prazo definido.`,
+      tone: pctPrazo >= 80 ? "ok" : pctPrazo >= 60 ? "warn" : "danger",
+    },
+    {
+      label: "Atrasos abertos",
+      value: String(atrasosVisiveis.length),
+      hint: "Feedbacks não concluídos cujo prazo já venceu.",
+      tone: atrasosVisiveis.length === 0 ? "ok" : atrasosVisiveis.length <= 4 ? "warn" : "danger",
+    },
+    {
+      label: "Monitores sob atenção",
+      value: String(monitoresComAtraso),
+      hint: "Monitores com pelo menos um atraso aberto na seleção.",
+      tone: monitoresComAtraso <= 1 ? "ok" : monitoresComAtraso <= 3 ? "warn" : "danger",
+    },
+  ] as const;
   const rankingConfig: ChartConfiguration = {
     type: "bar",
     data: {
@@ -160,8 +200,13 @@ export function MonitoresDashboard({
       datasets: [
         {
           data: ranking.map((m) => m.total),
-          backgroundColor: "#7FB8E0",
-          borderRadius: 4,
+          backgroundColor: (context: ScriptableContext<"bar">) => {
+            const area = context.chart.chartArea;
+            if (!area) return palette.sky;
+            return chartGradient(context.chart.ctx, area, `${palette.sky}ee`, `${palette.gold}88`);
+          },
+          borderRadius: 10,
+          borderSkipped: false,
           maxBarThickness: 16,
         },
       ],
@@ -174,10 +219,10 @@ export function MonitoresDashboard({
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { precision: 0, color: CHART_TEXT },
-          grid: { color: CHART_GRID },
+          ticks: { precision: 0, color: palette.muted },
+          grid: { color: palette.grid },
         },
-        y: { grid: { display: false }, ticks: { color: CHART_TEXT, font: { weight: 700 } } },
+        y: { grid: { display: false }, ticks: { color: palette.muted, font: { weight: 700 } } },
       },
     },
   };
@@ -220,6 +265,7 @@ export function MonitoresDashboard({
           value={arr.length}
           icon={<IconMonitor />}
           color="sky"
+          compact
         />
         <StatCard
           label="Entregas no prazo"
@@ -227,24 +273,63 @@ export function MonitoresDashboard({
           sub={`${totalPrazo}/${totalEntregas} registros`}
           icon={<IconCheckCircle />}
           color="sage"
+          compact
         />
         <StatCard
-          label="Monitores atrasados"
-          value={atrasados}
-          sub={`${atrasosVisiveis.length} feedback(s) pendente(s)`}
+          label="Monitores com atraso"
+          value={monitoresComAtraso}
+          sub={`${atrasosVisiveis.length} atraso(s) aberto(s)`}
           icon={<IconClock />}
           color="rose"
+          compact
         />
         <StatCard
           label="Grupos na visão"
           value={grupoId ? 1 : grupos.length}
           icon={<IconGrid />}
           color="gold"
+          compact
         />
+      </div>
+
+      <div className="insight-grid">
+        <Panel title="Saúde do ciclo" tag="resumo de prazo" className="panel-compact">
+          <div className="signal-list">
+            {sinais.map((sinal) => (
+              <div key={sinal.label} className="signal-item">
+                <div>
+                  <span className={`signal-dot ${sinal.tone}`} />
+                  <strong>{sinal.label}</strong>
+                </div>
+                <b>{sinal.value}</b>
+                <p>{sinal.hint}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+        <Panel title="Monitores com maior risco" tag="atrasos abertos" className="panel-compact">
+          <div className="ranking-list">
+            {riscoPrazo.length ? (
+              riscoPrazo.map((item, index) => (
+                <div key={item.monitorId} className="ranking-item">
+                  <span className="ranking-index">0{index + 1}</span>
+                  <div>
+                    <strong>{item.nome}</strong>
+                    <p>{item.atrasosAbertos} atraso(s) aberto(s)</p>
+                  </div>
+                  <b>{item.taxaPrazo === null ? "sem histórico" : `${item.taxaPrazo}%`}</b>
+                </div>
+              ))
+            ) : (
+              <div className="empty-inline">Nenhum monitor com atraso aberto nesta seleção.</div>
+            )}
+          </div>
+        </Panel>
       </div>
 
       <Panel
         title="Entregas por grupo de revisão"
+        className="panel-chart panel-chart-hero"
         legend={
           <div className="legend-row">
             <span>
@@ -264,12 +349,12 @@ export function MonitoresDashboard({
       </Panel>
 
       <div className="panel-grid">
-        <Panel title="Ranking de volume" tag="top monitores por registros">
+        <Panel title="Ranking de volume" tag="top monitores por registros" className="panel-chart">
           <div className="chart-wrap md">
             <ChartCanvas config={rankingConfig} />
           </div>
         </Panel>
-        <Panel title="Entregas no prazo — geral">
+        <Panel title="Entregas no prazo — geral" className="panel-chart">
           <div className="chart-wrap md">
             <ChartCanvas config={donutConfig} />
           </div>

@@ -59,6 +59,20 @@ export function concluirConvite(tokenConvite: string, senha: string) {
   });
 }
 
+export function solicitarRecuperacaoSenha(email: string) {
+  return request<void>("/auth/senha/solicitar-recuperacao", "", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function redefinirSenha(tokenRecuperacao: string, novaSenha: string) {
+  return request<void>("/auth/senha/redefinir", "", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenRecuperacao, novaSenha }),
+  });
+}
+
 function post<T>(path: string, token: string, data: unknown) {
   return request<T>(path, token, { method: "POST", body: JSON.stringify(data) });
 }
@@ -76,6 +90,10 @@ export const api = {
   login,
   logout,
   concluirConvite,
+  solicitarRecuperacaoSenha,
+  redefinirSenha,
+  alterarSenha: (token: string, senhaAtual: string, novaSenha: string) =>
+    patch<void>("/auth/senha", token, { senhaAtual, novaSenha }),
   periodos: (token: string) => request<Periodo[]>("/periodos", token),
   criarPeriodo: (
     token: string,

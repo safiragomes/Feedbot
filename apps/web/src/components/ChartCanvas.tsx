@@ -1,11 +1,39 @@
 import { Chart, type ChartConfiguration } from "chart.js/auto";
 import { useEffect, useRef } from "react";
 
-Chart.defaults.font.family = "Nunito";
-Chart.defaults.color = "#A7B4D6";
+function readVar(name: string, fallback: string) {
+  if (typeof window === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
 
-export const CHART_TEXT = "#A7B4D6";
-export const CHART_GRID = "#1F2C48";
+export function chartPalette() {
+  const isLight =
+    typeof document !== "undefined" && document.documentElement.dataset.theme === "light";
+  return {
+    isLight,
+    text: readVar("--chart-text", "#A7B4D6"),
+    muted: readVar("--chart-muted", "#6F88AB"),
+    grid: readVar("--chart-grid", "#243753"),
+    surface: readVar("--chart-surface", "#101B2D"),
+    sky: readVar("--sky", "#7CB7F6"),
+    sage: readVar("--sage", "#8AD0B8"),
+    rose: readVar("--rose", "#F08C7F"),
+    plum: readVar("--plum", "#9EAEF4"),
+    gold: readVar("--gold", "#69D2C0"),
+  };
+}
+
+export function chartGradient(
+  ctx: CanvasRenderingContext2D,
+  area: { top: number; bottom: number; left: number; right: number },
+  start: string,
+  end: string,
+) {
+  const gradient = ctx.createLinearGradient(area.left, area.top, area.right, area.bottom);
+  gradient.addColorStop(0, start);
+  gradient.addColorStop(1, end);
+  return gradient;
+}
 
 export function ChartCanvas({ config }: { config: ChartConfiguration }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -13,6 +41,10 @@ export function ChartCanvas({ config }: { config: ChartConfiguration }) {
 
   useEffect(() => {
     if (!canvasRef.current) return;
+    const palette = chartPalette();
+    Chart.defaults.font.family = "Nunito";
+    Chart.defaults.color = palette.text;
+    Chart.defaults.borderColor = palette.grid;
     chartRef.current?.destroy();
     chartRef.current = new Chart(canvasRef.current, config);
     return () => {

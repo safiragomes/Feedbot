@@ -244,7 +244,7 @@ export function MonitorDrawer({
   const alunosB = alunosDaDupla.filter(
     (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === monitor.id,
   );
-  const pendencias = atrasos.filter((atraso) => atraso.monitorId === monitor.id);
+  const atrasosAbertos = atrasos.filter((atraso) => atraso.monitorId === monitor.id);
 
   // Monitor B nunca é armazenado — é sempre "o outro monitor da dupla" (ou o próprio,
   // sem parceiro). Por isso desatribuir este monitor de um aluno (seja como A ou como
@@ -282,15 +282,15 @@ export function MonitorDrawer({
         <MiniRow label="Papel">{monitor.isChefe ? "Chefe de monitoria" : "Monitor"}</MiniRow>
       </div>
       <div className="drawer-section">
-        <h5>Feedbacks pendentes</h5>
-        {pendencias.length ? (
-          pendencias.map((pendencia) => (
-            <MiniRow key={`${pendencia.alunoId}:${pendencia.listaId}`} label={pendencia.listaNome}>
-              <Chip tone="danger">{pendencia.alunoNome}</Chip>
+        <h5>Feedbacks em atraso</h5>
+        {atrasosAbertos.length ? (
+          atrasosAbertos.map((atraso) => (
+            <MiniRow key={`${atraso.alunoId}:${atraso.listaId}`} label={atraso.listaNome}>
+              <Chip tone="danger">{atraso.alunoNome}</Chip>
             </MiniRow>
           ))
         ) : (
-          <p className="mono-cell">nenhuma pendência após o prazo</p>
+          <p className="mono-cell">nenhum feedback em atraso</p>
         )}
       </div>
       <div className="drawer-section">

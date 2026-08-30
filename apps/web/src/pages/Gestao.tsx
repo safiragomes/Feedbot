@@ -38,6 +38,8 @@ export function Gestao({
   const [alunosAbertos, setAlunosAbertos] = useState(new Set<string>());
   const [modal, setModal] = useState<ModalState | null>(null);
   const [erro, setErro] = useState("");
+  const alunosSemDupla = alunos.filter((aluno) => !aluno.duplaId).length;
+  const monitoresSemDupla = monitores.filter((monitor) => !monitor.duplaId && monitor.status === "ATIVO").length;
 
   function toggleGrupo(id: string) {
     setAbertos((prev) => {
@@ -137,6 +139,29 @@ export function Gestao({
 
       {erro && <div className="error-banner">{erro}</div>}
 
+      <div className="context-band">
+        <div className="context-card">
+          <span>Grupos</span>
+          <strong>{grupos.length}</strong>
+          <p>Estruturas de revisão ativas neste período.</p>
+        </div>
+        <div className="context-card">
+          <span>Duplas</span>
+          <strong>{duplas.length}</strong>
+          <p>Frentes operacionais cadastradas.</p>
+        </div>
+        <div className="context-card">
+          <span>Alunos sem dupla</span>
+          <strong>{alunosSemDupla}</strong>
+          <p>Demandam redistribuição.</p>
+        </div>
+        <div className="context-card compact">
+          <span>Monitores livres</span>
+          <strong>{monitoresSemDupla}</strong>
+          <p>Disponíveis para alocação.</p>
+        </div>
+      </div>
+
       <div className="grupo-grid">
         {grupos.map((grupo) => {
           const gd = duplas.filter((d) => d.grupoRevisaoId === grupo.id);
@@ -150,13 +175,14 @@ export function Gestao({
                   <div>
                     <strong>{grupo.nome}</strong>
                     <span className="chefe">chefe: {grupo.chefe?.nome ?? "—"}</span>
+                    <div className="grupo-meta-pills">
+                      <span>{gd.length} duplas</span>
+                      <span>{qtdAlunos} alunos</span>
+                      <span>{gd.reduce((acc, dupla) => acc + (dupla.monitores?.length ?? 0), 0)} monitores</span>
+                    </div>
                   </div>
                 </div>
                 <div className="right">
-                  <div className="grupo-stats">
-                    <span>{gd.length} duplas</span>
-                    <span>{qtdAlunos} alunos</span>
-                  </div>
                   <button
                     className="btn sm"
                     onClick={(event) => {
@@ -179,7 +205,10 @@ export function Gestao({
                     return (
                       <div key={dupla.id} className="dupla-row">
                         <div className="dupla-top">
-                          <div className="dupla-label">{dupla.label}</div>
+                          <div className="dupla-label">
+                            <strong>{dupla.label}</strong>
+                            <span>{dAlunos.length} aluno(s)</span>
+                          </div>
                           <MembroSlot
                             monitor={membro1 ?? null}
                             onAssign={() =>
@@ -194,8 +223,13 @@ export function Gestao({
                             }
                             onRemove={() => membro2 && confirmarRemoverMonitor(membro2)}
                           />
-                          <button className="aluno-count" onClick={() => toggleAlunos(dupla.id)}>
-                            {dAlunos.length} al. <IconChevronDown />
+                          <button
+                            type="button"
+                            className="aluno-count"
+                            aria-expanded={alunosOpen}
+                            onClick={() => toggleAlunos(dupla.id)}
+                          >
+                            {alunosOpen ? "Ocultar" : "Ver alunos"} <IconChevronDown />
                           </button>
                           <button
                             className="x-btn"
