@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import type { Bot, Periodo } from "../lib/types";
 import { IconCheck, IconRefresh, IconWhatsapp, IconX } from "../components/icons";
 import { Chip, Panel, type ConfirmRequest } from "../components/ui";
+import { Skeleton } from "../components/ui/skeleton";
 import { toast } from "../lib/toast";
 
 export function BotPage({
@@ -110,7 +111,7 @@ export function BotPage({
                 {bot?.qr && qrDataUrl ? (
                   <img src={qrDataUrl} alt="QR code de pareamento" width={220} height={220} />
                 ) : (
-                  <p className="mono-cell">gerando QR code…</p>
+                  <Skeleton style={{ width: 220, height: 220 }} />
                 )}
               </div>
               <p

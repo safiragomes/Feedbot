@@ -2621,6 +2621,21 @@ tbody tr.clickable {
 .status-dot.mid {
   background: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-dim);
+  animation: feedbot-status-pulse 1.4s ease-in-out infinite;
+}
+@keyframes feedbot-status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--gold-dim);
+  }
+  50% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-dot.mid {
+    animation: none;
+  }
 }
 .connected-card {
   background: var(--surface-2);
@@ -2660,14 +2675,6 @@ tbody tr.clickable {
   margin-bottom: 14px;
   overflow: hidden;
 }
-.qr-box pre {
-  font-size: 4px;
-  line-height: 4px;
-  color: #000;
-  font-family: monospace;
-  white-space: pre;
-}
-
 /* LOGIN */
 .login {
   min-height: 100vh;
