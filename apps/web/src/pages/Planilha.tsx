@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import type {
   ConfiguracaoPlanilha,
+  ItemPreviaImportacaoAluno,
   Lista,
   Periodo,
   PreviaImportacaoAlunos,
   Turma,
 } from "../lib/types";
 import { Chip, Panel, type ConfirmRequest } from "../components/ui";
+import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { ListasPanel } from "../components/ListasPanel";
 import { toast } from "../lib/toast";
 
@@ -133,6 +135,48 @@ export function PlanilhaPage({
       },
     });
   }
+
+  const importColunas: DataTableColumn<ItemPreviaImportacaoAluno>[] = [
+    {
+      key: "importar",
+      header: "Importar",
+      render: (item) =>
+        item.status === "novo" ? (
+          <input
+            type="checkbox"
+            aria-label={`Importar ${item.nome}`}
+            checked={matriculasSelecionadas.has(item.matricula)}
+            onChange={(event) =>
+              setMatriculasSelecionadas((atuais) => {
+                const proximas = new Set(atuais);
+                if (event.target.checked) proximas.add(item.matricula);
+                else proximas.delete(item.matricula);
+                return proximas;
+              })
+            }
+          />
+        ) : (
+          "—"
+        ),
+    },
+    { key: "turma", header: "Turma", render: (item) => item.turmaNome },
+    { key: "linha", header: "Linha", render: (item) => item.linha },
+    {
+      key: "matricula",
+      header: "Matrícula",
+      render: (item) => <span className="mono-cell">{item.matricula || "—"}</span>,
+    },
+    { key: "nome", header: "Nome", render: (item) => item.nome || "—" },
+    {
+      key: "situacao",
+      header: "Situação",
+      render: (item) => (
+        <span title={item.motivo}>
+          {item.motivo ?? (item.status === "cadastrado" ? "já cadastrado" : item.status)}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -312,53 +356,13 @@ export function PlanilhaPage({
                       </button>
                     </div>
                   )}
-                  <div className="table-wrap sheet-import-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Importar</th>
-                          <th>Turma</th>
-                          <th>Linha</th>
-                          <th>Matrícula</th>
-                          <th>Nome</th>
-                          <th>Situação</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {itensFiltrados.map((item) => (
-                          <tr key={`${item.turmaId}-${item.linha}`}>
-                            <td>
-                              {item.status === "novo" ? (
-                                <input
-                                  type="checkbox"
-                                  aria-label={`Importar ${item.nome}`}
-                                  checked={matriculasSelecionadas.has(item.matricula)}
-                                  onChange={(event) =>
-                                    setMatriculasSelecionadas((atuais) => {
-                                      const proximas = new Set(atuais);
-                                      if (event.target.checked) proximas.add(item.matricula);
-                                      else proximas.delete(item.matricula);
-                                      return proximas;
-                                    })
-                                  }
-                                />
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td>{item.turmaNome}</td>
-                            <td>{item.linha}</td>
-                            <td className="mono-cell">{item.matricula || "—"}</td>
-                            <td>{item.nome || "—"}</td>
-                            <td title={item.motivo}>
-                              {item.motivo ??
-                                (item.status === "cadastrado" ? "já cadastrado" : item.status)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable
+                    className="sheet-import-table"
+                    columns={importColunas}
+                    rows={itensFiltrados}
+                    rowKey={(item) => `${item.turmaId}-${item.linha}`}
+                    pageSize={50}
+                  />
                   <div className="modal-actions">
                     <button
                       className="btn primary"

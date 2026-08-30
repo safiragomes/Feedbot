@@ -17,6 +17,7 @@ export function DataTable<T>({
   onRowClick,
   pageSize = 20,
   emptyState,
+  className,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
@@ -24,6 +25,7 @@ export function DataTable<T>({
   onRowClick?: (row: T) => void;
   pageSize?: number;
   emptyState?: ReactNode;
+  className?: string;
 }) {
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
   const [page, setPage] = useState(0);
@@ -60,7 +62,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="table-wrap">
+    <div className={`table-wrap${className ? ` ${className}` : ""}`}>
       <table>
         <thead>
           <tr>
