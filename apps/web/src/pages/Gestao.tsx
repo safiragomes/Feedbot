@@ -192,7 +192,7 @@ export function Gestao({
                   <IconChevronDown className="icon chevron" />
                 </div>
               </div>
-              {aberto && (
+              <div className={`grupo-body-wrap${aberto ? " open" : ""}`}>
                 <div className="grupo-body">
                   {gd.map((dupla) => {
                     const dAlunos = alunos.filter((a) => a.duplaId === dupla.id);
@@ -236,7 +236,7 @@ export function Gestao({
                             <IconX />
                           </button>
                         </div>
-                        {alunosOpen && (
+                        <div className={`aluno-list-wrap${alunosOpen ? " open" : ""}`}>
                           <div className="aluno-list">
                             {dAlunos.length ? (
                               dAlunos.map((aluno) => {
@@ -293,7 +293,7 @@ export function Gestao({
                               <span className="mono-cell">sem alunos vinculados</span>
                             )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -314,7 +314,7 @@ export function Gestao({
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

@@ -1888,6 +1888,23 @@ tbody tr.clickable {
 .grupo-card.open .chevron {
   transform: rotate(180deg);
 }
+.grupo-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.grupo-body-wrap.open {
+  grid-template-rows: 1fr;
+}
+.grupo-body-wrap > .grupo-body {
+  overflow: hidden;
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .grupo-body-wrap {
+    transition: none;
+  }
+}
 .grupo-body {
   padding: 0 18px 16px;
 }
@@ -1982,10 +1999,25 @@ tbody tr.clickable {
 .aluno-count:hover {
   border-color: color-mix(in srgb, var(--sage) 34%, transparent);
 }
+.aluno-list-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease;
+}
+.aluno-list-wrap.open {
+  grid-template-rows: 1fr;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aluno-list-wrap {
+    transition: none;
+  }
+}
 .aluno-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  overflow: hidden;
+  min-height: 0;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px dashed var(--border);
