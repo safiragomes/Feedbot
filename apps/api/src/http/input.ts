@@ -22,3 +22,5 @@ export function parseOptionalPositiveInteger(value: unknown): number | null | un
   if (value === null || value === undefined) return null;
   return parsePositiveInteger(value);
 }
+
+export type IdParams = { id: string };

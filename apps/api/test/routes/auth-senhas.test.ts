@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
 import {
   hashPassword,
@@ -101,7 +101,7 @@ describe("alteração e recuperação de senha", () => {
       payload: { email },
     });
     expect(solicitacao.statusCode).toBe(204);
-    expect(recuperacoes).toHaveLength(1);
+    await vi.waitFor(() => expect(recuperacoes).toHaveLength(1));
     const token = new URLSearchParams(new URL(recuperacoes[0]!.link).hash.slice(1)).get(
       "recuperacao",
     )!;

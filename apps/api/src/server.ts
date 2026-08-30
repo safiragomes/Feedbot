@@ -1,23 +1,17 @@
 import "dotenv/config";
 import { buildApp } from "./app.js";
 import { prisma } from "./db/client.js";
-import { BotSessaoStatus } from "./generated/prisma/enums.js";
+import { botRoutes } from "./routes/bot.js";
 import { WhatsAppBot } from "./services/whatsapp-bot.js";
 
-const bot = new WhatsAppBot(prisma);
-const app = buildApp({ prisma, bot });
+const app = buildApp({ prisma });
+const bot = new WhatsAppBot(prisma, undefined, undefined, undefined, app.log);
+botRoutes(app, prisma, bot);
 const port = Number(process.env.PORT ?? 3333);
-
-// A fresh process never inherits a live WhatsApp socket — any CONECTADO/CONECTANDO
-// status left over from a previous process (e.g. a dev-mode restart) is stale.
-await prisma.botSessao.updateMany({
-  where: { status: { in: [BotSessaoStatus.CONECTADO, BotSessaoStatus.CONECTANDO] } },
-  data: { status: BotSessaoStatus.DESCONECTADO, numeroConectado: null },
-});
 
 // Sessões multi-device válidas sobrevivem a reinícios da API. Se as credenciais
 // persistidas existirem, restaura a conexão sem exigir um novo QR code.
-void bot.restaurarSessao().catch((error) => app.log.error(error));
+void bot.iniciar().catch((error) => app.log.error(error));
 
 // O navegador não participa da conexão. Este watchdog roda dentro da API e recupera
 // sockets que ficaram presos sem emitir "close", inclusive com o painel fechado.

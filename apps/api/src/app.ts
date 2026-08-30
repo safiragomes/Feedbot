@@ -26,9 +26,10 @@ export function buildApp(
     emailSender?: EmailSender;
   } = {},
 ) {
+  const trustProxy = confiarNoProxy();
   const app = Fastify({
     bodyLimit: 1024 * 1024,
-    trustProxy: confiarNoProxy(),
+    trustProxy,
     logger: ambienteProducao()
       ? {
           level: "info",
@@ -36,6 +37,11 @@ export function buildApp(
         }
       : false,
   });
+
+  if (trustProxy)
+    app.log.warn(
+      "TRUST_PROXY=true: use apenas atrás de um proxy reverso confiável; cabeçalhos encaminhados afetam o rate limit",
+    );
 
   app.addHook("onSend", async (_request, reply, payload) => {
     reply
@@ -73,7 +79,7 @@ export function buildApp(
     googleOAuthRoutes(app, options.prisma);
     if (options.bot) botRoutes(app, options.prisma, options.bot);
   }
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       ["P2002", "P2003", "P2025"].includes(error.code)
@@ -93,7 +99,7 @@ export function buildApp(
     if (typeof statusCode === "number" && statusCode < 500) {
       return reply.send(error);
     }
-    console.error(error);
+    request.log.error({ err: error }, "erro inesperado no servidor");
     return reply.code(500).send({
       statusCode: 500,
       error: "Internal Server Error",

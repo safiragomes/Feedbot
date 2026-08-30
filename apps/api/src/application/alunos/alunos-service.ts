@@ -156,3 +156,15 @@ export async function importarAlunos(prisma: PrismaClient, csv: string) {
   await prisma.$transaction(alunos.map((aluno) => prisma.aluno.create({ data: aluno })));
   return alunos.length;
 }
+
+export async function excluirAlunoSemHistorico(prisma: PrismaClient, alunoId: string) {
+  const feedbacks = await prisma.feedback.count({ where: { alunoId } });
+  if (feedbacks > 0) {
+    throw new AlunoComHistoricoErro(
+      "Existem feedbacks registrados para este aluno; use o fluxo de anonimização para preservar o histórico.",
+    );
+  }
+  await prisma.aluno.delete({ where: { id: alunoId } });
+}
+
+export class AlunoComHistoricoErro extends Error {}

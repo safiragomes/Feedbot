@@ -90,7 +90,7 @@ describe("DELETE /alunos/:id", () => {
       },
     });
 
-    // Feedback do próprio aluno que será removido — deve ser apagado em cascata.
+    // Feedback do próprio aluno que será preservado ao bloquear a exclusão.
     const feedbackDoRemovido = await criarFeedback(prisma, {
       alunoId: alunoRemovidoId,
       monitorId: monitor.id,
@@ -100,8 +100,7 @@ describe("DELETE /alunos/:id", () => {
     });
     feedbackDoRemovidoId = feedbackDoRemovido.id;
 
-    // Feedback de OUTRO aluno que aponta o aluno removido como envolvido em plágio —
-    // o feedback em si deve sobreviver, só o detalhe de plágio referente a ele some.
+    // Feedback de outro aluno que aponta o primeiro como envolvido também deve permanecer.
     const feedbackDoOutro = await criarFeedback(prisma, {
       alunoId: alunoOutroId,
       monitorId: monitor.id,
@@ -125,22 +124,25 @@ describe("DELETE /alunos/:id", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("apaga o aluno mesmo com histórico de feedback, em cascata", async () => {
+  it("bloqueia a exclusão do aluno e preserva todo o histórico", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/alunos/${alunoRemovidoId}`,
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(response.statusCode).toBe(204);
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain("anonimização");
 
-    expect(await prisma.aluno.findUnique({ where: { id: alunoRemovidoId } })).toBeNull();
-    expect(await prisma.feedback.findUnique({ where: { id: feedbackDoRemovidoId } })).toBeNull();
+    expect(await prisma.aluno.findUnique({ where: { id: alunoRemovidoId } })).not.toBeNull();
+    expect(
+      await prisma.feedback.findUnique({ where: { id: feedbackDoRemovidoId } }),
+    ).not.toBeNull();
 
     const feedbackDoOutro = await prisma.feedback.findUnique({
       where: { id: feedbackDoOutroId },
       include: { questoesPlagio: true },
     });
     expect(feedbackDoOutro).not.toBeNull();
-    expect(feedbackDoOutro?.questoesPlagio).toHaveLength(0);
+    expect(feedbackDoOutro?.questoesPlagio).toHaveLength(1);
   });
 });

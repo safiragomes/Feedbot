@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import {
-  hashPassword,
   hashToken,
   DUMMY_PASSWORD_HASH,
   newSessionToken,
@@ -21,6 +20,7 @@ import {
   SenhaErro,
   solicitarRecuperacaoSenha,
 } from "../application/auth/senhas-service.js";
+import { BootstrapErro, criarPrimeiraContaChefe } from "../application/auth/bootstrap-service.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
@@ -57,25 +57,25 @@ export function authRoutes(
         return reply.badRequest(
           "Monitor, e-mail válido e senha entre 8 e 256 caracteres são obrigatórios",
         );
-      const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
-      if (!monitor?.isChefe || monitor.status !== "ATIVO")
-        return reply.badRequest("A conta deve pertencer a um monitor-chefe ativo");
-      const senhaHash = await hashPassword(senha);
-      const conta = await prisma.$transaction(async (tx) => {
-        // Serializa tentativas de bootstrap. Sem o lock, duas requisições simultâneas
-        // poderiam observar count=0 e criar dois primeiros administradores.
-        await tx.$queryRaw`
-          WITH lock AS MATERIALIZED (SELECT pg_advisory_xact_lock(937421))
-          SELECT true AS acquired FROM lock
-        `;
-        if ((await tx.contaChefe.count()) > 0) return null;
-        return tx.contaChefe.create({
-          data: { monitorId, email, senhaHash },
-          select: { id: true, monitorId: true, email: true },
+      try {
+        const { conta } = await criarPrimeiraContaChefe(prisma, {
+          email,
+          senha,
+          prepararMonitor: async (tx) => {
+            const monitor = await tx.monitor.findUnique({ where: { id: monitorId } });
+            if (!monitor?.isChefe || monitor.status !== "ATIVO")
+              throw new BootstrapErro("CREDENCIAIS_INVALIDAS");
+            return { id: monitor.id, resultado: null };
+          },
         });
-      });
-      if (!conta) return reply.conflict("A inicialização já foi concluída");
-      return reply.code(201).send(conta);
+        return reply.code(201).send(conta);
+      } catch (error) {
+        if (error instanceof BootstrapErro && error.codigo === "JA_CONCLUIDO")
+          return reply.conflict("A inicialização já foi concluída");
+        if (error instanceof BootstrapErro)
+          return reply.badRequest("A conta deve pertencer a um monitor-chefe ativo");
+        throw error;
+      }
     },
   );
 
@@ -200,19 +200,20 @@ export function authRoutes(
       const appUrl = process.env["APP_URL"];
       if (!appUrl) return reply.serviceUnavailable("URL pública do Feedbot não configurada");
       try {
-        const resultado = await solicitarRecuperacaoSenha(prisma, emailSender, {
-          email,
-          appUrl: new URL(appUrl),
-        });
-        request.log.info(
-          { recuperacaoEnviada: resultado === "ENVIADA" },
-          "solicitação de recuperação de senha processada",
+        await solicitarRecuperacaoSenha(
+          prisma,
+          emailSender,
+          {
+            email,
+            appUrl: new URL(appUrl),
+          },
+          request.log,
         );
+        request.log.info("solicitação de recuperação de senha processada");
       } catch (error) {
         if (error instanceof TypeError)
           return reply.serviceUnavailable("URL pública do Feedbot inválida");
-        if (error instanceof SenhaErro && error.codigo === "ENVIO_FALHOU")
-          request.log.error({ err: error }, "falha ao enviar recuperação de senha");
+        throw error;
       }
       return reply.code(204).send();
     },

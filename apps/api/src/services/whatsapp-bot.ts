@@ -1,4 +1,5 @@
-import { access, chmod, mkdir, rm } from "node:fs/promises";
+import { access, chmod, mkdir, readdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import {
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -53,6 +54,18 @@ type Conversa = {
 
 const SESSION_ID = "feedbot";
 
+export interface BotLogger {
+  info(contexto: Record<string, unknown>, mensagem: string): void;
+  warn(contexto: Record<string, unknown>, mensagem: string): void;
+  error(contexto: Record<string, unknown>, mensagem: string): void;
+}
+
+const consoleLogger: BotLogger = {
+  info: (contexto, mensagem) => console.info(mensagem, contexto),
+  warn: (contexto, mensagem) => console.warn(mensagem, contexto),
+  error: (contexto, mensagem) => console.error(mensagem, contexto),
+};
+
 function numeroDoJid(jid: string) {
   return jid.split("@")[0]?.replace(/\D/g, "") ?? "";
 }
@@ -74,17 +87,56 @@ export class WhatsAppBot {
   private ultimaTentativaEm?: Date;
   private quedaDesde?: Date;
   private avisoQuedaEnviado = false;
+  private desvinculadoLocalmente = false;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly authDir = process.env["BAILEYS_AUTH_DIR"] ?? ".baileys-auth",
     private readonly sheets = new GoogleSheetsSync(),
     private readonly emailSender: EmailSender = new SmtpEmailSender(),
+    private readonly logger: BotLogger = consoleLogger,
   ) {}
 
+  async iniciar() {
+    await this.prisma.botSessao.updateMany({
+      where: { status: { in: [BotSessaoStatus.CONECTADO, BotSessaoStatus.CONECTANDO] } },
+      data: { status: BotSessaoStatus.DESCONECTADO, numeroConectado: null },
+    });
+    // Não restaura automaticamente credenciais antigas. Uma conta banida pode
+    // travar o handshake do Baileys antes de a API começar a responder, impedindo
+    // justamente o acesso à rota usada para desvinculá-la.
+    return false;
+  }
+
+  async possuiCredenciaisSalvas() {
+    if (this.desvinculadoLocalmente) return false;
+    try {
+      await access(`${this.authDir}/creds.json`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async status() {
-    const sessao = await this.prisma.botSessao.findUnique({ where: { id: SESSION_ID } });
-    if (!this.socket?.user || sessao?.status === BotSessaoStatus.CONECTADO) return sessao;
+    let sessao = await this.prisma.botSessao.findUnique({ where: { id: SESSION_ID } });
+    if (this.desvinculadoLocalmente) {
+      return sessao
+        ? { ...sessao, status: BotSessaoStatus.DESCONECTADO, numeroConectado: null }
+        : sessao;
+    }
+    if (!this.socket?.user) {
+      if (
+        !this.devePermanecerConectado &&
+        (sessao?.status === BotSessaoStatus.CONECTADO ||
+          sessao?.status === BotSessaoStatus.CONECTANDO)
+      ) {
+        await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
+        sessao = await this.prisma.botSessao.findUnique({ where: { id: SESSION_ID } });
+      }
+      return sessao;
+    }
+    if (sessao?.status === BotSessaoStatus.CONECTADO) return sessao;
 
     // O socket é a fonte de verdade enquanto o processo está vivo. Um evento de
     // fechamento atrasado de uma conexão anterior não pode deixar o painel preso
@@ -126,6 +178,7 @@ export class WhatsAppBot {
   }
 
   async conectar() {
+    this.desvinculadoLocalmente = false;
     this.devePermanecerConectado = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
@@ -153,7 +206,9 @@ export class WhatsAppBot {
         await this.atualizarStatus(BotSessaoStatus.CONECTADO, socket.user?.id?.split(":")[0]);
         void socket
           .updateProfileName(process.env["WHATSAPP_PROFILE_NAME"]?.trim() || "Feedbot")
-          .catch((error) => console.error("[bot] nome do perfil:", error));
+          .catch((error) =>
+            this.logger.error({ err: error }, "falha ao atualizar nome do perfil do bot"),
+          );
         if (this.avisoQuedaEnviado) {
           const minutos = this.quedaDesde
             ? Math.max(1, Math.round((Date.now() - this.quedaDesde.getTime()) / 60_000))
@@ -165,7 +220,9 @@ export class WhatsAppBot {
             minutos
               ? `O Feedbot recuperou a conexão com o WhatsApp após aproximadamente ${minutos} minuto${minutos === 1 ? "" : "s"} offline.`
               : "O Feedbot recuperou a conexão com o WhatsApp.",
-          ).catch((error) => console.error("[bot] aviso de reconexão:", error));
+          ).catch((error) =>
+            this.logger.error({ err: error }, "falha ao enviar aviso de reconexão do bot"),
+          );
         }
       }
       if (connection === "close") {
@@ -187,7 +244,9 @@ export class WhatsAppBot {
           void this.avisarChefesPorEmail(
             "⚠️ Feedbot desconectado do WhatsApp",
             "O dispositivo foi desvinculado do WhatsApp e o Feedbot parou de responder aos monitores. É necessário reconectá-lo manualmente pelo painel (gera um novo QR code).",
-          ).catch((error) => console.error("[bot] aviso de queda:", error));
+          ).catch((error) =>
+            this.logger.error({ err: error }, "falha ao enviar aviso de queda do bot"),
+          );
         } else if (this.devePermanecerConectado) {
           this.quedaDesde ??= new Date();
           if (!this.avisoQuedaEnviado) {
@@ -195,7 +254,9 @@ export class WhatsAppBot {
             void this.avisarChefesPorEmail(
               "⚠️ Feedbot desconectado do WhatsApp",
               "O Feedbot perdeu a conexão com o WhatsApp e está tentando reconectar automaticamente. Nenhuma ação é necessária a menos que a reconexão não se resolva sozinha.",
-            ).catch((error) => console.error("[bot] aviso de queda:", error));
+            ).catch((error) =>
+              this.logger.error({ err: error }, "falha ao enviar aviso de queda do bot"),
+            );
           }
           this.agendarReconexao();
         }
@@ -225,7 +286,29 @@ export class WhatsAppBot {
   }
 
   private async limparAuth() {
-    await rm(this.authDir, { recursive: true, force: true });
+    let entradas: string[];
+    try {
+      entradas = await readdir(this.authDir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    // Em produção authDir é a raiz de um volume Docker: o kernel nunca deixa apagar o
+    // próprio ponto de montagem (rm recursivo falha com EBUSY ao tentar o rmdir final),
+    // e um arquivo isolado com permissão inconsistente não pode travar a limpeza dos
+    // demais. Por isso apagamos só o conteúdo, arquivo a arquivo, sem tocar no diretório.
+    await Promise.all(
+      entradas.map(async (entrada) => {
+        try {
+          await rm(join(this.authDir, entrada), { recursive: true, force: true });
+        } catch (error) {
+          this.logger.warn(
+            { err: error, arquivo: entrada },
+            "falha ao apagar arquivo de credencial do bot",
+          );
+        }
+      }),
+    );
   }
 
   private agendarReconexao() {
@@ -235,12 +318,55 @@ export class WhatsAppBot {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
       void this.conectar().catch((error) => {
-        console.error("[bot] reconexão:", error);
+        this.logger.error({ err: error }, "falha ao reconectar bot");
         this.socket = undefined;
         this.agendarReconexao();
       });
     }, atraso);
     this.reconnectTimer.unref();
+  }
+
+  async desvincular() {
+    this.desvinculadoLocalmente = true;
+    this.devePermanecerConectado = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
+    const socket = this.socket;
+    this.socket = undefined;
+    this.qr = undefined;
+    this.ultimaTentativaEm = undefined;
+    this.tentativasReconexao = 0;
+    this.quedaDesde = undefined;
+    this.avisoQuedaEnviado = false;
+    this.conversas.clear();
+
+    // A desvinculação local não pode depender de uma resposta do WhatsApp. Contas
+    // banidas, expiradas ou sem rede podem fazer logout() ficar pendurado. Removemos
+    // primeiro os listeners que poderiam recriar creds.json e encerramos o socket;
+    // depois apagamos as credenciais persistidas de forma incondicional.
+    try {
+      if (socket) {
+        socket.ev.removeAllListeners("creds.update");
+        socket.ev.removeAllListeners("connection.update");
+        socket.ev.removeAllListeners("messages.upsert");
+        socket.end(new Error("Número desvinculado pelo painel"));
+      }
+    } catch (error) {
+      this.logger.warn({ err: error }, "falha ao encerrar socket durante desvinculação local");
+    }
+    try {
+      await this.limparAuth();
+    } catch (error) {
+      this.logger.error({ err: error }, "falha ao apagar credenciais locais do bot");
+    }
+    try {
+      await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
+    } catch (error) {
+      // O estado em memória já impede reconexão e faz o painel refletir a
+      // desvinculação. Uma indisponibilidade momentânea do banco não deve impedir
+      // que o chefe conecte outro número.
+      this.logger.error({ err: error }, "falha ao persistir status de bot desconectado");
+    }
   }
 
   async desconectar() {
@@ -252,21 +378,11 @@ export class WhatsAppBot {
     this.qr = undefined;
     this.ultimaTentativaEm = undefined;
     try {
-      // Remove este aparelho também no WhatsApp. Apenas encerrar o websocket deixaria
-      // o número vinculado no celular e não prepararia corretamente a troca de conta.
-      if (socket) {
-        await Promise.race([
-          socket.logout().catch(() => undefined),
-          new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, 3_000);
-            timer.unref();
-          }),
-        ]);
-      }
-    } finally {
-      await this.limparAuth();
-      await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
+      socket?.end(new Error("Bot desconectado pelo painel"));
+    } catch (error) {
+      this.logger.warn({ err: error }, "falha ao encerrar conexão do bot");
     }
+    await this.atualizarStatus(BotSessaoStatus.DESCONECTADO);
   }
 
   async encerrarParaReinicio() {
@@ -455,9 +571,7 @@ export class WhatsAppBot {
         variantesWhatsapp(item.whatsappNumero).includes(chave),
       );
       if (!monitor) {
-        console.log(
-          `[bot] remetente não reconhecido — jid=${jid} chave=${chave} (nenhum de ${monitores.length} monitor(es) ativo(s) bateu)`,
-        );
+        this.logger.info({ monitoresAtivos: monitores.length }, "remetente do bot não reconhecido");
         return this.enviar(
           socket,
           jid,

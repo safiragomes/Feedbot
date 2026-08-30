@@ -25,8 +25,10 @@ function contexto() {
   const bot = {
     status: vi.fn().mockResolvedValue({ status: "CONECTADO" }),
     qrAtual: vi.fn().mockReturnValue("qr"),
+    possuiCredenciaisSalvas: vi.fn().mockResolvedValue(true),
     conectar: vi.fn().mockResolvedValue(undefined),
     desconectar: vi.fn().mockResolvedValue(undefined),
+    desvincular: vi.fn().mockResolvedValue(undefined),
     comunidadesDisponiveis: vi.fn().mockResolvedValue([{ id: "grupo", nome: "Avisos" }]),
     enviarLinkDeAcesso: vi.fn().mockResolvedValue({ link: "https://wa.me/teste" }),
   } as unknown as WhatsAppBot;
@@ -41,6 +43,7 @@ describe("rotas do bot", () => {
     expect((await app.inject({ method: "GET", url: "/bot", headers })).json()).toMatchObject({
       sessao: { status: "CONECTADO" },
       qr: "qr",
+      credenciaisSalvas: true,
     });
     expect((await app.inject({ method: "POST", url: "/bot/conectar", headers })).statusCode).toBe(
       202,
@@ -50,6 +53,10 @@ describe("rotas do bot", () => {
     ).toBe(204);
     expect(bot.conectar).toHaveBeenCalledOnce();
     expect(bot.desconectar).toHaveBeenCalledOnce();
+    expect(
+      (await app.inject({ method: "POST", url: "/bot/desvincular", headers })).statusCode,
+    ).toBe(204);
+    expect(bot.desvincular).toHaveBeenCalledOnce();
     await app.close();
   });
 

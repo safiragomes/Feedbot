@@ -1,11 +1,21 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { MonitorStatus, Semana } from "../generated/prisma/enums.js";
 import { requireChief } from "../auth/require-chief.js";
 import { normalizarWhatsapp } from "../domain/telefone.js";
-import { NUM_LISTAS_POR_PERIODO, QTD_QUESTOES_PADRAO } from "../domain/lista.js";
-import { TURMAS_FIXAS } from "../domain/turma.js";
 import {
+  atualizarMonitor,
+  atualizarPrazosDaTurma,
+  criarPeriodo,
+  excluirDupla,
+  excluirGrupoRevisao,
+  excluirMonitor,
+  excluirPeriodo,
+  GestaoErro,
+  validarMonitorDupla,
+} from "../application/gestao/gestao-service.js";
+import {
+  type IdParams,
   parseBoolean as bool,
   parseDate as date,
   parsePositiveInteger as positiveInteger,
@@ -13,28 +23,11 @@ import {
 } from "../http/input.js";
 import { alunoRoutes } from "./management/alunos.js";
 
-type IdParams = { id: string };
-
-// Cada monitor pertence a no máximo uma dupla, e cada dupla tem no máximo 2 monitores
-// (a "dupla de monitores" que atende os alunos dela).
-async function validateMonitorDupla(
-  prisma: PrismaClient,
-  periodoId: string,
-  duplaId: string | null | undefined,
-  monitorIdAtual?: string,
-) {
-  if (!duplaId) return;
-  const dupla = await prisma.dupla.findUnique({
-    where: { id: duplaId },
-    include: { grupoRevisao: true },
-  });
-  if (!dupla) throw new Error("Dupla não encontrada");
-  if (dupla.grupoRevisao.periodoId !== periodoId)
-    throw new Error("Dupla deve pertencer ao período do monitor");
-  const qtdMonitores = await prisma.monitor.count({
-    where: { duplaId, ...(monitorIdAtual ? { id: { not: monitorIdAtual } } : {}) },
-  });
-  if (qtdMonitores >= 2) throw new Error("Esta dupla já tem 2 monitores");
+function responderErroGestao(reply: FastifyReply, error: unknown) {
+  if (!(error instanceof GestaoErro)) throw error;
+  if (error.codigo === "NAO_ENCONTRADO") return reply.notFound(error.message);
+  if (error.codigo === "CONFLITO") return reply.conflict(error.message);
+  return reply.badRequest(error.message);
 }
 
 export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
@@ -52,32 +45,12 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const dataReferenciaRodizio = date(body.dataReferenciaRodizio);
     if (!nome || !dataInicio || !dataFim || !dataReferenciaRodizio || dataFim < dataInicio)
       return reply.badRequest("Dados do período inválidos");
-    const periodo = await prisma.$transaction(async (tx) => {
-      const periodo = await tx.periodo.create({
-        data: {
-          nome,
-          dataInicio,
-          dataFim,
-          dataReferenciaRodizio,
-          ativo: bool(body.ativo) ?? true,
-        },
-      });
-      await tx.lista.createMany({
-        data: Array.from({ length: NUM_LISTAS_POR_PERIODO }, (_, i) => ({
-          periodoId: periodo.id,
-          nome: `Lista ${i + 1}`,
-          qtdQuestoesTotal: QTD_QUESTOES_PADRAO,
-          ordem: i + 1,
-        })),
-      });
-      await tx.turma.createMany({
-        data: TURMAS_FIXAS.map((nome) => ({
-          periodoId: periodo.id,
-          nome,
-          nomeAbaPlanilha: nome,
-        })),
-      });
-      return periodo;
+    const periodo = await criarPeriodo(prisma, {
+      nome,
+      dataInicio,
+      dataFim,
+      dataReferenciaRodizio,
+      ativo: bool(body.ativo) ?? true,
     });
     return reply.code(201).send(periodo);
   });
@@ -93,7 +66,11 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     return prisma.periodo.update({ where: request.params as IdParams, data });
   });
   app.delete("/periodos/:id", protectedRoute, async (request, reply) => {
-    await prisma.periodo.delete({ where: request.params as IdParams });
+    try {
+      await excluirPeriodo(prisma, (request.params as IdParams).id);
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
     return reply.code(204).send();
   });
 
@@ -172,13 +149,11 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   });
   app.delete("/grupos-revisao/:id", protectedRoute, async (request, reply) => {
     const { id } = request.params as IdParams;
-    await prisma.$transaction([
-      prisma.aluno.updateMany({
-        where: { dupla: { grupoRevisaoId: id } },
-        data: { monitorSemanaAId: null },
-      }),
-      prisma.grupoRevisao.delete({ where: { id } }),
-    ]);
+    try {
+      await excluirGrupoRevisao(prisma, id);
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
     return reply.code(204).send();
   });
 
@@ -210,10 +185,11 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   });
   app.delete("/duplas/:id", protectedRoute, async (request, reply) => {
     const { id } = request.params as IdParams;
-    await prisma.$transaction([
-      prisma.aluno.updateMany({ where: { duplaId: id }, data: { monitorSemanaAId: null } }),
-      prisma.dupla.delete({ where: { id } }),
-    ]);
+    try {
+      await excluirDupla(prisma, id);
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
     return reply.code(204).send();
   });
 
@@ -257,7 +233,7 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     )
       return reply.badRequest("Dados do monitor inválidos");
     try {
-      await validateMonitorDupla(prisma, periodoId, duplaId);
+      await validarMonitorDupla(prisma, periodoId, duplaId);
     } catch (error) {
       return reply.badRequest(error instanceof Error ? error.message : "Dupla inválida");
     }
@@ -269,8 +245,7 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   });
   app.patch("/monitores/:id", protectedRoute, async (request, reply) => {
     const body = request.body as Record<string, unknown>;
-    const monitor = await prisma.monitor.findUnique({ where: request.params as IdParams });
-    if (!monitor) return reply.notFound();
+    const monitorId = (request.params as IdParams).id;
     const status =
       body.status === undefined
         ? undefined
@@ -293,46 +268,24 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const isChefe = body.isChefe === undefined ? undefined : bool(body.isChefe);
     if (body.isChefe !== undefined && isChefe === undefined)
       return reply.badRequest("Papel do monitor inválido");
-    if (isChefe === false && monitor.isChefe) {
-      const gruposComoChefe = await prisma.grupoRevisao.count({ where: { chefeId: monitor.id } });
-      if (gruposComoChefe > 0) {
-        return reply.badRequest("Troque o chefe dos grupos vinculados antes de remover este papel");
-      }
-    }
     try {
-      if (duplaId !== undefined)
-        await validateMonitorDupla(prisma, monitor.periodoId, duplaId, monitor.id);
-    } catch (error) {
-      return reply.badRequest(error instanceof Error ? error.message : "Dupla inválida");
-    }
-    return prisma.$transaction(async (tx) => {
-      if (duplaId !== undefined && duplaId !== monitor.duplaId) {
-        // Trocar a dupla do monitor invalida a escolha de "monitor A" de qualquer
-        // aluno que dependia dele — limpa para não deixar Aluno.monitorSemanaAId
-        // apontando para um monitor fora da dupla do aluno.
-        await tx.aluno.updateMany({
-          where: { monitorSemanaAId: monitor.id },
-          data: { monitorSemanaAId: null },
-        });
-      }
-      const atualizado = await tx.monitor.update({
-        where: request.params as IdParams,
-        data: {
-          nome: body.nome === undefined ? undefined : text(body.nome),
-          whatsappNumero: whatsappNumero ?? undefined,
-          isChefe,
-          status,
-          duplaId,
-        },
+      return await atualizarMonitor(prisma, monitorId, {
+        nome: body.nome === undefined ? undefined : text(body.nome),
+        whatsappNumero: whatsappNumero ?? undefined,
+        isChefe,
+        status,
+        duplaId,
       });
-      if (atualizado.status === MonitorStatus.INATIVO || !atualizado.isChefe) {
-        await tx.sessaoChefe.deleteMany({ where: { contaChefe: { monitorId: atualizado.id } } });
-      }
-      return atualizado;
-    });
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
   });
   app.delete("/monitores/:id", protectedRoute, async (request, reply) => {
-    await prisma.monitor.delete({ where: request.params as IdParams });
+    try {
+      await excluirMonitor(prisma, (request.params as IdParams).id);
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
     return reply.code(204).send();
   });
 
@@ -473,8 +426,6 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       ? (body.prazos as Record<string, unknown>[])
       : undefined;
     if (!turmaId || !prazosBrutos) return reply.badRequest("turmaId e prazos são obrigatórios");
-    const turma = await prisma.turma.findUnique({ where: { id: turmaId } });
-    if (!turma) return reply.notFound();
     const prazos: { listaId: string; prazoEntregaFeedback: Date }[] = [];
     for (const item of prazosBrutos) {
       const listaId = text(item.listaId);
@@ -482,19 +433,10 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       if (!listaId || !prazoEntregaFeedback) return reply.badRequest("Item de prazo inválido");
       prazos.push({ listaId, prazoEntregaFeedback });
     }
-    const listaIds = [...new Set(prazos.map((p) => p.listaId))];
-    const listas = await prisma.lista.findMany({ where: { id: { in: listaIds } } });
-    if (listas.length !== listaIds.length || listas.some((l) => l.periodoId !== turma.periodoId))
-      return reply.badRequest("Todas as listas devem pertencer ao período da turma");
-    await prisma.$transaction(
-      prazos.map((p) =>
-        prisma.prazoLista.upsert({
-          where: { listaId_turmaId: { listaId: p.listaId, turmaId } },
-          create: { listaId: p.listaId, turmaId, prazoEntregaFeedback: p.prazoEntregaFeedback },
-          update: { prazoEntregaFeedback: p.prazoEntregaFeedback },
-        }),
-      ),
-    );
-    return reply.send({ atualizados: prazos.length });
+    try {
+      return reply.send({ atualizados: await atualizarPrazosDaTurma(prisma, turmaId, prazos) });
+    } catch (error) {
+      return responderErroGestao(reply, error);
+    }
   });
 }

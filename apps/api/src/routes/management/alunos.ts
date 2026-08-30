@@ -3,6 +3,8 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 import { requireChief } from "../../auth/require-chief.js";
 import {
   atribuirAlunosADupla,
+  AlunoComHistoricoErro,
+  excluirAlunoSemHistorico,
   importarAlunos,
   validarMonitorSemanaA,
   validarVinculosAluno,
@@ -12,9 +14,8 @@ import {
   parseDate,
   parseOptionalPositiveInteger,
   parseText,
+  type IdParams,
 } from "../../http/input.js";
-
-type IdParams = { id: string };
 
 export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
   const protectedRoute = { preHandler: requireChief(prisma) };
@@ -138,7 +139,12 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
   });
 
   app.delete("/alunos/:id", protectedRoute, async (request, reply) => {
-    await prisma.aluno.delete({ where: request.params as IdParams });
+    try {
+      await excluirAlunoSemHistorico(prisma, (request.params as IdParams).id);
+    } catch (error) {
+      if (error instanceof AlunoComHistoricoErro) return reply.conflict(error.message);
+      throw error;
+    }
     return reply.code(204).send();
   });
 

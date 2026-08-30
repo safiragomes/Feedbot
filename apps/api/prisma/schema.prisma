@@ -62,7 +62,7 @@ model Turma {
   nome            String
   nomeAbaPlanilha String
 
-  periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
+  periodo                  Periodo                   @relation(fields: [periodoId], references: [id], onDelete: Cascade)
   alunos                   Aluno[]
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
   prazos                   PrazoLista[]
@@ -206,7 +206,7 @@ model Lista {
   ordem            Int
   semanaOverride   Semana?
 
-  periodo                  Periodo                   @relation(fields: [periodoId], references: [id])
+  periodo                  Periodo                   @relation(fields: [periodoId], references: [id], onDelete: Cascade)
   feedbacks                Feedback[]
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
   prazos                   PrazoLista[]
@@ -315,8 +315,8 @@ model MapeamentoPlanilhaLista {
   colunaQuestoesCorretas String?
   atualizadoEm           DateTime @updatedAt
 
-  lista Lista @relation(fields: [listaId], references: [id])
-  turma Turma @relation(fields: [turmaId], references: [id])
+  lista Lista @relation(fields: [listaId], references: [id], onDelete: Cascade)
+  turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
 
   @@unique([listaId, turmaId])
 }

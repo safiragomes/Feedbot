@@ -9,9 +9,14 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 import type { EmailSender } from "./convites-service.js";
 
 export class SenhaErro extends Error {
-  constructor(readonly codigo: "SENHA_ATUAL_INVALIDA" | "TOKEN_INVALIDO" | "ENVIO_FALHOU") {
+  constructor(readonly codigo: "SENHA_ATUAL_INVALIDA" | "TOKEN_INVALIDO") {
     super(codigo);
   }
+}
+
+export interface RecuperacaoLogger {
+  info(contexto: Record<string, unknown>, mensagem: string): void;
+  error(contexto: Record<string, unknown>, mensagem: string): void;
 }
 
 export async function alterarSenha(
@@ -34,33 +39,35 @@ export async function solicitarRecuperacaoSenha(
   prisma: PrismaClient,
   emailSender: EmailSender,
   entrada: { email: string; appUrl: URL },
+  logger: RecuperacaoLogger,
 ) {
   const conta = await prisma.contaChefe.findUnique({
     where: { email: entrada.email },
     include: { monitor: true },
   });
-  if (!conta || !conta.monitor.isChefe || conta.monitor.status !== "ATIVO")
-    return "IGNORADA" as const;
-  const token = newSessionToken();
-  const tokenHash = await hashToken(token);
-  const expiraEm = new Date(Date.now() + 60 * 60 * 1_000);
-  await prisma.$transaction([
-    prisma.recuperacaoSenha.deleteMany({ where: { contaChefeId: conta.id } }),
-    prisma.recuperacaoSenha.create({ data: { contaChefeId: conta.id, tokenHash, expiraEm } }),
-  ]);
-  const link = new URL(entrada.appUrl);
-  link.hash = new URLSearchParams({ recuperacao: token }).toString();
-  try {
-    await emailSender.enviarRecuperacao({
-      destinatario: conta.email,
-      nome: conta.monitor.nome,
-      link: link.toString(),
-    });
-    return "ENVIADA" as const;
-  } catch {
-    await prisma.recuperacaoSenha.deleteMany({ where: { tokenHash } });
-    throw new SenhaErro("ENVIO_FALHOU");
-  }
+  if (!conta || !conta.monitor.isChefe || conta.monitor.status !== "ATIVO") return;
+  void (async () => {
+    const token = newSessionToken();
+    const tokenHash = await hashToken(token);
+    const expiraEm = new Date(Date.now() + 60 * 60 * 1_000);
+    await prisma.$transaction([
+      prisma.recuperacaoSenha.deleteMany({ where: { contaChefeId: conta.id } }),
+      prisma.recuperacaoSenha.create({ data: { contaChefeId: conta.id, tokenHash, expiraEm } }),
+    ]);
+    const link = new URL(entrada.appUrl);
+    link.hash = new URLSearchParams({ recuperacao: token }).toString();
+    try {
+      await emailSender.enviarRecuperacao({
+        destinatario: conta.email,
+        nome: conta.monitor.nome,
+        link: link.toString(),
+      });
+      logger.info({}, "e-mail de recuperação de senha enviado");
+    } catch (error) {
+      await prisma.recuperacaoSenha.deleteMany({ where: { tokenHash } });
+      logger.error({ err: error }, "falha ao enviar recuperação de senha");
+    }
+  })().catch((error) => logger.error({ err: error }, "falha ao preparar recuperação de senha"));
 }
 
 export async function concluirRecuperacaoSenha(

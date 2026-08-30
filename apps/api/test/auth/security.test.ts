@@ -1,3 +1,4 @@
+import { scryptSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   hashPassword,
@@ -28,10 +29,20 @@ describe("proteção de tokens de sessão", () => {
     const senha = "senha-muito-segura-123";
     const primeiroHash = await hashPassword(senha);
     const segundoHash = await hashPassword(senha);
+    expect(primeiroHash.split("$")).toHaveLength(6);
+    expect(primeiroHash.split("$")[1]).toBe("32768");
     expect(primeiroHash).not.toBe(segundoHash);
     expect(await verifyPassword(senha, primeiroHash)).toBe(true);
     expect(await verifyPassword("senha-incorreta", primeiroHash)).toBe(false);
     expect(await verifyPassword(senha, "hash-invalido")).toBe(false);
+  });
+
+  it("continua validando hashes scrypt no formato legado", async () => {
+    const senha = "senha-legada-segura";
+    const salt = "salt-legado";
+    const key = scryptSync(senha, salt, 64).toString("hex");
+    expect(await verifyPassword(senha, `scrypt$${salt}$${key}`)).toBe(true);
+    expect(await verifyPassword("incorreta", `scrypt$${salt}$${key}`)).toBe(false);
   });
 
   it("compara segredos sem aceitar comprimentos ou conteúdos diferentes", () => {

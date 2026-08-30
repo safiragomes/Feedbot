@@ -83,7 +83,7 @@ describe("DELETE /grupos-revisao/:id", () => {
     // Simula um aluno que registrou feedback numa dupla e depois foi movido pra outra
     // — Feedback.duplaId é um retrato de quando o feedback foi criado, não acompanha
     // Aluno.duplaId depois. A dupla original (com o feedback "órfão" apontando pra
-    // ela) precisa continuar cascateando quando o grupo inteiro é apagado.
+    // ela) também precisa impedir que o grupo inteiro seja apagado.
     const outraDupla = await prisma.dupla.create({
       data: { grupoRevisaoId: grupo.id, label: "Dupla 2" },
     });
@@ -121,33 +121,33 @@ describe("DELETE /grupos-revisao/:id", () => {
     await prisma.feedback.deleteMany({ where: { lista: { periodoId } } });
     await prisma.lista.deleteMany({ where: { periodoId } });
     await prisma.aluno.deleteMany({ where: { turma: { periodoId } } });
+    await prisma.dupla.deleteMany({ where: { grupoRevisao: { periodoId } } });
+    await prisma.grupoRevisao.deleteMany({ where: { periodoId } });
     await prisma.contaChefe.deleteMany({ where: { monitor: { periodoId } } });
     await prisma.monitor.deleteMany({ where: { periodoId } });
     await prisma.turma.deleteMany({ where: { periodoId } });
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("apaga o grupo e as duplas, mas preserva alunos e monitores sem dupla", async () => {
+  it("bloqueia a exclusão do grupo quando uma de suas duplas possui feedback", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/grupos-revisao/${grupoId}`,
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(response.statusCode).toBe(204);
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain("feedbacks registrados");
 
-    expect(await prisma.grupoRevisao.findUnique({ where: { id: grupoId } })).toBeNull();
-    expect(await prisma.dupla.findUnique({ where: { id: duplaId } })).toBeNull();
+    expect(await prisma.grupoRevisao.findUnique({ where: { id: grupoId } })).not.toBeNull();
+    expect(await prisma.dupla.findUnique({ where: { id: duplaId } })).not.toBeNull();
     const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });
-    expect(aluno?.duplaId).toBeNull();
-    expect(aluno?.monitorSemanaAId).toBeNull();
+    expect(aluno?.duplaId).toBe(duplaId);
+    expect(aluno?.monitorSemanaAId).toBe(monitorId);
 
     const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
     expect(monitor).not.toBeNull();
-    expect(monitor?.duplaId).toBeNull();
-
-    // O feedback "órfão" que ainda apontava pra dupla original (de antes do aluno ter
-    // sido movido pra outra dupla do mesmo grupo) também precisa ter sumido.
-    expect(await prisma.feedback.count({ where: { duplaId } })).toBe(0);
+    expect(monitor?.duplaId).toBe(duplaId);
+    expect(await prisma.feedback.count({ where: { duplaId } })).toBe(1);
   });
 });
 
@@ -201,8 +201,8 @@ describe("DELETE /monitores/:id", () => {
       data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
     });
 
-    // Monitor a remover: também é chefe, com conta/login própria (deve cascatear
-    // junto), e já tem feedback registrado (o que antes bloqueava a exclusão).
+    // Monitor a remover: também é chefe, tem conta própria e feedback registrado;
+    // nenhum desses dados pode ser removido.
     const monitorRemovido = await prisma.monitor.create({
       data: {
         nome: "Monitor a remover",
@@ -262,24 +262,25 @@ describe("DELETE /monitores/:id", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("apaga o monitor mesmo com feedback e login de chefe, em cascata — sem oferecer anonimizar", async () => {
+  it("bloqueia a exclusão do monitor e preserva feedback, conta e atribuição", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/monitores/${monitorRemovidoId}`,
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(response.statusCode).toBe(204);
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain("feedbacks registrados");
 
-    expect(await prisma.monitor.findUnique({ where: { id: monitorRemovidoId } })).toBeNull();
-    expect(await prisma.feedback.findUnique({ where: { id: feedbackId } })).toBeNull();
+    expect(await prisma.monitor.findUnique({ where: { id: monitorRemovidoId } })).not.toBeNull();
+    expect(await prisma.feedback.findUnique({ where: { id: feedbackId } })).not.toBeNull();
     expect(
       await prisma.contaChefe.findFirst({ where: { monitorId: monitorRemovidoId } }),
-    ).toBeNull();
+    ).not.toBeNull();
 
     // O aluno continua existindo — só perde a atribuição de monitor da semana A.
     const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });
     expect(aluno).not.toBeNull();
-    expect(aluno?.monitorSemanaAId).toBeNull();
+    expect(aluno?.monitorSemanaAId).toBe(monitorRemovidoId);
   });
 
   it("a rota de anonimizar monitor não existe mais", async () => {

@@ -1,0 +1,195 @@
+import type { PrismaClient } from "../../generated/prisma/client.js";
+import { MonitorStatus } from "../../generated/prisma/enums.js";
+import { NUM_LISTAS_POR_PERIODO, QTD_QUESTOES_PADRAO } from "../../domain/lista.js";
+import { TURMAS_FIXAS } from "../../domain/turma.js";
+
+export class GestaoErro extends Error {
+  constructor(
+    readonly codigo: "DADOS_INVALIDOS" | "NAO_ENCONTRADO" | "CONFLITO",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export async function criarPeriodo(
+  prisma: PrismaClient,
+  entrada: {
+    nome: string;
+    dataInicio: Date;
+    dataFim: Date;
+    dataReferenciaRodizio: Date;
+    ativo: boolean;
+  },
+) {
+  return prisma.$transaction(async (tx) => {
+    const periodo = await tx.periodo.create({ data: entrada });
+    await tx.lista.createMany({
+      data: Array.from({ length: NUM_LISTAS_POR_PERIODO }, (_, indice) => ({
+        periodoId: periodo.id,
+        nome: `Lista ${indice + 1}`,
+        qtdQuestoesTotal: QTD_QUESTOES_PADRAO,
+        ordem: indice + 1,
+      })),
+    });
+    await tx.turma.createMany({
+      data: TURMAS_FIXAS.map((nome) => ({
+        periodoId: periodo.id,
+        nome,
+        nomeAbaPlanilha: nome,
+      })),
+    });
+    return periodo;
+  });
+}
+
+export async function validarMonitorDupla(
+  prisma: PrismaClient,
+  periodoId: string,
+  duplaId: string | null | undefined,
+  monitorIdAtual?: string,
+) {
+  if (!duplaId) return;
+  const dupla = await prisma.dupla.findUnique({
+    where: { id: duplaId },
+    include: { grupoRevisao: true },
+  });
+  if (!dupla) throw new GestaoErro("DADOS_INVALIDOS", "Dupla não encontrada");
+  if (dupla.grupoRevisao.periodoId !== periodoId) {
+    throw new GestaoErro("DADOS_INVALIDOS", "Dupla deve pertencer ao período do monitor");
+  }
+  const quantidade = await prisma.monitor.count({
+    where: { duplaId, ...(monitorIdAtual ? { id: { not: monitorIdAtual } } : {}) },
+  });
+  if (quantidade >= 2) throw new GestaoErro("DADOS_INVALIDOS", "Esta dupla já tem 2 monitores");
+}
+
+export async function atualizarMonitor(
+  prisma: PrismaClient,
+  monitorId: string,
+  entrada: {
+    nome?: string;
+    whatsappNumero?: string;
+    isChefe?: boolean;
+    status?: MonitorStatus;
+    duplaId?: string | null;
+  },
+) {
+  const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
+  if (!monitor) throw new GestaoErro("NAO_ENCONTRADO", "Monitor não encontrado");
+  if (entrada.isChefe === false && monitor.isChefe) {
+    const grupos = await prisma.grupoRevisao.count({ where: { chefeId: monitor.id } });
+    if (grupos > 0) {
+      throw new GestaoErro(
+        "DADOS_INVALIDOS",
+        "Troque o chefe dos grupos vinculados antes de remover este papel",
+      );
+    }
+  }
+  if (entrada.duplaId !== undefined) {
+    await validarMonitorDupla(prisma, monitor.periodoId, entrada.duplaId, monitor.id);
+  }
+  return prisma.$transaction(async (tx) => {
+    if (entrada.duplaId !== undefined && entrada.duplaId !== monitor.duplaId) {
+      await tx.aluno.updateMany({
+        where: { monitorSemanaAId: monitor.id },
+        data: { monitorSemanaAId: null },
+      });
+    }
+    const atualizado = await tx.monitor.update({ where: { id: monitorId }, data: entrada });
+    if (atualizado.status === MonitorStatus.INATIVO || !atualizado.isChefe) {
+      await tx.sessaoChefe.deleteMany({ where: { contaChefe: { monitorId: atualizado.id } } });
+    }
+    return atualizado;
+  });
+}
+
+export async function atualizarPrazosDaTurma(
+  prisma: PrismaClient,
+  turmaId: string,
+  prazos: { listaId: string; prazoEntregaFeedback: Date }[],
+) {
+  const turma = await prisma.turma.findUnique({ where: { id: turmaId } });
+  if (!turma) throw new GestaoErro("NAO_ENCONTRADO", "Turma não encontrada");
+  const listaIds = [...new Set(prazos.map((prazo) => prazo.listaId))];
+  const listas = await prisma.lista.findMany({ where: { id: { in: listaIds } } });
+  if (
+    listas.length !== listaIds.length ||
+    listas.some((lista) => lista.periodoId !== turma.periodoId)
+  ) {
+    throw new GestaoErro("DADOS_INVALIDOS", "Todas as listas devem pertencer ao período da turma");
+  }
+  await prisma.$transaction(
+    prazos.map((prazo) =>
+      prisma.prazoLista.upsert({
+        where: { listaId_turmaId: { listaId: prazo.listaId, turmaId } },
+        create: { ...prazo, turmaId },
+        update: { prazoEntregaFeedback: prazo.prazoEntregaFeedback },
+      }),
+    ),
+  );
+  return prazos.length;
+}
+
+async function impedirExclusaoComFeedback(quantidade: number, recurso: string) {
+  if (quantidade > 0) {
+    throw new GestaoErro(
+      "CONFLITO",
+      `Existem feedbacks registrados para ${recurso}; não é possível excluir.`,
+    );
+  }
+}
+
+export async function excluirGrupoRevisao(prisma: PrismaClient, id: string) {
+  await impedirExclusaoComFeedback(
+    await prisma.feedback.count({ where: { dupla: { grupoRevisaoId: id } } }),
+    "este grupo",
+  );
+  await prisma.$transaction([
+    prisma.aluno.updateMany({
+      where: { dupla: { grupoRevisaoId: id } },
+      data: { monitorSemanaAId: null },
+    }),
+    prisma.grupoRevisao.delete({ where: { id } }),
+  ]);
+}
+
+export async function excluirDupla(prisma: PrismaClient, id: string) {
+  await impedirExclusaoComFeedback(
+    await prisma.feedback.count({ where: { duplaId: id } }),
+    "esta dupla",
+  );
+  await prisma.$transaction([
+    prisma.aluno.updateMany({ where: { duplaId: id }, data: { monitorSemanaAId: null } }),
+    prisma.dupla.delete({ where: { id } }),
+  ]);
+}
+
+export async function excluirMonitor(prisma: PrismaClient, id: string) {
+  await impedirExclusaoComFeedback(
+    await prisma.feedback.count({ where: { monitorId: id } }),
+    "este monitor",
+  );
+  await prisma.monitor.delete({ where: { id } });
+}
+
+export async function excluirPeriodo(prisma: PrismaClient, id: string) {
+  // Turmas e listas são criadas automaticamente para todo período (ver criarPeriodo)
+  // e não representam trabalho real do chefe — não faz sentido bloquear a exclusão só
+  // por elas existirem. O que precisa impedir a exclusão é haver alunos, monitores ou
+  // grupos de revisão já organizados no período. O onDelete: Cascade de Turma/Lista
+  // no schema cuida de limpar esse scaffolding junto; Aluno.turma e Feedback.lista
+  // continuam Restrict como rede de segurança caso esta checagem tenha um buraco.
+  const [alunos, monitores, grupos] = await Promise.all([
+    prisma.aluno.count({ where: { turma: { periodoId: id } } }),
+    prisma.monitor.count({ where: { periodoId: id } }),
+    prisma.grupoRevisao.count({ where: { periodoId: id } }),
+  ]);
+  if (alunos > 0 || monitores > 0 || grupos > 0) {
+    throw new GestaoErro(
+      "CONFLITO",
+      "Só é possível excluir um período sem alunos, monitores ou grupos vinculados.",
+    );
+  }
+  await prisma.periodo.delete({ where: { id } });
+}

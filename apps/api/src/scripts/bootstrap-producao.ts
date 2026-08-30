@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { hashPassword } from "../auth/password.js";
+import { BootstrapErro, criarPrimeiraContaChefe } from "../application/auth/bootstrap-service.js";
 import { prisma } from "../db/client.js";
 import { normalizarWhatsapp } from "../domain/telefone.js";
 
@@ -21,54 +21,46 @@ async function main() {
   const email = obrigatoria("BOOTSTRAP_CHIEF_EMAIL").toLowerCase();
   const senha = obrigatoria("BOOTSTRAP_CHIEF_PASSWORD");
   const whatsappNumero = normalizarWhatsapp(obrigatoria("BOOTSTRAP_CHIEF_WHATSAPP"));
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    throw new Error("BOOTSTRAP_CHIEF_EMAIL deve ser um e-mail válido");
-  }
-  if (senha.length < 8 || senha.length > 256) {
-    throw new Error("BOOTSTRAP_CHIEF_PASSWORD deve ter entre 8 e 256 caracteres");
-  }
   if (!whatsappNumero) throw new Error("BOOTSTRAP_CHIEF_WHATSAPP deve ser um número válido");
 
-  const senhaHash = await hashPassword(senha);
-  const resultado = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`
-      WITH lock AS MATERIALIZED (SELECT pg_advisory_xact_lock(937421))
-      SELECT true AS acquired FROM lock
-    `;
-    if ((await tx.contaChefe.count()) > 0) {
-      throw new Error("A inicialização já foi concluída; nenhuma alteração foi feita");
-    }
-
-    const periodoIdExistente = process.env["BOOTSTRAP_PERIOD_ID"]?.trim();
-    const periodo = periodoIdExistente
-      ? await tx.periodo.findUnique({ where: { id: periodoIdExistente } })
-      : await tx.periodo.create({
-          data: {
-            nome: obrigatoria("BOOTSTRAP_PERIOD_NAME"),
-            dataInicio: dataObrigatoria("BOOTSTRAP_PERIOD_START"),
-            dataFim: dataObrigatoria("BOOTSTRAP_PERIOD_END"),
-            dataReferenciaRodizio: dataObrigatoria("BOOTSTRAP_ROTATION_REFERENCE"),
-            ativo: true,
-          },
-        });
-    if (!periodo) throw new Error("BOOTSTRAP_PERIOD_ID não corresponde a um período existente");
-
-    const monitor = await tx.monitor.create({
-      data: { nome, whatsappNumero, isChefe: true, periodoId: periodo.id },
-    });
-    const conta = await tx.contaChefe.create({
-      data: { monitorId: monitor.id, email, senhaHash },
-      select: { email: true },
-    });
-    return { periodo: periodo.nome, chefe: nome, email: conta.email };
+  const { conta, resultado } = await criarPrimeiraContaChefe(prisma, {
+    email,
+    senha,
+    prepararMonitor: async (tx) => {
+      const periodoIdExistente = process.env["BOOTSTRAP_PERIOD_ID"]?.trim();
+      const periodo = periodoIdExistente
+        ? await tx.periodo.findUnique({ where: { id: periodoIdExistente } })
+        : await tx.periodo.create({
+            data: {
+              nome: obrigatoria("BOOTSTRAP_PERIOD_NAME"),
+              dataInicio: dataObrigatoria("BOOTSTRAP_PERIOD_START"),
+              dataFim: dataObrigatoria("BOOTSTRAP_PERIOD_END"),
+              dataReferenciaRodizio: dataObrigatoria("BOOTSTRAP_ROTATION_REFERENCE"),
+              ativo: true,
+            },
+          });
+      if (!periodo) throw new Error("BOOTSTRAP_PERIOD_ID não corresponde a um período existente");
+      const monitor = await tx.monitor.create({
+        data: { nome, whatsappNumero, isChefe: true, periodoId: periodo.id },
+      });
+      return { id: monitor.id, resultado: { periodo: periodo.nome, chefe: nome } };
+    },
   });
 
-  console.info("Inicialização concluída", resultado);
+  console.info("Inicialização concluída", { ...resultado, email: conta.email });
 }
 
 main()
   .catch((error) => {
-    console.error(error instanceof Error ? error.message : error);
+    const mensagem =
+      error instanceof BootstrapErro && error.codigo === "JA_CONCLUIDO"
+        ? "A inicialização já foi concluída; nenhuma alteração foi feita"
+        : error instanceof BootstrapErro
+          ? "BOOTSTRAP_CHIEF_EMAIL ou BOOTSTRAP_CHIEF_PASSWORD inválido"
+          : error instanceof Error
+            ? error.message
+            : error;
+    console.error(mensagem);
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());

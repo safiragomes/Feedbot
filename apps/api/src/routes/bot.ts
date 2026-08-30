@@ -5,13 +5,21 @@ import { WhatsAppBot } from "../services/whatsapp-bot.js";
 
 export function botRoutes(app: FastifyInstance, prisma: PrismaClient, bot: WhatsAppBot) {
   const protectedRoute = { preHandler: requireChief(prisma) };
-  app.get("/bot", protectedRoute, async () => ({ sessao: await bot.status(), qr: bot.qrAtual() }));
+  app.get("/bot", protectedRoute, async () => ({
+    sessao: await bot.status(),
+    qr: bot.qrAtual(),
+    credenciaisSalvas: await bot.possuiCredenciaisSalvas(),
+  }));
   app.post("/bot/conectar", protectedRoute, async (_request, reply) => {
     await bot.conectar();
     return reply.code(202).send({ status: "CONECTANDO" });
   });
   app.post("/bot/desconectar", protectedRoute, async (_request, reply) => {
     await bot.desconectar();
+    return reply.code(204).send();
+  });
+  app.post("/bot/desvincular", protectedRoute, async (_request, reply) => {
+    await bot.desvincular();
     return reply.code(204).send();
   });
   app.get("/bot/comunidades-disponiveis", protectedRoute, async (_request, reply) => {
