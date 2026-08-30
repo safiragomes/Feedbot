@@ -1221,20 +1221,33 @@ h1 {
   min-width: 150px;
   max-width: 220px;
   min-height: 36px;
-  padding: 7px 12px;
+  padding: 0;
   background: var(--control-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-pill);
   color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
   transition:
     background-color 0.16s ease,
     border-color 0.16s ease;
 }
-.filter-select-trigger span {
+.filter-select-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.filter-select-open span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1253,6 +1266,12 @@ h1 {
 }
 .filter-select-clear {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 0 10px 0 4px;
+  border: 0;
+  background: transparent;
   color: var(--text-3);
   border-radius: 50%;
   cursor: pointer;

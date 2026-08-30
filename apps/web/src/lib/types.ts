@@ -1,3 +1,10 @@
+export type ConfirmRequest = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void | Promise<void>;
+};
+
 export type Periodo = {
   id: string;
   nome: string;
@@ -140,6 +147,7 @@ export type Feedback = {
 export type Bot = {
   sessao: { status: "DESCONECTADO" | "CONECTANDO" | "CONECTADO"; numeroConectado?: string } | null;
   qr?: string;
+  credenciaisSalvas?: boolean;
 };
 
 export type Atraso = {

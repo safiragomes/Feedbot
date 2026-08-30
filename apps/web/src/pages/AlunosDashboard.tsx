@@ -6,6 +6,7 @@ import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCan
 import { IconAluno, IconIa, IconPlagio, IconProibicao } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
 import { FilterSelect } from "../components/FilterSelect";
+import { pct, turmasUnicas } from "../lib/format";
 
 const shortLista = (nome: string) => nome.replace(/^Lista\s*/i, "L");
 
@@ -25,10 +26,7 @@ export function AlunosDashboard({
   const [duplaId, setDuplaId] = useState("");
   const [listaId, setListaId] = useState("");
   const palette = chartPalette();
-  const turmas = useMemo(
-    () => [...new Set(alunos.map((a) => a.turma.nome))].sort((a, b) => a.localeCompare(b)),
-    [alunos],
-  );
+  const turmas = useMemo(() => turmasUnicas(alunos), [alunos]);
 
   const duplasDoGrupo = useMemo(
     () => grupos.find((g) => g.id === grupoId)?.duplas ?? [],
@@ -56,7 +54,6 @@ export function AlunosDashboard({
   const comPlagio = new Set(fb.filter((f) => f.plagiou).map((f) => f.alunoId)).size;
   const comProib = new Set(fb.filter((f) => f.usouProibicao).map((f) => f.alunoId)).size;
   const pcd = filtrados.filter((a) => a.isPcd).length;
-  const total = filtrados.length || 1;
 
   const listasChart = listaId ? listas.filter((l) => l.id === listaId) : listas;
 
@@ -355,7 +352,7 @@ export function AlunosDashboard({
         <StatCard
           label="Uso de IA"
           value={comIA}
-          sub={`${Math.round((comIA / total) * 100)}% dos alunos`}
+          sub={`${pct(comIA, filtrados.length)}% dos alunos`}
           icon={<IconIa />}
           color="plum"
           compact
@@ -363,7 +360,7 @@ export function AlunosDashboard({
         <StatCard
           label="Plágio"
           value={comPlagio}
-          sub={`${Math.round((comPlagio / total) * 100)}% dos alunos`}
+          sub={`${pct(comPlagio, filtrados.length)}% dos alunos`}
           icon={<IconPlagio />}
           color="rose"
           compact
@@ -371,7 +368,7 @@ export function AlunosDashboard({
         <StatCard
           label="Uso de proibição"
           value={comProib}
-          sub={`${Math.round((comProib / total) * 100)}% dos alunos`}
+          sub={`${pct(comProib, filtrados.length)}% dos alunos`}
           icon={<IconProibicao />}
           color="gold"
           compact

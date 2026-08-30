@@ -213,6 +213,7 @@ export const api = {
   bot: (token: string) => request<Bot>("/bot", token),
   conectarBot: (token: string) => post("/bot/conectar", token, {}),
   desconectarBot: (token: string) => request<void>("/bot/desconectar", token, { method: "POST" }),
+  desvincularBot: (token: string) => request<void>("/bot/desvincular", token, { method: "POST" }),
   comunidadesWhatsappDisponiveis: (token: string) =>
     request<{ id: string; nome: string }[]>("/bot/comunidades-disponiveis", token),
   vincularComunidadeWhatsapp: (token: string, periodoId: string, whatsappAvisosId: string) =>

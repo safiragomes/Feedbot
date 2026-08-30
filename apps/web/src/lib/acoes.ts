@@ -1,12 +1,7 @@
 import { api } from "./api";
-import type { ConfirmRequest } from "../components/ui";
+import type { ConfirmRequest } from "./types";
 
-/**
- * Excluir aluno ou monitor é exclusão de verdade, em cascata: o histórico de
- * feedback vinculado (do aluno, ou registrado pelo monitor) é apagado junto — não
- * há opção de "anonimizar" como alternativa (schema.prisma: Feedback.aluno e
- * Feedback.monitor usam onDelete: Cascade).
- */
+/** Exclusões com feedback são recusadas pela API para preservar o histórico acadêmico. */
 export function solicitarRemocaoAluno({
   aluno,
   token,
@@ -22,7 +17,8 @@ export function solicitarRemocaoAluno({
 }) {
   onRequestConfirm({
     title: `Remover ${aluno.nome}?`,
-    message: "O aluno e todo o histórico de feedback dele serão apagados permanentemente.",
+    message:
+      "O aluno só será removido se ainda não possuir feedback. Se houver histórico, use o fluxo de anonimização.",
     confirmLabel: "Remover",
     onConfirm: async () => {
       onErro("");
@@ -51,8 +47,7 @@ export function solicitarRemocaoMonitor({
 }) {
   onRequestConfirm({
     title: `Excluir ${monitor.nome}?`,
-    message:
-      "O monitor e todo o histórico de feedback registrado por ele serão apagados permanentemente.",
+    message: "O monitor só será removido se ainda não tiver feedback registrado.",
     confirmLabel: "Excluir monitor",
     onConfirm: async () => {
       onErro("");

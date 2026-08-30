@@ -31,8 +31,10 @@ export function DataTable<T>({
   const [page, setPage] = useState(0);
 
   useEffect(() => {
-    setPage(0);
-  }, [rows]);
+    // Corrige somente uma página que deixou de existir após a quantidade de linhas mudar.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage((atual) => (atual * pageSize >= rows.length ? 0 : atual));
+  }, [rows.length, pageSize]);
 
   const sortColumn = sort && columns.find((c) => c.key === sort.key);
   const sorted = useMemo(() => {

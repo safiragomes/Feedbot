@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { avatarColor, initials } from "../lib/format";
 import { IconX } from "./icons";
+import type { ConfirmRequest } from "../lib/types";
+
+export type { ConfirmRequest } from "../lib/types";
 
 export function Avatar({ nome, size = 30 }: { nome: string; size?: number }) {
   const [fg, bg] = avatarColor(nome);
@@ -136,13 +139,6 @@ export function EmptyState({ title, hint }: { title: string; hint: string }) {
     </div>
   );
 }
-
-export type ConfirmRequest = {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  onConfirm: () => void | Promise<void>;
-};
 
 export function ConfirmModal({
   request,

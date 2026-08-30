@@ -6,6 +6,7 @@ import App from "./App";
 describe("App", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     delete document.documentElement.dataset.theme;
   });
 

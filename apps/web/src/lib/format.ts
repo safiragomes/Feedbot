@@ -28,6 +28,10 @@ export function pct(numerator: number, denominator: number): number {
   return denominator ? Math.round((numerator / denominator) * 100) : 0;
 }
 
+export function turmasUnicas(alunos: Array<{ turma: { nome: string } }>): string[] {
+  return [...new Set(alunos.map((aluno) => aluno.turma.nome))].sort((a, b) => a.localeCompare(b));
+}
+
 export function noPrazo(criadoEm: string, prazoEntregaFeedback: string | null): boolean | null {
   if (!prazoEntregaFeedback) return null;
   return new Date(criadoEm).getTime() <= new Date(prazoEntregaFeedback).getTime();

@@ -23,6 +23,7 @@ export function BotPage({
   const [carregando, setCarregando] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const status = bot?.sessao?.status ?? "DESCONECTADO";
+  const possuiCredenciaisAntigas = Boolean(bot?.credenciaisSalvas);
 
   useEffect(() => {
     if (!bot?.qr) return;
@@ -55,15 +56,18 @@ export function BotPage({
   function desconectar() {
     onRequestConfirm({
       title: "Desvincular este número?",
-      message: "Será necessário ler um novo QR code para conectar novamente.",
+      message:
+        "As credenciais locais serão removidas mesmo se o número estiver banido ou offline. Depois, será necessário ler o QR code do novo número.",
       confirmLabel: "Desvincular",
       onConfirm: async () => {
         setCarregando(true);
         try {
-          await api.desconectarBot(token);
+          await api.desvincularBot(token);
           await onReload();
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Não foi possível desconectar o bot");
+          toast.error(
+            error instanceof Error ? error.message : "Não foi possível desconectar o bot",
+          );
         } finally {
           setCarregando(false);
         }
@@ -126,20 +130,24 @@ export function BotPage({
           <button
             className="btn primary"
             style={{ width: "100%", justifyContent: "center" }}
-            disabled={carregando || status !== "DESCONECTADO"}
+            disabled={carregando || status !== "DESCONECTADO" || possuiCredenciaisAntigas}
             onClick={conectar}
           >
             <IconWhatsapp />
-            {status === "DESCONECTADO" ? "Conectar bot" : "Conectando…"}
+            {status === "DESCONECTADO" && !possuiCredenciaisAntigas
+              ? "Conectar bot"
+              : possuiCredenciaisAntigas
+                ? "Desvincule o número antigo primeiro"
+                : "Conectando…"}
           </button>
-          {status !== "DESCONECTADO" && (
+          {(status !== "DESCONECTADO" || possuiCredenciaisAntigas) && (
             <button
               className="btn ghost"
               style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
               disabled={carregando}
               onClick={desconectar}
             >
-              Desvincular número
+              {possuiCredenciaisAntigas ? "Desvincular número antigo" : "Desvincular número"}
             </button>
           )}
         </Panel>
@@ -178,7 +186,9 @@ function ComunidadeWhatsapp({
       setDisponiveis(atuais);
       setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível listar as comunidades",
+      );
       await onReload();
     }
   }
@@ -189,7 +199,9 @@ function ComunidadeWhatsapp({
       .comunidadesWhatsappDisponiveis(token)
       .then(setDisponiveis)
       .catch(async (error) => {
-        toast.error(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+        toast.error(
+          error instanceof Error ? error.message : "Não foi possível listar as comunidades",
+        );
         await onReload();
       });
   }, [token, conectado]);
@@ -201,7 +213,9 @@ function ComunidadeWhatsapp({
       await api.vincularComunidadeWhatsapp(token, periodo.id, valor);
       await onReload();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível vincular a comunidade");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível vincular a comunidade",
+      );
     } finally {
       setPendente(false);
     }

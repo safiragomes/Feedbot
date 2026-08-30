@@ -39,6 +39,8 @@ export function FilterSelect({
 
   useEffect(() => {
     if (!open) return;
+    // Cada abertura começa com a lista completa; o foco é sincronizado no frame seguinte.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery("");
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(id);
@@ -54,30 +56,31 @@ export function FilterSelect({
 
   return (
     <div className="filter-select" ref={rootRef}>
-      <button
-        type="button"
-        className={`filter-select-trigger${value ? " has-value" : ""}`}
-        onClick={() => setOpen((atual) => !atual)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span>{selected ? selected.label : placeholder}</span>
+      <div className={`filter-select-trigger${value ? " has-value" : ""}`}>
+        <button
+          type="button"
+          className="filter-select-open"
+          onClick={() => setOpen((atual) => !atual)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <span>{selected ? selected.label : placeholder}</span>
+          {!value && <IconChevronDown />}
+        </button>
         {value ? (
-          <span
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             className="filter-select-clear"
-            onClick={(event) => {
-              event.stopPropagation();
+            aria-label={`Limpar filtro de ${label.toLowerCase()}`}
+            onClick={() => {
               onChange("");
+              setOpen(false);
             }}
           >
             <IconX />
-          </span>
-        ) : (
-          <IconChevronDown />
-        )}
-      </button>
+          </button>
+        ) : null}
+      </div>
       {open && (
         <div className="filter-select-panel" role="listbox">
           <div className="filter-select-search">

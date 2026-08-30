@@ -17,13 +17,15 @@ import type {
 import { Sidebar, type PageId } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { AlunoDrawer, MonitorDrawer } from "./components/Drawers";
-import { ConfirmModal, type ConfirmRequest } from "./components/ui";
+import { ConfirmModal } from "./components/ui";
+import type { ConfirmRequest } from "./lib/types";
 import { Toaster } from "./components/ui/sonner";
 import { PageSkeleton } from "./components/PageSkeleton";
 import { Login } from "./pages/Login";
 import { AlunosDashboard } from "./pages/AlunosDashboard";
 import { MonitoresDashboard } from "./pages/MonitoresDashboard";
-import { DiretorioAlunos, DiretorioMonitores } from "./pages/Diretorios";
+import { DiretorioAlunos } from "./pages/DiretorioAlunos";
+import { DiretorioMonitores } from "./pages/DiretorioMonitores";
 import { Gestao } from "./pages/Gestao";
 import { BotPage } from "./pages/Bot";
 import { PlanilhaPage } from "./pages/Planilha";
@@ -38,7 +40,7 @@ type HeroAction = {
 type ThemeMode = "dark" | "light";
 
 function loadChefe(): Chefe | null {
-  const raw = localStorage.getItem("feedbot-chefe");
+  const raw = sessionStorage.getItem("feedbot-chefe");
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Chefe;
@@ -55,6 +57,7 @@ function loadTheme(): ThemeMode {
 function App() {
   const [token, setToken] = useState(() => {
     localStorage.removeItem("feedbot-token");
+    localStorage.removeItem("feedbot-chefe");
     return loadChefe() ? "cookie-session" : "";
   });
   const [chefe, setChefe] = useState<Chefe | null>(() => loadChefe());
@@ -153,7 +156,7 @@ function App() {
   useEffect(() => {
     const encerrarSessaoInvalida = () => {
       localStorage.removeItem("feedbot-token");
-      localStorage.removeItem("feedbot-chefe");
+      sessionStorage.removeItem("feedbot-chefe");
       setToken("");
       setChefe(null);
       setPeriodoId("");
@@ -168,14 +171,14 @@ function App() {
   }, [theme]);
 
   function handleLogin(newChefe: Chefe) {
-    localStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
+    sessionStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
     setToken("cookie-session");
     setChefe(newChefe);
   }
   function handleLogout() {
     void api.logout(token).catch(() => undefined);
     localStorage.removeItem("feedbot-token");
-    localStorage.removeItem("feedbot-chefe");
+    sessionStorage.removeItem("feedbot-chefe");
     setToken("");
     setChefe(null);
     setPeriodoId("");

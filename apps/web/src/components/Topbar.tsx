@@ -92,7 +92,7 @@ export function Topbar({
           request={{
             title: `Excluir ${atual.nome}?`,
             message:
-              "Só é possível excluir um período sem turmas, grupos, monitores ou listas vinculados. Esta ação não pode ser desfeita.",
+              "Turmas e listas (criadas automaticamente) são removidas junto. Só não é possível excluir um período com alunos, monitores ou grupos vinculados. Esta ação não pode ser desfeita.",
             confirmLabel: "Excluir período",
             onConfirm: async () => {
               try {
