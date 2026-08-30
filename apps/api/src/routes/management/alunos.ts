@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import { requireChief } from "../../auth/require-chief.js";
 import {
+  atribuirAlunosADupla,
   importarAlunos,
   validarMonitorSemanaA,
   validarVinculosAluno,
@@ -59,6 +60,23 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
         },
       }),
     );
+  });
+
+  app.patch("/alunos/atribuir-dupla", protectedRoute, async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const duplaId = parseText(body.duplaId);
+    const alunoIds = Array.isArray(body.alunoIds)
+      ? body.alunoIds.map(parseText).filter((id): id is string => Boolean(id))
+      : [];
+    if (!duplaId || alunoIds.length === 0 || alunoIds.length > 500) {
+      return reply.badRequest("Informe de 1 a 500 alunos e uma dupla");
+    }
+    try {
+      const atualizados = await atribuirAlunosADupla(prisma, alunoIds, duplaId);
+      return { atualizados };
+    } catch (error) {
+      return reply.badRequest(error instanceof Error ? error.message : "Vínculos inválidos");
+    }
   });
 
   app.patch("/alunos/:id", protectedRoute, async (request, reply) => {

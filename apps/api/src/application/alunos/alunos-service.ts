@@ -118,6 +118,36 @@ export async function validarMonitorSemanaA(
   if (monitor.duplaId !== duplaId) throw new Error("Monitor deve pertencer à dupla do aluno");
 }
 
+export async function atribuirAlunosADupla(
+  prisma: PrismaClient,
+  alunoIds: string[],
+  duplaId: string,
+) {
+  const ids = [...new Set(alunoIds)];
+  const [dupla, alunos] = await Promise.all([
+    prisma.dupla.findUnique({
+      where: { id: duplaId },
+      include: { grupoRevisao: true },
+    }),
+    prisma.aluno.findMany({
+      where: { id: { in: ids } },
+      include: { turma: true },
+    }),
+  ]);
+
+  if (!dupla) throw new Error("Dupla não encontrada");
+  if (alunos.length !== ids.length) throw new Error("Um ou mais alunos não foram encontrados");
+  if (alunos.some((aluno) => aluno.turma.periodoId !== dupla.grupoRevisao.periodoId)) {
+    throw new Error("Todos os alunos devem pertencer ao mesmo período da dupla");
+  }
+
+  const resultado = await prisma.aluno.updateMany({
+    where: { id: { in: ids } },
+    data: { duplaId, monitorSemanaAId: null },
+  });
+  return resultado.count;
+}
+
 export async function importarAlunos(prisma: PrismaClient, csv: string) {
   const alunos = parseCsvAlunos(csv);
   await Promise.all(

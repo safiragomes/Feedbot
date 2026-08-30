@@ -8,6 +8,6 @@ export function calcularQuestoesEquivalentes({
   condicaoEspecial: boolean;
 }) {
   if (!condicaoEspecial) return corretas;
-  const proporcional = Math.round((corretas / 0.75) * 100) / 100;
+  const proporcional = Math.round((corretas / (2 / 3)) * 100) / 100;
   return Math.min(total, proporcional);
 }

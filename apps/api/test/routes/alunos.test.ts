@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/db/client.js";
 import { buildApp } from "../../src/app.js";
@@ -6,6 +7,10 @@ import { hashPassword, hashToken, newSessionToken } from "../../src/auth/passwor
 
 describe("POST /alunos", () => {
   const sufixo = Date.now();
+  const telefoneTeste = `+5581${Number.parseInt(randomUUID().slice(0, 8), 16)
+    .toString()
+    .padStart(10, "0")
+    .slice(0, 8)}`;
   const app = buildApp({ prisma });
   const token = newSessionToken();
 
@@ -30,7 +35,7 @@ describe("POST /alunos", () => {
     turmaId = turma.id;
 
     const chefe = await prisma.monitor.create({
-      data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
+      data: { nome: "Chefe teste", whatsappNumero: telefoneTeste, isChefe: true, periodoId },
     });
     const conta = await prisma.contaChefe.create({
       data: {
@@ -87,6 +92,39 @@ describe("POST /alunos", () => {
     });
     expect(response.statusCode).toBe(201);
     expect(response.json().duplaId).toBeNull();
+  });
+
+  it("vincula alunos existentes à dupla em lote", async () => {
+    const alunos = await prisma.aluno.findMany({ where: { turmaId }, select: { id: true } });
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/alunos/atribuir-dupla",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { alunoIds: alunos.map((aluno) => aluno.id), duplaId },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ atualizados: alunos.length });
+    expect(
+      await prisma.aluno.count({ where: { id: { in: alunos.map((aluno) => aluno.id) }, duplaId } }),
+    ).toBe(alunos.length);
+  });
+
+  it("desvincula o aluno sem excluir seu cadastro", async () => {
+    const aluno = await prisma.aluno.findFirstOrThrow({ where: { turmaId, duplaId } });
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/alunos/${aluno.id}`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { duplaId: null },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().duplaId).toBeNull();
+    expect(await prisma.aluno.findUnique({ where: { id: aluno.id } })).toMatchObject({
+      id: aluno.id,
+      duplaId: null,
+    });
   });
 
   it("continua recusando qtdQuestoesMeta explicitamente inválido", async () => {

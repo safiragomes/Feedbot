@@ -28,17 +28,17 @@ enum BotSessaoStatus {
 }
 
 model Periodo {
-  id                     String   @id @default(cuid())
+  id                     String    @id @default(cuid())
   nome                   String
   dataInicio             DateTime
   dataFim                DateTime
   dataReferenciaRodizio  DateTime
-  ativo                  Boolean  @default(true)
-  whatsappAvisosId       String?  @unique
+  ativo                  Boolean   @default(true)
+  whatsappAvisosId       String?   @unique
   whatsappComunidadeNome String?
-  planilhaId              String?
-  planilhaUrl             String?
-  planilhaVinculadaEm     DateTime?
+  planilhaId             String?
+  planilhaUrl            String?
+  planilhaVinculadaEm    DateTime?
 
   turmas        Turma[]
   gruposRevisao GrupoRevisao[]
@@ -49,11 +49,11 @@ model Periodo {
 }
 
 model ConexaoGoogle {
-  id                       String   @id @default("principal")
-  email                    String
+  id                        String   @id @default("principal")
+  email                     String
   refreshTokenCriptografado String
-  conectadoEm              DateTime @default(now())
-  atualizadoEm             DateTime @updatedAt
+  conectadoEm               DateTime @default(now())
+  atualizadoEm              DateTime @updatedAt
 }
 
 model Turma {
@@ -112,12 +112,13 @@ model Monitor {
   duplaId        String?
   status         MonitorStatus @default(ATIVO)
 
-  periodo              Periodo        @relation(fields: [periodoId], references: [id])
-  dupla                Dupla?         @relation(fields: [duplaId], references: [id], onDelete: SetNull)
-  gruposComoChefe      GrupoRevisao[] @relation("GrupoRevisaoChefe")
-  alunosComoMonitorA   Aluno[]        @relation("AlunoMonitorSemanaA")
+  periodo              Periodo            @relation(fields: [periodoId], references: [id])
+  dupla                Dupla?             @relation(fields: [duplaId], references: [id], onDelete: SetNull)
+  gruposComoChefe      GrupoRevisao[]     @relation("GrupoRevisaoChefe")
+  alunosComoMonitorA   Aluno[]            @relation("AlunoMonitorSemanaA")
   feedbacksRegistrados Feedback[]
   contaChefe           ContaChefe?
+  conviteContaChefe    ConviteContaChefe?
 }
 
 /// Credencial de acesso ao painel. Somente monitores marcados como chefes
@@ -132,6 +133,22 @@ model ContaChefe {
 
   monitor Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   sessoes SessaoChefe[]
+}
+
+/// Convite de uso único para o próprio chefe definir sua senha. O token em texto
+/// puro existe somente no link enviado; o banco conserva apenas seu hash.
+model ConviteContaChefe {
+  id        String    @id @default(cuid())
+  monitorId String    @unique
+  email     String    @unique
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime  @default(now())
+
+  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([expiraEm])
 }
 
 /// Sessões revogáveis, armazenando somente o hash do token enviado ao cliente.

@@ -16,9 +16,15 @@ import { GoogleSheetsSync } from "./services/google-sheets.js";
 import { planilhaRoutes } from "./routes/planilha.js";
 import { googleOAuthRoutes } from "./routes/google-oauth.js";
 import { ambienteProducao, confiarNoProxy, webOrigins } from "./config/runtime.js";
+import { SmtpEmailSender, type EmailSender } from "./services/email.js";
 
 export function buildApp(
-  options: { prisma?: PrismaClient; bot?: WhatsAppBot; sheets?: GoogleSheetsSync } = {},
+  options: {
+    prisma?: PrismaClient;
+    bot?: WhatsAppBot;
+    sheets?: GoogleSheetsSync;
+    emailSender?: EmailSender;
+  } = {},
 ) {
   const app = Fastify({
     bodyLimit: 1024 * 1024,
@@ -55,7 +61,10 @@ export function buildApp(
   app.register(sensible);
   app.register(healthRoutes);
   if (options.prisma) {
-    app.register(authRoutes, options.prisma);
+    app.register(authRoutes, {
+      prisma: options.prisma,
+      emailSender: options.emailSender ?? new SmtpEmailSender(),
+    });
     app.register(managementRoutes, options.prisma);
     app.register(privacyRoutes, options.prisma);
     const sheets = options.sheets ?? new GoogleSheetsSync();

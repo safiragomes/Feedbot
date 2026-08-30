@@ -9,13 +9,14 @@ describe("pontuação equivalente enviada à planilha", () => {
   });
 
   it("aumenta proporcionalmente os acertos de PCD/ND", () => {
-    expect(calcularQuestoesEquivalentes({ corretas: 3, total: 6, condicaoEspecial: true })).toBe(4);
-    expect(calcularQuestoesEquivalentes({ corretas: 4, total: 6, condicaoEspecial: true })).toBe(
-      5.33,
+    expect(calcularQuestoesEquivalentes({ corretas: 1, total: 6, condicaoEspecial: true })).toBe(
+      1.5,
     );
+    expect(calcularQuestoesEquivalentes({ corretas: 4, total: 6, condicaoEspecial: true })).toBe(6);
   });
 
   it("limita o equivalente ao total da lista", () => {
+    expect(calcularQuestoesEquivalentes({ corretas: 4, total: 6, condicaoEspecial: true })).toBe(6);
     expect(calcularQuestoesEquivalentes({ corretas: 5, total: 6, condicaoEspecial: true })).toBe(6);
     expect(calcularQuestoesEquivalentes({ corretas: 6, total: 6, condicaoEspecial: true })).toBe(6);
   });

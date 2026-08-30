@@ -1,4 +1,3 @@
-import { Prisma } from "../generated/prisma/client.js";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { calcularSemana } from "../domain/semana.js";
 import { monitorDaSemana } from "../domain/monitorSemana.js";
@@ -107,37 +106,54 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     );
   }
 
-  try {
-    return await prisma.feedback.create({
-      data: {
-        alunoId: aluno.id,
-        monitorId: monitor.id,
-        listaId: lista.id,
-        duplaId: aluno.duplaId,
-        semana,
-        qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,
-        usouIa: questoesIa.length > 0,
-        plagiou: questoesPlagio.length > 0,
-        usouProibicao: questoesProibicao.length > 0,
-        questoesIa: { create: questoesIa.map((numeroQuestao) => ({ numeroQuestao })) },
-        questoesPlagio: {
-          create: questoesPlagio.map(({ numeroQuestao, alunoEnvolvidoId }) => ({
-            numeroQuestao,
-            alunoEnvolvidoId,
-          })),
-        },
-        questoesProibicao: {
-          create: questoesProibicao.map((numeroQuestao) => ({ numeroQuestao })),
-        },
+  return prisma.feedback.upsert({
+    where: { alunoId_listaId: { alunoId: aluno.id, listaId: lista.id } },
+    create: {
+      alunoId: aluno.id,
+      monitorId: monitor.id,
+      listaId: lista.id,
+      duplaId: aluno.duplaId,
+      semana,
+      qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,
+      usouIa: questoesIa.length > 0,
+      plagiou: questoesPlagio.length > 0,
+      usouProibicao: questoesProibicao.length > 0,
+      questoesIa: { create: questoesIa.map((numeroQuestao) => ({ numeroQuestao })) },
+      questoesPlagio: {
+        create: questoesPlagio.map(({ numeroQuestao, alunoEnvolvidoId }) => ({
+          numeroQuestao,
+          alunoEnvolvidoId,
+        })),
       },
-      include: { aluno: { include: { turma: true } }, lista: true },
-    });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new Error("Já existe feedback registrado para este aluno nesta lista", {
-        cause: error,
-      });
-    }
-    throw error;
-  }
+      questoesProibicao: {
+        create: questoesProibicao.map((numeroQuestao) => ({ numeroQuestao })),
+      },
+    },
+    update: {
+      monitorId: monitor.id,
+      duplaId: aluno.duplaId,
+      semana,
+      qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,
+      usouIa: questoesIa.length > 0,
+      plagiou: questoesPlagio.length > 0,
+      usouProibicao: questoesProibicao.length > 0,
+      sincronizadoPlanilha: false,
+      questoesIa: {
+        deleteMany: {},
+        create: questoesIa.map((numeroQuestao) => ({ numeroQuestao })),
+      },
+      questoesPlagio: {
+        deleteMany: {},
+        create: questoesPlagio.map(({ numeroQuestao, alunoEnvolvidoId }) => ({
+          numeroQuestao,
+          alunoEnvolvidoId,
+        })),
+      },
+      questoesProibicao: {
+        deleteMany: {},
+        create: questoesProibicao.map((numeroQuestao) => ({ numeroQuestao })),
+      },
+    },
+    include: { aluno: { include: { turma: true } }, lista: true },
+  });
 }

@@ -9,6 +9,12 @@ import {
   verifyPassword,
 } from "../auth/password.js";
 import { requireChief, SESSION_COOKIE, sessionToken } from "../auth/require-chief.js";
+import {
+  concluirConviteContaChefe,
+  ConviteErro,
+  enviarConviteContaChefe,
+  type EmailSender,
+} from "../application/auth/convites-service.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
@@ -24,7 +30,10 @@ function credenciaisValidas(email: string, senha: string) {
   );
 }
 
-export function authRoutes(app: FastifyInstance, prisma: PrismaClient) {
+export function authRoutes(
+  app: FastifyInstance,
+  { prisma, emailSender }: { prisma: PrismaClient; emailSender: EmailSender },
+) {
   app.post(
     "/auth/bootstrap",
     { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
@@ -61,26 +70,70 @@ export function authRoutes(app: FastifyInstance, prisma: PrismaClient) {
     },
   );
 
-  app.post("/auth/contas", { preHandler: requireChief(prisma) }, async (request, reply) => {
-    const body = request.body as
-      { monitorId?: unknown; email?: unknown; senha?: unknown } | undefined;
-    const monitorId = typeof body?.monitorId === "string" ? body.monitorId : "";
-    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-    const senha = typeof body?.senha === "string" ? body.senha : "";
-    if (!monitorId || !credenciaisValidas(email, senha))
-      return reply.badRequest(
-        "Monitor, e-mail válido e senha entre 12 e 256 caracteres são obrigatórios",
-      );
-    const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
-    if (!monitor?.isChefe || monitor.status !== "ATIVO")
-      return reply.badRequest("A conta deve pertencer a um monitor-chefe ativo");
-    return reply.code(201).send(
-      await prisma.contaChefe.create({
-        data: { monitorId, email, senhaHash: await hashPassword(senha) },
-        select: { id: true, monitorId: true, email: true },
-      }),
-    );
-  });
+  app.post(
+    "/auth/convites",
+    {
+      preHandler: requireChief(prisma),
+      config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+    },
+    async (request, reply) => {
+      const body = request.body as { monitorId?: unknown; email?: unknown } | undefined;
+      const monitorId = typeof body?.monitorId === "string" ? body.monitorId : "";
+      const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+      if (!monitorId || !EMAIL_RE.test(email) || email.length > MAX_EMAIL_LENGTH) {
+        return reply.badRequest("Monitor e e-mail válido são obrigatórios");
+      }
+      const appUrl = process.env["APP_URL"];
+      if (!appUrl) return reply.serviceUnavailable("URL pública do Feedbot não configurada");
+      let baseUrl: URL;
+      try {
+        baseUrl = new URL(appUrl);
+      } catch {
+        return reply.serviceUnavailable("URL pública do Feedbot inválida");
+      }
+
+      try {
+        const convite = await enviarConviteContaChefe(prisma, emailSender, {
+          monitorId,
+          email,
+          appUrl: baseUrl,
+        });
+        return reply.code(201).send(convite);
+      } catch (error) {
+        if (!(error instanceof ConviteErro)) throw error;
+        if (error.codigo === "MONITOR_INELEGIVEL")
+          return reply.badRequest("O convite deve pertencer a um monitor-chefe ativo");
+        if (error.codigo === "MONITOR_JA_POSSUI_ACESSO")
+          return reply.conflict("Este chefe já possui acesso");
+        if (error.codigo === "EMAIL_JA_POSSUI_ACESSO")
+          return reply.conflict("Este e-mail já possui acesso");
+        request.log.error({ err: error.origem }, "falha ao enviar convite");
+        return reply.serviceUnavailable("Não foi possível enviar o convite por e-mail");
+      }
+    },
+  );
+
+  app.post(
+    "/auth/convites/concluir",
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
+      const body = request.body as { token?: unknown; senha?: unknown } | undefined;
+      const token = typeof body?.token === "string" ? body.token : "";
+      const senha = typeof body?.senha === "string" ? body.senha : "";
+      if (!token || senha.length < MIN_PASSWORD_LENGTH || senha.length > MAX_PASSWORD_LENGTH) {
+        return reply.badRequest("Convite ou senha inválidos");
+      }
+      try {
+        await concluirConviteContaChefe(prisma, { token, senha });
+      } catch (error) {
+        if (error instanceof ConviteErro && error.codigo === "CONVITE_INVALIDO") {
+          return reply.badRequest("Convite inválido ou expirado");
+        }
+        throw error;
+      }
+      return reply.code(204).send();
+    },
+  );
 
   app.post(
     "/auth/login",

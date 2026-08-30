@@ -140,18 +140,25 @@ describe("criarFeedback", () => {
     expect(questoesIa.map((item) => item.numeroQuestao).sort()).toEqual([1, 3]);
   });
 
-  it("recusa registrar feedback duplicado para o mesmo aluno e lista", async () => {
-    await expect(
-      criarFeedback(prisma, {
-        alunoId,
-        monitorId,
-        listaId,
-        qtdQuestoesPontuadas: 3,
-      }),
-    ).rejects.toThrow("Já existe feedback registrado para este aluno nesta lista");
+  it("substitui o feedback quando o monitor envia uma correção", async () => {
+    const feedback = await criarFeedback(prisma, {
+      alunoId,
+      monitorId,
+      listaId,
+      qtdQuestoesPontuadas: 3,
+      questoesProibicao: [4],
+    });
 
     const registros = await prisma.feedback.findMany({ where: { alunoId, listaId } });
     expect(registros).toHaveLength(1);
+    expect(feedback.qtdQuestoesPontuadas).toBe(3);
+    expect(feedback.usouIa).toBe(false);
+    expect(feedback.usouProibicao).toBe(true);
+    expect(feedback.sincronizadoPlanilha).toBe(false);
+    expect(await prisma.feedbackQuestaoIA.count({ where: { feedbackId: feedback.id } })).toBe(0);
+    expect(
+      await prisma.feedbackQuestaoProibicao.findMany({ where: { feedbackId: feedback.id } }),
+    ).toEqual([expect.objectContaining({ numeroQuestao: 4 })]);
   });
 
   it("registra o aluno envolvido em cada questão de plágio", async () => {

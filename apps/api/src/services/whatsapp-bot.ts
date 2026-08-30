@@ -10,6 +10,7 @@ import {
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { BotSessaoStatus } from "../generated/prisma/enums.js";
 import { calcularSemana } from "../domain/semana.js";
+import { identificacaoPublicaAluno } from "../domain/identificacao-aluno.js";
 import {
   comandoEncerraFluxo,
   comandoIniciaFluxo,
@@ -373,7 +374,11 @@ export class WhatsAppBot {
     const monitor = await this.prisma.monitor.findUnique({ where: { id: monitorId } });
     if (!monitor?.duplaId) return { alunos: [], outroMonitorId: null };
     const [alunos, parceiro] = await Promise.all([
-      this.prisma.aluno.findMany({ where: { duplaId: monitor.duplaId }, orderBy: { nome: "asc" } }),
+      this.prisma.aluno.findMany({
+        where: { duplaId: monitor.duplaId },
+        include: { turma: true },
+        orderBy: { nome: "asc" },
+      }),
       this.prisma.monitor.findFirst({
         where: { duplaId: monitor.duplaId, id: { not: monitorId } },
       }),
@@ -498,7 +503,7 @@ export class WhatsAppBot {
       conversa.etapa = "aluno";
       const alunos = await this.alunosElegiveis(conversa.monitorId, lista.id, conversa.periodoId);
       return responder(
-        `Qual aluno?\n${alunos.map((item, index) => `${index + 1}. ${item.nome}`).join("\n")}`,
+        `Qual aluno?\n${alunos.map((item, index) => `${index + 1}. ${identificacaoPublicaAluno(item)}`).join("\n")}`,
       );
     }
     if (conversa.etapa === "aluno") {
@@ -573,7 +578,7 @@ export class WhatsAppBot {
       conversa.turmaEnvolvidoId = turma.id;
       conversa.etapa = "envolvido";
       return responder(
-        `Com quem?\n${alunos.map((item, index) => `${index + 1}. ${item.nome} (${item.matricula})`).join("\n")}`,
+        `Com quem?\n${alunos.map((item, index) => `${index + 1}. ${identificacaoPublicaAluno({ ...item, turma })}`).join("\n")}`,
       );
     }
     if (conversa.etapa === "envolvido") {
@@ -627,7 +632,7 @@ export class WhatsAppBot {
         return this.enviar(
           socket,
           jid,
-          `Registrado ✅ ${mensagemPlanilha} Envie Registrar feedback para iniciar outro registro.`,
+          `Feedback salvo ✅ ${mensagemPlanilha} Envie Registrar feedback para iniciar outro registro ou corrigir um envio.`,
         );
       } catch (error) {
         return responder(

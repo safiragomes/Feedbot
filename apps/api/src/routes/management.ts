@@ -224,6 +224,7 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         : undefined,
       include: {
         contaChefe: { select: { email: true } },
+        conviteContaChefe: { select: { email: true, expiraEm: true, usadoEm: true } },
         dupla: { select: { id: true, label: true, grupoRevisaoId: true } },
       },
       orderBy: { nome: "asc" },
@@ -289,6 +290,15 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         : normalizarWhatsapp(text(body.whatsappNumero) ?? "");
     if (body.whatsappNumero !== undefined && !whatsappNumero)
       return reply.badRequest("Número de WhatsApp inválido");
+    const isChefe = body.isChefe === undefined ? undefined : bool(body.isChefe);
+    if (body.isChefe !== undefined && isChefe === undefined)
+      return reply.badRequest("Papel do monitor inválido");
+    if (isChefe === false && monitor.isChefe) {
+      const gruposComoChefe = await prisma.grupoRevisao.count({ where: { chefeId: monitor.id } });
+      if (gruposComoChefe > 0) {
+        return reply.badRequest("Troque o chefe dos grupos vinculados antes de remover este papel");
+      }
+    }
     try {
       if (duplaId !== undefined)
         await validateMonitorDupla(prisma, monitor.periodoId, duplaId, monitor.id);
@@ -310,7 +320,7 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         data: {
           nome: body.nome === undefined ? undefined : text(body.nome),
           whatsappNumero: whatsappNumero ?? undefined,
-          isChefe: body.isChefe === undefined ? undefined : bool(body.isChefe),
+          isChefe,
           status,
           duplaId,
         },
