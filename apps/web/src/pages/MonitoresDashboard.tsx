@@ -5,6 +5,7 @@ import type { Atraso, Dupla, Feedback, GrupoRevisao, Lista } from "../lib/types"
 import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconCheckCircle, IconClock, IconGrid, IconMonitor } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
+import { FilterSelect } from "../components/FilterSelect";
 import { noPrazo } from "../lib/format";
 import { classificarMonitoresComAtraso } from "../lib/monitor-risco";
 
@@ -240,23 +241,21 @@ export function MonitoresDashboard({
 
       <div className="filterbar">
         <span className="flag">Grupo</span>
-        <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
-          <option value="">todos os grupos</option>
-          {grupos.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="grupo"
+          placeholder="todos os grupos"
+          value={grupoId}
+          onChange={setGrupoId}
+          options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
+        />
         <span className="flag">Lista</span>
-        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
-          <option value="">todas as listas</option>
-          {listas.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="lista"
+          placeholder="todas as listas"
+          value={listaId}
+          onChange={setListaId}
+          options={listas.map((l) => ({ value: l.id, label: l.nome }))}
+        />
       </div>
 
       <div className="stats">

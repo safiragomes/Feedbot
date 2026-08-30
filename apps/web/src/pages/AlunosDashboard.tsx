@@ -5,6 +5,7 @@ import type { Aluno, Feedback, GrupoRevisao, Lista } from "../lib/types";
 import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconAluno, IconIa, IconPlagio, IconProibicao } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
+import { FilterSelect } from "../components/FilterSelect";
 
 const shortLista = (nome: string) => nome.replace(/^Lista\s*/i, "L");
 
@@ -306,47 +307,40 @@ export function AlunosDashboard({
 
       <div className="filterbar">
         <span className="flag">Turma</span>
-        <select value={turma} onChange={(e) => setTurma(e.target.value)}>
-          <option value="">todas as turmas</option>
-          {turmas.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="turma"
+          placeholder="todas as turmas"
+          value={turma}
+          onChange={setTurma}
+          options={turmas.map((t) => ({ value: t, label: t }))}
+        />
         <span className="flag">Grupo</span>
-        <select
+        <FilterSelect
+          label="grupo"
+          placeholder="todos os grupos"
           value={grupoId}
-          onChange={(e) => {
-            setGrupoId(e.target.value);
+          onChange={(value) => {
+            setGrupoId(value);
             setDuplaId("");
           }}
-        >
-          <option value="">todos os grupos</option>
-          {grupos.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nome}
-            </option>
-          ))}
-        </select>
+          options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
+        />
         <span className="flag">Dupla</span>
-        <select value={duplaId} onChange={(e) => setDuplaId(e.target.value)}>
-          <option value="">todas as duplas</option>
-          {duplasDoGrupo.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.label}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="dupla"
+          placeholder="todas as duplas"
+          value={duplaId}
+          onChange={setDuplaId}
+          options={duplasDoGrupo.map((d) => ({ value: d.id, label: d.label }))}
+        />
         <span className="flag">Lista</span>
-        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
-          <option value="">todas as listas</option>
-          {listas.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="lista"
+          placeholder="todas as listas"
+          value={listaId}
+          onChange={setListaId}
+          options={listas.map((l) => ({ value: l.id, label: l.nome }))}
+        />
       </div>
 
       <div className="stats">
@@ -488,7 +482,11 @@ export function AlunosDashboard({
               </span>
             </div>
           </Panel>
-          <Panel title="Ranking de questões problemáticas" tag="por lista · top 10" className="panel-chart">
+          <Panel
+            title="Ranking de questões problemáticas"
+            tag="por lista · top 10"
+            className="panel-chart"
+          >
             <div className="chart-wrap md">
               <ChartCanvas config={rankingConfig} />
             </div>

@@ -3,6 +3,7 @@ import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } fro
 import { IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoAluno, solicitarRemocaoMonitor } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
 import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
@@ -225,23 +226,21 @@ export function DiretorioAlunos({
 
       <div className="filterbar">
         <span className="flag">Turma</span>
-        <select value={turma} onChange={(e) => setTurma(e.target.value)}>
-          <option value="">todas as turmas</option>
-          {turmas.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="turma"
+          placeholder="todas as turmas"
+          value={turma}
+          onChange={setTurma}
+          options={turmas.map((t) => ({ value: t, label: t }))}
+        />
         <span className="flag">Lista</span>
-        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
-          <option value="">todas as listas</option>
-          {listas.map((lista) => (
-            <option key={lista.id} value={lista.id}>
-              {lista.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="lista"
+          placeholder="todas as listas"
+          value={listaId}
+          onChange={setListaId}
+          options={listas.map((lista) => ({ value: lista.id, label: lista.nome }))}
+        />
         <span className="flag">Ocorrências</span>
         <div className="occurrence-options">
           {(
@@ -262,14 +261,13 @@ export function DiretorioAlunos({
           ))}
         </div>
         <span className="flag">Grupo</span>
-        <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
-          <option value="">todos os grupos</option>
-          {grupos.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="grupo"
+          placeholder="todos os grupos"
+          value={grupoId}
+          onChange={setGrupoId}
+          options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
+        />
         <div className="search-wrap">
           <div className="search-box">
             <IconSearch />
@@ -517,23 +515,21 @@ export function DiretorioMonitores({
 
       <div className="filterbar">
         <span className="flag">Grupo</span>
-        <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
-          <option value="">todos os grupos</option>
-          {grupos.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="grupo"
+          placeholder="todos os grupos"
+          value={grupoId}
+          onChange={setGrupoId}
+          options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
+        />
         <span className="flag">Lista em atraso</span>
-        <select value={listaId} onChange={(e) => setListaId(e.target.value)}>
-          <option value="">todas as listas</option>
-          {listas.map((lista) => (
-            <option key={lista.id} value={lista.id}>
-              {lista.nome}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          label="lista"
+          placeholder="todas as listas"
+          value={listaId}
+          onChange={setListaId}
+          options={listas.map((lista) => ({ value: lista.id, label: lista.nome }))}
+        />
         <label style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <input
             type="checkbox"
