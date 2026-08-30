@@ -6,6 +6,7 @@ import type { ConfirmRequest } from "../components/ui";
 import { Modal } from "../components/ui";
 import { monitorSemanaB } from "../lib/dupla";
 import { validarWhatsapp } from "../lib/format";
+import { toast } from "../lib/toast";
 
 type ModalState =
   | { type: "novoGrupo" }
@@ -37,7 +38,6 @@ export function Gestao({
   const [abertos, setAbertos] = useState(new Set<string>());
   const [alunosAbertos, setAlunosAbertos] = useState(new Set<string>());
   const [modal, setModal] = useState<ModalState | null>(null);
-  const [erro, setErro] = useState("");
   const alunosSemDupla = alunos.filter((aluno) => !aluno.duplaId).length;
   const monitoresSemDupla = monitores.filter((monitor) => !monitor.duplaId && monitor.status === "ATIVO").length;
 
@@ -59,12 +59,11 @@ export function Gestao({
   }
 
   async function run(action: () => Promise<unknown>) {
-    setErro("");
     try {
       await action();
       await onReload();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível concluir a ação");
+      toast.error(error instanceof Error ? error.message : "Não foi possível concluir a ação");
     }
   }
 
@@ -136,8 +135,6 @@ export function Gestao({
           </button>
         </div>
       </div>
-
-      {erro && <div className="error-banner">{erro}</div>}
 
       <div className="context-band">
         <div className="context-card">

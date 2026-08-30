@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import type { Periodo } from "../lib/types";
 import { IconMoon, IconPlus, IconSun, IconTrash } from "./icons";
 import { ConfirmModal, Modal } from "./ui";
+import { toast } from "../lib/toast";
 
 export function Topbar({
   token,
@@ -23,7 +24,6 @@ export function Topbar({
 }) {
   const [novoAberto, setNovoAberto] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
-  const [erro, setErro] = useState("");
   const atual = periodos.find((item) => item.id === periodoId);
   return (
     <div className="topbar">
@@ -35,9 +35,6 @@ export function Topbar({
         </div>
       </div>
       <div className="topbar-right">
-        {erro && (
-          <span style={{ color: "var(--rose)", fontSize: 12, fontWeight: 700 }}>{erro}</span>
-        )}
         <button className="theme-toggle" onClick={onToggleTheme} title="Alternar tema">
           {theme === "dark" ? <IconSun /> : <IconMoon />}
           {theme === "dark" ? "Modo diurno" : "Modo noturno"}
@@ -86,12 +83,11 @@ export function Topbar({
               "Só é possível excluir um período sem turmas, grupos, monitores ou listas vinculados. Esta ação não pode ser desfeita.",
             confirmLabel: "Excluir período",
             onConfirm: async () => {
-              setErro("");
               try {
                 await api.excluirPeriodo(token, atual.id);
                 onCriado("");
               } catch (error) {
-                setErro(
+                toast.error(
                   error instanceof Error ? error.message : "Não foi possível excluir o período",
                 );
               }

@@ -18,6 +18,7 @@ import { Sidebar, type PageId } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { AlunoDrawer, MonitorDrawer } from "./components/Drawers";
 import { ConfirmModal, type ConfirmRequest } from "./components/ui";
+import { Toaster } from "./components/ui/sonner";
 import { Login } from "./pages/Login";
 import { AlunosDashboard } from "./pages/AlunosDashboard";
 import { MonitoresDashboard } from "./pages/MonitoresDashboard";
@@ -386,6 +387,7 @@ function App() {
                 bot={bot}
                 periodo={periodos.find((p) => p.id === periodoId)!}
                 onReload={load}
+                onRequestConfirm={setConfirm}
               />
             )}
             {page === "planilha" && periodos.find((p) => p.id === periodoId) && (
@@ -442,6 +444,7 @@ function App() {
         />
       )}
       {confirm && <ConfirmModal request={confirm} onClose={() => setConfirm(null)} />}
+      <Toaster theme={theme} />
     </div>
   );
 }

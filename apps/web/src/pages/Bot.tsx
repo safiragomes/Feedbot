@@ -3,20 +3,22 @@ import QRCode from "qrcode";
 import { api } from "../lib/api";
 import type { Bot, Periodo } from "../lib/types";
 import { IconCheck, IconRefresh, IconWhatsapp, IconX } from "../components/icons";
-import { Chip, Panel } from "../components/ui";
+import { Chip, Panel, type ConfirmRequest } from "../components/ui";
+import { toast } from "../lib/toast";
 
 export function BotPage({
   token,
   bot,
   periodo,
   onReload,
+  onRequestConfirm,
 }: {
   token: string;
   bot: Bot | null;
   periodo: Periodo;
   onReload: () => Promise<void>;
+  onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
-  const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const status = bot?.sessao?.status ?? "DESCONECTADO";
@@ -39,34 +41,33 @@ export function BotPage({
   }, [status, onReload]);
 
   async function conectar() {
-    setErro("");
     setCarregando(true);
     try {
       await api.conectarBot(token);
       await onReload();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível conectar o bot");
+      toast.error(error instanceof Error ? error.message : "Não foi possível conectar o bot");
     } finally {
       setCarregando(false);
     }
   }
-  async function desconectar() {
-    if (
-      !window.confirm(
-        "Desvincular este número? Será necessário ler um novo QR code para conectar novamente.",
-      )
-    )
-      return;
-    setErro("");
-    setCarregando(true);
-    try {
-      await api.desconectarBot(token);
-      await onReload();
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível desconectar o bot");
-    } finally {
-      setCarregando(false);
-    }
+  function desconectar() {
+    onRequestConfirm({
+      title: "Desvincular este número?",
+      message: "Será necessário ler um novo QR code para conectar novamente.",
+      confirmLabel: "Desvincular",
+      onConfirm: async () => {
+        setCarregando(true);
+        try {
+          await api.desconectarBot(token);
+          await onReload();
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Não foi possível desconectar o bot");
+        } finally {
+          setCarregando(false);
+        }
+      },
+    });
   }
 
   return (
@@ -80,8 +81,6 @@ export function BotPage({
           </div>
         </div>
       </div>
-
-      {erro && <div className="error-banner">{erro}</div>}
 
       <div className="panel-grid" style={{ gridTemplateColumns: "0.9fr 1.1fr" }}>
         <Panel title="Conexão">
@@ -169,8 +168,6 @@ function ComunidadeWhatsapp({
 }) {
   const [valor, setValor] = useState("");
   const [disponiveis, setDisponiveis] = useState<{ id: string; nome: string }[]>([]);
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
   const [pendente, setPendente] = useState(false);
 
   async function carregarComunidades() {
@@ -180,7 +177,7 @@ function ComunidadeWhatsapp({
       setDisponiveis(atuais);
       setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+      toast.error(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
       await onReload();
     }
   }
@@ -191,21 +188,19 @@ function ComunidadeWhatsapp({
       .comunidadesWhatsappDisponiveis(token)
       .then(setDisponiveis)
       .catch(async (error) => {
-        setErro(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+        toast.error(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
         await onReload();
       });
   }, [token, conectado]);
 
   async function vincular() {
-    if (!valor) return setErro("Selecione uma comunidade");
+    if (!valor) return toast.error("Selecione uma comunidade");
     setPendente(true);
-    setErro("");
-    setSucesso("");
     try {
       await api.vincularComunidadeWhatsapp(token, periodo.id, valor);
       await onReload();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível vincular a comunidade");
+      toast.error(error instanceof Error ? error.message : "Não foi possível vincular a comunidade");
     } finally {
       setPendente(false);
     }
@@ -213,13 +208,13 @@ function ComunidadeWhatsapp({
 
   async function desvincular() {
     setPendente(true);
-    setErro("");
-    setSucesso("");
     try {
       await api.desvincularComunidadeWhatsapp(token, periodo.id);
       await onReload();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível desvincular a comunidade");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível desvincular a comunidade",
+      );
     } finally {
       setPendente(false);
     }
@@ -227,13 +222,11 @@ function ComunidadeWhatsapp({
 
   async function reenviarLink() {
     setPendente(true);
-    setErro("");
-    setSucesso("");
     try {
       await api.enviarLinkComunidadeWhatsapp(token, periodo.id);
-      setSucesso("Link de acesso enviado em Avisos.");
+      toast.success("Link de acesso enviado em Avisos.");
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível enviar o link");
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o link");
     } finally {
       setPendente(false);
     }
@@ -300,12 +293,6 @@ function ComunidadeWhatsapp({
           </>
         )}
       </div>
-      {erro && (
-        <p className="error-banner" style={{ margin: 0 }}>
-          {erro}
-        </p>
-      )}
-      {sucesso && <p style={{ color: "var(--sage)", margin: 0 }}>{sucesso}</p>}
     </div>
   );
 }

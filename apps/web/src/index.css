@@ -2044,6 +2044,15 @@ tbody tr.clickable {
   flex-wrap: wrap;
 }
 
+/* TOAST */
+.feedbot-toast {
+  border-radius: var(--r-md) !important;
+  box-shadow: var(--shadow) !important;
+  font-family: var(--sans) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
 /* MODAL */
 .overlay {
   position: fixed;

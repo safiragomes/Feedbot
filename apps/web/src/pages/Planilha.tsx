@@ -9,6 +9,7 @@ import type {
 } from "../lib/types";
 import { Chip, Panel, type ConfirmRequest } from "../components/ui";
 import { ListasPanel } from "../components/ListasPanel";
+import { toast } from "../lib/toast";
 
 export function PlanilhaPage({
   token,
@@ -28,8 +29,6 @@ export function PlanilhaPage({
   const [url, setUrl] = useState(periodo.planilhaUrl ?? "");
   const [configuracao, setConfiguracao] = useState<ConfiguracaoPlanilha | null>(null);
   const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
   const [previa, setPrevia] = useState<PreviaImportacaoAlunos | null>(null);
   const [lendoAlunos, setLendoAlunos] = useState(false);
   const [importando, setImportando] = useState(false);
@@ -55,24 +54,22 @@ export function PlanilhaPage({
       .configuracaoPlanilha(token)
       .then(setConfiguracao)
       .catch((error) =>
-        setErro(error instanceof Error ? error.message : "Falha ao verificar integração"),
+        toast.error(error instanceof Error ? error.message : "Falha ao verificar integração"),
       );
   }, [token]);
 
   async function vincular() {
-    if (!url.trim()) return setErro("Cole o link da planilha do período");
+    if (!url.trim()) return toast.error("Cole o link da planilha do período");
     setSalvando(true);
-    setErro("");
-    setSucesso("");
     try {
       const resultado = await api.vincularPlanilha(token, periodo.id, url.trim());
-      setSucesso(
+      toast.success(
         `“${resultado.titulo}” validada · ${resultado.abas.length} turma(s) encontrada(s).`,
       );
       await onReload();
       await carregarPrevia();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível vincular a planilha");
+      toast.error(error instanceof Error ? error.message : "Não foi possível vincular a planilha");
     } finally {
       setSalvando(false);
     }
@@ -80,7 +77,6 @@ export function PlanilhaPage({
 
   async function carregarPrevia() {
     setLendoAlunos(true);
-    setErro("");
     try {
       const resultado = await api.previaAlunosPlanilha(token, periodo.id);
       setPrevia(resultado);
@@ -90,7 +86,7 @@ export function PlanilhaPage({
         ),
       );
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível ler os alunos");
+      toast.error(error instanceof Error ? error.message : "Não foi possível ler os alunos");
     } finally {
       setLendoAlunos(false);
     }
@@ -98,18 +94,17 @@ export function PlanilhaPage({
 
   async function importarAlunos() {
     setImportando(true);
-    setErro("");
     setResultadoImportacao(null);
     try {
       const resultado = await api.importarAlunosPlanilha(token, periodo.id, [
         ...matriculasSelecionadas,
       ]);
       setResultadoImportacao(resultado);
-      setSucesso(`${resultado.criados} novo(s) aluno(s) adicionado(s).`);
+      toast.success(`${resultado.criados} novo(s) aluno(s) adicionado(s).`);
       await onReload();
       await carregarPrevia();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Não foi possível importar os alunos");
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar os alunos");
     } finally {
       setImportando(false);
     }
@@ -134,7 +129,6 @@ export function PlanilhaPage({
       onConfirm: async () => {
         await api.desvincularPlanilha(token, periodo.id);
         setUrl("");
-        setSucesso("");
         await onReload();
       },
     });
@@ -215,8 +209,6 @@ export function PlanilhaPage({
               placeholder="https://docs.google.com/spreadsheets/d/.../edit"
             />
           </div>
-          {erro && <div className="error-banner">{erro}</div>}
-          {sucesso && <div className="success-banner">{sucesso}</div>}
           <div className="modal-actions">
             {periodo.planilhaId && (
               <button className="btn ghost" onClick={confirmarDesvinculo}>
