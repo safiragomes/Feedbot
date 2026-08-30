@@ -38,6 +38,7 @@ export function chartGradient(
 export function ChartCanvas({ config }: { config: ChartConfiguration }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const chartTypeRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -45,14 +46,29 @@ export function ChartCanvas({ config }: { config: ChartConfiguration }) {
     Chart.defaults.font.family = "Nunito";
     Chart.defaults.color = palette.text;
     Chart.defaults.borderColor = palette.grid;
-    chartRef.current?.destroy();
+
+    const existing = chartRef.current;
+    // Só recria o gráfico quando o tipo muda (raro). Caso contrário, atualiza os
+    // dados/opções da instância existente e deixa o Chart.js animar a transição,
+    // em vez de destruir e recriar (que pisca o gráfico a cada troca de filtro).
+    if (existing && chartTypeRef.current === config.type) {
+      existing.data = config.data;
+      existing.options = config.options ?? {};
+      existing.update();
+      return;
+    }
+    existing?.destroy();
     chartRef.current = new Chart(canvasRef.current, config);
+    chartTypeRef.current = config.type;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(config)]);
+
+  useEffect(() => {
     return () => {
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(config)]);
+  }, []);
 
   return <canvas ref={canvasRef} />;
 }
