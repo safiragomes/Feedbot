@@ -42,8 +42,12 @@ export function feedbackRoutes(
       ...feedback,
       lista,
       prazoEntregaFeedback:
-        feedback.aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback.toISOString() ??
-        prazos.find((p) => p.turmaId === feedback.aluno.turmaId)?.prazoEntregaFeedback.toISOString() ??
+        feedback.aluno.prazosIndividuais
+          .find((p) => p.listaId === lista.id)
+          ?.prazoEntregaFeedback.toISOString() ??
+        prazos
+          .find((p) => p.turmaId === feedback.aluno.turmaId)
+          ?.prazoEntregaFeedback.toISOString() ??
         null,
     }));
   });

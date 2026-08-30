@@ -51,7 +51,8 @@ export function validarWhatsapp(numero: string): string | null {
   const digitos = numero.replace(/\D/g, "");
   if (!digitos) return "Número incompleto — inclua DDI, DDD e o número completo.";
   const parsed = parsePhoneNumberFromString(numero, "BR");
-  if (!parsed?.isValid()) return "Número inválido — confira o DDI, o DDD e a quantidade de dígitos.";
+  if (!parsed?.isValid())
+    return "Número inválido — confira o DDI, o DDD e a quantidade de dígitos.";
   if (parsed.country === "BR" && parsed.nationalNumber.length === 10) {
     return "Falta o 9 do celular — números do Brasil têm DDI + DDD + 9 dígitos (ex: +55 81 9XXXX-XXXX).";
   }

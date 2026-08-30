@@ -51,7 +51,8 @@ export function solicitarRemocaoMonitor({
 }) {
   onRequestConfirm({
     title: `Excluir ${monitor.nome}?`,
-    message: "O monitor e todo o histórico de feedback registrado por ele serão apagados permanentemente.",
+    message:
+      "O monitor e todo o histórico de feedback registrado por ele serão apagados permanentemente.",
     confirmLabel: "Excluir monitor",
     onConfirm: async () => {
       onErro("");

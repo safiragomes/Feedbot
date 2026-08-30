@@ -55,7 +55,7 @@ turmas de um período, mas cada turma tem um prazo de entrega de feedback difere
   mudança de `ordem`, upsert de prazos por turma, validação de período).
 - `pnpm --filter @feedbot/web test`.
 - `pnpm --filter @feedbot/api exec tsc --noEmit` e `pnpm --filter @feedbot/web exec
-  tsc -b --noEmit` sem erros.
+tsc -b --noEmit` sem erros.
 - Migration aplicada sobre o banco local com dados de seed pré-existentes
   (`prisma migrate dev`), reseed (`prisma db seed`) e verificação manual dos
   painéis de Listas e Prazos no dashboard.

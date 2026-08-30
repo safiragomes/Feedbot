@@ -44,7 +44,11 @@ describe("Listas fixas por período e prazos por turma", () => {
       },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const response = await app.inject({
@@ -196,7 +200,12 @@ describe("Listas fixas por período e prazos por turma", () => {
 
   it("PUT /prazos-lista rejeita lista de outro período", async () => {
     const listaDeOutroPeriodo = await prisma.lista.create({
-      data: { periodoId: outroPeriodoId, nome: "Lista de outro período", qtdQuestoesTotal: 6, ordem: 1 },
+      data: {
+        periodoId: outroPeriodoId,
+        nome: "Lista de outro período",
+        qtdQuestoesTotal: 6,
+        ordem: 1,
+      },
     });
     const response = await app.inject({
       method: "PUT",

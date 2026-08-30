@@ -18,7 +18,9 @@ export function botRoutes(app: FastifyInstance, prisma: PrismaClient, bot: Whats
     try {
       return await bot.comunidadesDisponiveis();
     } catch (error) {
-      return reply.badRequest(error instanceof Error ? error.message : "Não foi possível listar as comunidades");
+      return reply.badRequest(
+        error instanceof Error ? error.message : "Não foi possível listar as comunidades",
+      );
     }
   });
   app.put("/bot/periodos/:id/comunidade", protectedRoute, async (request, reply) => {
@@ -27,7 +29,8 @@ export function botRoutes(app: FastifyInstance, prisma: PrismaClient, bot: Whats
     if (typeof whatsappAvisosId !== "string") return reply.badRequest("Selecione uma comunidade");
     const disponiveis = await bot.comunidadesDisponiveis();
     const comunidade = disponiveis.find((item) => item.id === whatsappAvisosId);
-    if (!comunidade) return reply.badRequest("A comunidade não existe mais ou o Feedbot não participa dos Avisos");
+    if (!comunidade)
+      return reply.badRequest("A comunidade não existe mais ou o Feedbot não participa dos Avisos");
     await bot.enviarLinkDeAcesso(whatsappAvisosId);
     return prisma.periodo.update({
       where: { id: periodoId },
@@ -43,7 +46,8 @@ export function botRoutes(app: FastifyInstance, prisma: PrismaClient, bot: Whats
   });
   app.post("/bot/periodos/:id/enviar-link", protectedRoute, async (request, reply) => {
     const periodo = await prisma.periodo.findUnique({ where: request.params as { id: string } });
-    if (!periodo?.whatsappAvisosId) return reply.badRequest("O período não está vinculado a uma comunidade");
+    if (!periodo?.whatsappAvisosId)
+      return reply.badRequest("O período não está vinculado a uma comunidade");
     return bot.enviarLinkDeAcesso(periodo.whatsappAvisosId);
   });
 }

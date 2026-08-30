@@ -28,7 +28,9 @@ export function Topbar({
         <b>{atual?.nome ?? "—"}</b>
       </div>
       <div className="topbar-right">
-        {erro && <span style={{ color: "var(--rose)", fontSize: 12, fontWeight: 700 }}>{erro}</span>}
+        {erro && (
+          <span style={{ color: "var(--rose)", fontSize: 12, fontWeight: 700 }}>{erro}</span>
+        )}
         <select
           className="periodo"
           value={periodoId}
@@ -45,7 +47,11 @@ export function Topbar({
           Novo período
         </button>
         {atual && (
-          <button className="btn sm" onClick={() => setConfirmarExclusao(true)} title="Excluir período">
+          <button
+            className="btn sm"
+            onClick={() => setConfirmarExclusao(true)}
+            title="Excluir período"
+          >
             <IconTrash />
           </button>
         )}
@@ -74,7 +80,9 @@ export function Topbar({
                 await api.excluirPeriodo(token, atual.id);
                 onCriado("");
               } catch (error) {
-                setErro(error instanceof Error ? error.message : "Não foi possível excluir o período");
+                setErro(
+                  error instanceof Error ? error.message : "Não foi possível excluir o período",
+                );
               }
             },
           }}
@@ -124,9 +132,8 @@ function NovoPeriodoModal({
     <Modal onClose={onClose}>
       <h4>Novo período</h4>
       <p>
-        Cria o período com as 6 listas padrão já criadas (edite nome e nº de questões
-        depois, em Gestão) — turmas, grupos, monitores e alunos ficam separados por
-        período.
+        Cria o período com as 6 listas padrão já criadas (edite nome e nº de questões depois, em
+        Gestão) — turmas, grupos, monitores e alunos ficam separados por período.
       </p>
       <div className="field">
         <label>Nome</label>

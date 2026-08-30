@@ -42,13 +42,19 @@ describe("DELETE /alunos/:id", () => {
       },
     });
     await prisma.sessaoChefe.create({
-      data: { contaChefeId: conta.id, tokenHash: await hashToken(token), expiraEm: new Date(Date.now() + 60_000) },
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
     });
 
     const grupo = await prisma.grupoRevisao.create({
       data: { periodoId, chefeId: chefe.id, nome: "Grupo teste" },
     });
-    const dupla = await prisma.dupla.create({ data: { grupoRevisaoId: grupo.id, label: "Dupla 1" } });
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
 
     const monitor = await prisma.monitor.create({
       data: { nome: "Monitor teste", whatsappNumero: `+55${sufixo}1`, periodoId },
