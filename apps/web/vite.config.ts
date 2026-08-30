@@ -1,9 +1,10 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     // A API só libera CORS para a origem http://localhost:5173 (WEB_ORIGIN). Se essa porta
     // estiver ocupada, o Vite por padrão migra silenciosamente para outra porta — o app abre

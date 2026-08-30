@@ -1,4 +1,36 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap");
+/* Só tema + utilitários do Tailwind — sem o preflight, que resetaria o reset e os
+   estilos de input/checkbox/radio/scrollbar já definidos abaixo. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-gold: var(--gold);
+  --color-gold-dim: var(--gold-dim);
+  --color-rose: var(--rose);
+  --color-rose-dim: var(--rose-dim);
+  --color-sage: var(--sage);
+  --color-sage-dim: var(--sage-dim);
+  --color-plum: var(--plum);
+  --color-plum-dim: var(--plum-dim);
+  --color-sky: var(--sky);
+  --color-sky-dim: var(--sky-dim);
+  --radius-lg: var(--r-lg);
+  --radius-md: var(--r-md);
+  --radius-sm: var(--r-sm);
+  --radius-pill: var(--r-pill);
+  --font-display: var(--display);
+  --font-sans: var(--sans);
+}
 
 :root {
   --bg: #08111f;
