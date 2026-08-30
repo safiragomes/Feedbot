@@ -40,62 +40,75 @@ export function Sidebar({
   chefe,
   token,
   onLogout,
+  mobileOpen = false,
+  onCloseMobile,
 }: {
   page: PageId;
   onNavigate: (page: PageId) => void;
   chefe: Chefe | null;
   token: string;
   onLogout: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }) {
   const [alterandoSenha, setAlterandoSenha] = useState(false);
+
+  function navegar(id: PageId) {
+    onNavigate(id);
+    onCloseMobile?.();
+  }
+
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <div className="mark">
-          <LogoMark size={42} jpg />
+    <>
+      {mobileOpen && <div className="sidebar-overlay-mobile" onClick={onCloseMobile} />}
+      <aside className={`sidebar${mobileOpen ? " open" : ""}`}>
+        <div className="brand">
+          <div className="mark">
+            <LogoMark size={42} jpg />
+          </div>
+          <div className="brand-txt">
+            <strong>Feedbot</strong>
+            <span>Introdução à programação</span>
+          </div>
         </div>
-        <div className="brand-txt">
-          <strong>Feedbot</strong>
-          <span>Introdução à programação</span>
+        <div className="sidebar-overview">
+          <span className="sidebar-kicker">Central da monitoria</span>
+          <strong>Operação acadêmica em um só painel</strong>
+          <p>Distribua alunos, acompanhe listas e mantenha o bot sob controle no mesmo fluxo.</p>
         </div>
-      </div>
-      <div className="sidebar-overview">
-        <span className="sidebar-kicker">Central da monitoria</span>
-        <strong>Operação acadêmica em um só painel</strong>
-        <p>Distribua alunos, acompanhe listas e mantenha o bot sob controle no mesmo fluxo.</p>
-      </div>
-      {NAV.map((section, index) => (
-        <div key={section.group || index}>
-          {section.group && <div className="nav-group-label">{section.group}</div>}
-          {section.items.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item${page === item.id ? " active" : ""}`}
-              onClick={() => onNavigate(item.id)}
-            >
-              {item.icon}
-              {item.label}
+        {NAV.map((section, index) => (
+          <div key={section.group || index}>
+            {section.group && <div className="nav-group-label">{section.group}</div>}
+            {section.items.map((item) => (
+              <button
+                key={item.id}
+                className={`nav-item${page === item.id ? " active" : ""}`}
+                onClick={() => navegar(item.id)}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ))}
+        <div className="sidebar-foot">
+          <div className="av">{chefe ? initials(chefe.nome) : "?"}</div>
+          <div className="who">
+            <strong>{chefe?.nome ?? "—"}</strong>
+            <span>chefe de monitoria</span>
+            <button className="sidebar-password" onClick={() => setAlterandoSenha(true)}>
+              Alterar senha
             </button>
-          ))}
-        </div>
-      ))}
-      <div className="sidebar-foot">
-        <div className="av">{chefe ? initials(chefe.nome) : "?"}</div>
-        <div className="who">
-          <strong>{chefe?.nome ?? "—"}</strong>
-          <span>chefe de monitoria</span>
-          <button className="sidebar-password" onClick={() => setAlterandoSenha(true)}>
-            Alterar senha
+          </div>
+          <button className="exit" onClick={onLogout} title="Sair">
+            <IconLogout />
           </button>
         </div>
-        <button className="exit" onClick={onLogout} title="Sair">
-          <IconLogout />
-        </button>
-      </div>
-      {alterandoSenha && (
-        <AlterarSenhaModal token={token} onClose={() => setAlterandoSenha(false)} />
-      )}
-    </aside>
+        {alterandoSenha && (
+          <AlterarSenhaModal token={token} onClose={() => setAlterandoSenha(false)} />
+        )}
+      </aside>
+    </>
   );
 }
 

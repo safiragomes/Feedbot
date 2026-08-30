@@ -78,6 +78,7 @@ function App() {
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Ações no painel disparam `load()` em sequência rápida (ex.: escolher o papel de
   // vários alunos seguidos, sem esperar o carregamento anterior terminar) — sem essa
@@ -285,6 +286,8 @@ function App() {
         chefe={chefe}
         token={token}
         onLogout={handleLogout}
+        mobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
       />
       <div className="main">
         <Topbar
@@ -295,6 +298,7 @@ function App() {
           onCriado={handleChangePeriodo}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          onOpenMenu={() => setSidebarOpen(true)}
         />
         <div className="content-shell">
           <section className="hero-panel">

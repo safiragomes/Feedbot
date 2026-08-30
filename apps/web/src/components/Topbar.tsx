@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
 import type { Periodo } from "../lib/types";
-import { IconMoon, IconPlus, IconSun, IconTrash } from "./icons";
+import { IconMenu, IconMoon, IconPlus, IconSun, IconTrash } from "./icons";
 import { ConfirmModal, Modal } from "./ui";
 import { toast } from "../lib/toast";
 
@@ -13,6 +13,7 @@ export function Topbar({
   onCriado,
   theme,
   onToggleTheme,
+  onOpenMenu,
 }: {
   token: string;
   periodos: Periodo[];
@@ -21,6 +22,7 @@ export function Topbar({
   onCriado: (id: string) => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
+  onOpenMenu?: () => void;
 }) {
   const [novoAberto, setNovoAberto] = useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -28,10 +30,20 @@ export function Topbar({
   return (
     <div className="topbar">
       <div className="topbar-heading">
-        <span className="topbar-kicker">Ciclo ativo</span>
-        <div className="breadcrumb">
-          Período <span className="sep">›</span>
-          <b>{atual?.nome ?? "—"}</b>
+        <button
+          type="button"
+          className="hamburger-btn"
+          onClick={onOpenMenu}
+          aria-label="Abrir menu"
+        >
+          <IconMenu />
+        </button>
+        <div className="topbar-heading-text">
+          <span className="topbar-kicker">Ciclo ativo</span>
+          <div className="breadcrumb">
+            Período <span className="sep">›</span>
+            <b>{atual?.nome ?? "—"}</b>
+          </div>
         </div>
       </div>
       <div className="topbar-right">
