@@ -1674,6 +1674,54 @@ thead th {
   user-select: none;
   white-space: nowrap;
 }
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.th-sort:hover {
+  color: var(--text);
+}
+.th-sort-icon {
+  width: 11px;
+  height: 11px;
+  opacity: 0.35;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+.th-sort-icon.active {
+  opacity: 1;
+  color: var(--gold);
+}
+.th-sort-icon.asc {
+  transform: rotate(180deg);
+}
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+}
+.table-pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 tbody td {
   padding: 11px 16px;
   border-top: 1px solid var(--border);
