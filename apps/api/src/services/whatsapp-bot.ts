@@ -16,7 +16,7 @@ import {
   comandoIniciaFluxo,
   comOpcaoDeSaida,
 } from "../domain/comandos-bot.js";
-import { semanasCobertasPorMonitor } from "../domain/monitorSemana.js";
+import { semanasCobertasPorMonitorNaDupla } from "../domain/monitorSemana.js";
 import { variantesWhatsapp } from "../domain/telefone.js";
 import { criarFeedback } from "./feedback.js";
 import { GoogleSheetsSync } from "./google-sheets.js";
@@ -372,18 +372,19 @@ export class WhatsAppBot {
    */
   private async alunosDoMonitor(monitorId: string) {
     const monitor = await this.prisma.monitor.findUnique({ where: { id: monitorId } });
-    if (!monitor?.duplaId) return { alunos: [], outroMonitorId: null };
-    const [alunos, parceiro] = await Promise.all([
+    if (!monitor?.duplaId) return { alunos: [], monitorIds: [] };
+    const [alunos, monitores] = await Promise.all([
       this.prisma.aluno.findMany({
         where: { duplaId: monitor.duplaId },
         include: { turma: true },
         orderBy: { nome: "asc" },
       }),
-      this.prisma.monitor.findFirst({
-        where: { duplaId: monitor.duplaId, id: { not: monitorId } },
+      this.prisma.monitor.findMany({
+        where: { duplaId: monitor.duplaId },
+        select: { id: true },
       }),
     ]);
-    return { alunos, outroMonitorId: parceiro?.id ?? null };
+    return { alunos, monitorIds: monitores.map(({ id }) => id) };
   }
 
   private async listasComSemana(periodoId: string) {
@@ -398,13 +399,13 @@ export class WhatsAppBot {
   }
 
   private async listasPermitidas(monitorId: string, periodoId: string) {
-    const [{ alunos, outroMonitorId }, listasComSemana] = await Promise.all([
+    const [{ alunos, monitorIds }, listasComSemana] = await Promise.all([
       this.alunosDoMonitor(monitorId),
       this.listasComSemana(periodoId),
     ]);
     const papeisPossiveis = new Set<"A" | "B">();
     for (const aluno of alunos)
-      for (const semana of semanasCobertasPorMonitor({ ...aluno, outroMonitorId }, monitorId))
+      for (const semana of semanasCobertasPorMonitorNaDupla({ ...aluno, monitorIds }, monitorId))
         papeisPossiveis.add(semana);
     return listasComSemana
       .filter(({ semana }) => papeisPossiveis.has(semana))
@@ -412,14 +413,14 @@ export class WhatsAppBot {
   }
 
   private async alunosElegiveis(monitorId: string, listaId: string, periodoId: string) {
-    const [{ alunos, outroMonitorId }, listasComSemana] = await Promise.all([
+    const [{ alunos, monitorIds }, listasComSemana] = await Promise.all([
       this.alunosDoMonitor(monitorId),
       this.listasComSemana(periodoId),
     ]);
     const semanaLista = listasComSemana.find(({ lista }) => lista.id === listaId)?.semana;
     if (!semanaLista) return [];
     return alunos.filter((aluno) =>
-      semanasCobertasPorMonitor({ ...aluno, outroMonitorId }, monitorId).has(semanaLista),
+      semanasCobertasPorMonitorNaDupla({ ...aluno, monitorIds }, monitorId).has(semanaLista),
     );
   }
 

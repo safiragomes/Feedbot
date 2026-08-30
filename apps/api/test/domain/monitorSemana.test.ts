@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { monitorDaSemana, semanasCobertasPorMonitor } from "../../src/domain/monitorSemana.js";
+import {
+  monitorDaSemana,
+  semanasCobertasPorMonitor,
+  semanasCobertasPorMonitorNaDupla,
+} from "../../src/domain/monitorSemana.js";
 
 describe("monitorDaSemana", () => {
   it("semana A é sempre o monitorSemanaAId, mesmo com outroMonitorId presente", () => {
@@ -40,5 +44,24 @@ describe("semanasCobertasPorMonitor", () => {
   it("monitor que não é A nem o parceiro não cobre nenhuma semana", () => {
     const input = { monitorSemanaAId: "m1", outroMonitorId: "m2" };
     expect(semanasCobertasPorMonitor(input, "m3")).toEqual(new Set());
+  });
+});
+
+describe("semanasCobertasPorMonitorNaDupla", () => {
+  it("atribui as listas pares ao monitor B que está fazendo a consulta", () => {
+    const input = { monitorSemanaAId: "monitor-a", monitorIds: ["monitor-a", "monitor-b"] };
+    expect(semanasCobertasPorMonitorNaDupla(input, "monitor-a")).toEqual(new Set(["A"]));
+    expect(semanasCobertasPorMonitorNaDupla(input, "monitor-b")).toEqual(new Set(["B"]));
+  });
+
+  it("respeita a inversão de A e B definida individualmente por aluno", () => {
+    const input = { monitorSemanaAId: "monitor-b", monitorIds: ["monitor-a", "monitor-b"] };
+    expect(semanasCobertasPorMonitorNaDupla(input, "monitor-b")).toEqual(new Set(["A"]));
+    expect(semanasCobertasPorMonitorNaDupla(input, "monitor-a")).toEqual(new Set(["B"]));
+  });
+
+  it("mantém um monitor solo responsável por listas ímpares e pares", () => {
+    const input = { monitorSemanaAId: "monitor-a", monitorIds: ["monitor-a"] };
+    expect(semanasCobertasPorMonitorNaDupla(input, "monitor-a")).toEqual(new Set(["A", "B"]));
   });
 });

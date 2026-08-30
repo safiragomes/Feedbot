@@ -29,3 +29,21 @@ export function semanasCobertasPorMonitor(
   if (monitorDaSemana(input, "B") === monitorId) semanas.add("B");
   return semanas;
 }
+
+/**
+ * Resolve o papel usando todos os membros da dupla. O "outro monitor" é sempre
+ * relativo ao monitor A do aluno, e não ao monitor que está consultando. Essa
+ * diferença é essencial quando o próprio consulente é o monitor B.
+ */
+export function semanasCobertasPorMonitorNaDupla(
+  input: { monitorSemanaAId: string | null; monitorIds: string[] },
+  monitorId: string,
+) {
+  const outroMonitorId = input.monitorSemanaAId
+    ? (input.monitorIds.find((id) => id !== input.monitorSemanaAId) ?? null)
+    : null;
+  return semanasCobertasPorMonitor(
+    { monitorSemanaAId: input.monitorSemanaAId, outroMonitorId },
+    monitorId,
+  );
+}
