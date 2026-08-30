@@ -114,138 +114,175 @@ export function Login({
         {theme === "dark" ? <IconSun /> : <IconMoon />}
         {theme === "dark" ? "Modo diurno" : "Modo noturno"}
       </button>
-      <div className="login-card">
+      <div className="login-showcase">
         <div className="mark">
-          <LogoMark size={72} />
+          <LogoMark size={64} />
         </div>
-        <span className="login-kicker">Feedbot</span>
-        <h2>
-          {tokenConvite
-            ? "Criar acesso"
-            : tokenRecuperacao
-              ? "Redefinir senha"
-              : esqueciSenha
-                ? "Recuperar acesso"
-                : "Entrar no painel"}
-        </h2>
-        <div className="subtitle">
-          {tokenConvite
-            ? "Defina sua senha para concluir o convite"
-            : tokenRecuperacao
-              ? "Escolha uma nova senha para sua conta"
-              : esqueciSenha
-                ? "Enviaremos um link seguro para o e-mail cadastrado"
-                : "Use seu e-mail institucional para acessar a operação."}
+        <h1>Um painel só para a monitoria</h1>
+        <p>
+          Acompanhe progresso dos alunos, distribua duplas e mantenha o bot do WhatsApp sob controle
+          — tudo no mesmo lugar, sem planilhas soltas.
+        </p>
+        <div className="login-highlights">
+          <div className="login-highlight">
+            <strong>Dashboards</strong>
+            <span>ocorrências em tempo real</span>
+          </div>
+          <div className="login-highlight">
+            <strong>Duplas</strong>
+            <span>distribuição por grupo</span>
+          </div>
+          <div className="login-highlight">
+            <strong>Planilha</strong>
+            <span>conciliação automática</span>
+          </div>
+          <div className="login-highlight">
+            <strong>Bot</strong>
+            <span>atendimento pelo WhatsApp</span>
+          </div>
         </div>
-        {conviteConcluido && (
-          <div className="success-banner">Senha definida. Entre com seu e-mail e a nova senha.</div>
-        )}
-        {definindoSenha ? (
-          <form onSubmit={tokenConvite ? concluirConvite : concluirRecuperacao}>
-            <label>
-              Nova senha
-              <input
-                value={senha}
-                onChange={(event) => setSenha(event.target.value)}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-            </label>
-            <label>
-              Confirmar senha
-              <input
-                value={confirmacaoSenha}
-                onChange={(event) => setConfirmacaoSenha(event.target.value)}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-            </label>
-            {erro && <div className="error-banner">{erro}</div>}
-            <button className="btn primary" disabled={enviando}>
-              {enviando ? "Salvando…" : tokenConvite ? "Criar minha conta" : "Redefinir senha"}
-            </button>
-          </form>
-        ) : esqueciSenha ? (
-          recuperacaoEnviada ? (
-            <div className="login-feedback">
-              <div className="success-banner">
-                Se o e-mail pertencer a uma conta ativa, enviaremos um link válido por 1 hora.
-                Verifique também a caixa de spam. Contas de teste com endereços locais não recebem
-                mensagens.
-              </div>
-              <button
-                className="btn ghost"
-                onClick={() => {
-                  setEsqueciSenha(false);
-                  setRecuperacaoEnviada(false);
-                }}
-              >
-                Voltar ao login
-              </button>
+        <div className="login-orbit" aria-hidden="true" />
+      </div>
+      <div className="login-form-side">
+        <div className="login-card">
+          <div className="mark">
+            <LogoMark size={72} />
+          </div>
+          <span className="login-kicker">Feedbot</span>
+          <h2>
+            {tokenConvite
+              ? "Criar acesso"
+              : tokenRecuperacao
+                ? "Redefinir senha"
+                : esqueciSenha
+                  ? "Recuperar acesso"
+                  : "Entrar no painel"}
+          </h2>
+          <div className="subtitle">
+            {tokenConvite
+              ? "Defina sua senha para concluir o convite"
+              : tokenRecuperacao
+                ? "Escolha uma nova senha para sua conta"
+                : esqueciSenha
+                  ? "Enviaremos um link seguro para o e-mail cadastrado"
+                  : "Use seu e-mail institucional para acessar a operação."}
+          </div>
+          {conviteConcluido && (
+            <div className="success-banner">
+              Senha definida. Entre com seu e-mail e a nova senha.
             </div>
-          ) : (
-            <form onSubmit={solicitarRecuperacao}>
+          )}
+          {definindoSenha ? (
+            <form
+              key="definir-senha"
+              className="login-step"
+              onSubmit={tokenConvite ? concluirConvite : concluirRecuperacao}
+            >
               <label>
-                E-mail cadastrado
+                Nova senha
                 <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type="email"
-                  autoComplete="email"
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </label>
+              <label>
+                Confirmar senha
+                <input
+                  value={confirmacaoSenha}
+                  onChange={(event) => setConfirmacaoSenha(event.target.value)}
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
                   required
                 />
               </label>
               {erro && <div className="error-banner">{erro}</div>}
               <button className="btn primary" disabled={enviando}>
-                {enviando ? "Enviando…" : "Enviar link de recuperação"}
-              </button>
-              <button type="button" className="login-link" onClick={() => setEsqueciSenha(false)}>
-                Voltar ao login
+                {enviando ? "Salvando…" : tokenConvite ? "Criar minha conta" : "Redefinir senha"}
               </button>
             </form>
-          )
-        ) : (
-          <form onSubmit={submit}>
-            <label>
-              E-mail institucional
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label>
-              Senha
-              <input
-                value={senha}
-                onChange={(event) => setSenha(event.target.value)}
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            {erro && <div className="error-banner">{erro}</div>}
-            <button className="btn primary" disabled={enviando}>
-              {enviando ? "Entrando…" : "Entrar"}
-            </button>
-            <button
-              type="button"
-              className="login-link"
-              onClick={() => {
-                setErro("");
-                setEsqueciSenha(true);
-              }}
-            >
-              Esqueci minha senha
-            </button>
-          </form>
-        )}
+          ) : esqueciSenha ? (
+            recuperacaoEnviada ? (
+              <div key="recuperacao-enviada" className="login-feedback login-step">
+                <div className="success-banner">
+                  Se o e-mail pertencer a uma conta ativa, enviaremos um link válido por 1 hora.
+                  Verifique também a caixa de spam. Contas de teste com endereços locais não recebem
+                  mensagens.
+                </div>
+                <button
+                  className="btn ghost"
+                  onClick={() => {
+                    setEsqueciSenha(false);
+                    setRecuperacaoEnviada(false);
+                  }}
+                >
+                  Voltar ao login
+                </button>
+              </div>
+            ) : (
+              <form key="esqueci-senha" className="login-step" onSubmit={solicitarRecuperacao}>
+                <label>
+                  E-mail cadastrado
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                {erro && <div className="error-banner">{erro}</div>}
+                <button className="btn primary" disabled={enviando}>
+                  {enviando ? "Enviando…" : "Enviar link de recuperação"}
+                </button>
+                <button type="button" className="login-link" onClick={() => setEsqueciSenha(false)}>
+                  Voltar ao login
+                </button>
+              </form>
+            )
+          ) : (
+            <form key="login" className="login-step" onSubmit={submit}>
+              <label>
+                E-mail institucional
+                <input
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type="email"
+                  autoComplete="username"
+                  required
+                />
+              </label>
+              <label>
+                Senha
+                <input
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+              {erro && <div className="error-banner">{erro}</div>}
+              <button className="btn primary" disabled={enviando}>
+                {enviando ? "Entrando…" : "Entrar"}
+              </button>
+              <button
+                type="button"
+                className="login-link"
+                onClick={() => {
+                  setErro("");
+                  setEsqueciSenha(true);
+                }}
+              >
+                Esqueci minha senha
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     </main>
   );
