@@ -550,12 +550,17 @@ export class WhatsAppBot {
     };
     this.conversas.set(chave, conversa);
     const listas = await this.listasPermitidas(monitor.id, monitor.periodoId);
-    if (!listas.length)
+    if (!listas.length) {
+      // Sem isso a conversa ficava presa na etapa "lista": a próxima mensagem do
+      // monitor caía no bloco de seleção de lista e virava "Escolha o número de
+      // uma lista válida", mascarando o problema real (nenhum aluno sob ele).
+      this.conversas.delete(chave);
       return this.enviar(
         socket,
         jidPrivado,
         `Olá, ${monitor.nome}. No momento nenhuma lista está sob sua responsabilidade.`,
       );
+    }
     return this.enviar(
       socket,
       jidPrivado,
@@ -608,10 +613,21 @@ export class WhatsAppBot {
       const listas = await this.listasPermitidas(conversa.monitorId, conversa.periodoId);
       const lista = listas[Number(texto) - 1];
       if (!lista) return responder("Escolha o número de uma lista válida.");
+      const alunos = await this.alunosElegiveis(conversa.monitorId, lista.id, conversa.periodoId);
+      if (!alunos.length) {
+        // Pode acontecer se os alunos do monitor mudaram entre o início da conversa e
+        // esta resposta (reatribuição, remoção); sem isso o próximo passo mostraria um
+        // "Qual aluno?" sem nenhuma opção, travando quem responder em um beco sem saída.
+        this.conversas.delete(chave);
+        return this.enviar(
+          socket,
+          jid,
+          "Não há alunos sob sua responsabilidade nesta lista no momento. Envie Registrar feedback para tentar novamente.",
+        );
+      }
       conversa.listaId = lista.id;
       conversa.totalQuestoes = lista.qtdQuestoesTotal;
       conversa.etapa = "aluno";
-      const alunos = await this.alunosElegiveis(conversa.monitorId, lista.id, conversa.periodoId);
       return responder(
         `Qual aluno?\n${alunos.map((item, index) => `${index + 1}. ${identificacaoPublicaAluno(item)}`).join("\n")}`,
       );
