@@ -417,17 +417,17 @@ export function MonitorDrawer({
                 roster.map((item) => {
                   const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === item.id);
                   let texto: string;
-                  let tone: "ok" | "warn" | "danger" | "off";
+                  let tone: "ok" | "orange" | "danger" | "caution" | "off";
                   if (f) {
                     const emDia = noPrazo(f.criadoEm, f.prazoEntregaFeedback);
                     if (emDia === null) [texto, tone] = ["sem prazo definido", "off"];
                     else if (emDia) [texto, tone] = ["no prazo", "ok"];
-                    else [texto, tone] = ["entregue com atraso", "warn"];
+                    else [texto, tone] = ["entregue com atraso", "orange"];
                   } else {
                     const prazo = item.aluno ? prazoEfetivo(item.aluno, lista) : null;
                     if (!prazo) [texto, tone] = ["sem prazo definido", "off"];
                     else if (new Date(prazo) < new Date()) [texto, tone] = ["atrasado", "danger"];
-                    else [texto, tone] = ["pendente", "warn"];
+                    else [texto, tone] = ["pendente", "caution"];
                   }
                   return (
                     <MiniRow

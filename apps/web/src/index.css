@@ -112,6 +112,12 @@
   --gold: #69d2c0;
   --gold-dim: #112d2b;
   --gold-line: #1e4a45;
+  --amber: #f2ce6b;
+  --amber-dim: #3a2f10;
+  --amber-line: #5c4a1a;
+  --orange: #f2a35f;
+  --orange-dim: #3a2410;
+  --orange-line: #5c3a1a;
   --rose: #f08c7f;
   --rose-dim: #38201d;
   --rose-line: #56302a;
@@ -173,6 +179,12 @@
   --gold: #0f8d86;
   --gold-dim: #dbf2ef;
   --gold-line: #a9dcd7;
+  --amber: #a67c00;
+  --amber-dim: #fbf0d6;
+  --amber-line: #f0dba3;
+  --orange: #c2701f;
+  --orange-dim: #fbe8d6;
+  --orange-line: #f0c3a0;
   --rose: #c95f55;
   --rose-dim: #fde9e7;
   --rose-line: #f5c4bf;
@@ -2013,6 +2025,16 @@ tbody tr.clickable {
   color: var(--gold);
   background: var(--gold-dim);
   border-color: color-mix(in srgb, var(--gold) 20%, transparent);
+}
+.chip.caution {
+  color: var(--amber);
+  background: var(--amber-dim);
+  border-color: color-mix(in srgb, var(--amber) 20%, transparent);
+}
+.chip.orange {
+  color: var(--orange);
+  background: var(--orange-dim);
+  border-color: color-mix(in srgb, var(--orange) 20%, transparent);
 }
 .chip.danger {
   color: var(--rose);

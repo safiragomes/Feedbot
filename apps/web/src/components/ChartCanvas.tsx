@@ -20,6 +20,8 @@ export function chartPalette() {
     rose: readVar("--rose", "#F08C7F"),
     plum: readVar("--plum", "#9EAEF4"),
     gold: readVar("--gold", "#69D2C0"),
+    amber: readVar("--amber", "#F2CE6B"),
+    orange: readVar("--orange", "#F2A35F"),
   };
 }
 

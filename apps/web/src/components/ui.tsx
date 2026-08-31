@@ -19,7 +19,7 @@ export function Chip({
   tone = "off",
   children,
 }: {
-  tone?: "ok" | "warn" | "danger" | "info" | "off";
+  tone?: "ok" | "warn" | "danger" | "info" | "off" | "caution" | "orange";
   children: ReactNode;
 }) {
   return <span className={`chip ${tone}`}>{children}</span>;

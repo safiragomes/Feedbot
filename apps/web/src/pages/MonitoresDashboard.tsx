@@ -102,8 +102,8 @@ export function MonitoresDashboard({
           data: porGrupo.map((g) => g.atraso),
           backgroundColor: (context: ScriptableContext<"bar">) => {
             const area = context.chart.chartArea;
-            if (!area) return palette.rose;
-            return chartGradient(context.chart.ctx, area, `${palette.rose}ee`, `${palette.plum}88`);
+            if (!area) return palette.orange;
+            return chartGradient(context.chart.ctx, area, `${palette.orange}ee`, `${palette.amber}88`);
           },
           borderRadius: 8,
           borderSkipped: false,
@@ -144,7 +144,7 @@ export function MonitoresDashboard({
       datasets: [
         {
           data: [totalPrazo, comPrazo.length - totalPrazo],
-          backgroundColor: [palette.sage, palette.rose],
+          backgroundColor: [palette.sage, palette.orange],
           borderColor: palette.isLight ? "transparent" : palette.surface,
           borderWidth: palette.isLight ? 0 : 6,
           hoverOffset: 6,
@@ -336,7 +336,7 @@ export function MonitoresDashboard({
               no prazo
             </span>
             <span>
-              <i style={{ background: "var(--rose)" }} />
+              <i style={{ background: "var(--orange)" }} />
               entregue com atraso
             </span>
           </div>
