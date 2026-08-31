@@ -15,9 +15,7 @@ services:
       retries: 10
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/safiragomes/feedbot-api:latest
     restart: unless-stopped
     init: true
     depends_on:
@@ -49,11 +47,7 @@ services:
       start_period: 30s
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        VITE_API_URL: /api
+    image: ghcr.io/safiragomes/feedbot-web:latest
     restart: unless-stopped
     depends_on:
       api:
