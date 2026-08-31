@@ -74,6 +74,7 @@ export class SmtpEmailSender implements EmailSender {
           content: logo,
           cid: "feedbot-logo",
           contentType: "image/jpeg",
+          contentDisposition: "inline",
         },
       ],
     });
