@@ -377,8 +377,8 @@ export function MonitorDrawer({
           const emDia = noPrazo(f.criadoEm, f.prazoEntregaFeedback);
           return (
             <MiniRow key={lista.id} label={lista.nome}>
-              <Chip tone={emDia === null ? "off" : emDia ? "ok" : "danger"}>
-                {emDia === null ? "sem prazo" : emDia ? "no prazo" : "atrasado"}
+              <Chip tone={emDia === null ? "off" : emDia ? "ok" : "warn"}>
+                {emDia === null ? "sem prazo" : emDia ? "no prazo" : "entregue com atraso"}
               </Chip>
             </MiniRow>
           );

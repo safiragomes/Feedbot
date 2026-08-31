@@ -98,7 +98,7 @@ export function MonitoresDashboard({
           maxBarThickness: 26,
         },
         {
-          label: "Atrasado",
+          label: "Entregue com atraso",
           data: porGrupo.map((g) => g.atraso),
           backgroundColor: (context: ScriptableContext<"bar">) => {
             const area = context.chart.chartArea;
@@ -140,7 +140,7 @@ export function MonitoresDashboard({
   const donutConfig: ChartConfiguration<"doughnut"> = {
     type: "doughnut",
     data: {
-      labels: ["No prazo", "Atrasado"],
+      labels: ["No prazo", "Entregue com atraso"],
       datasets: [
         {
           data: [totalPrazo, comPrazo.length - totalPrazo],
@@ -337,7 +337,7 @@ export function MonitoresDashboard({
             </span>
             <span>
               <i style={{ background: "var(--rose)" }} />
-              atrasado
+              entregue com atraso
             </span>
           </div>
         }
