@@ -4,10 +4,12 @@ import { fimDoDiaIso, noPrazo } from "../lib/format";
 import { api } from "../lib/api";
 import { monitorSemanaB } from "../lib/dupla";
 import { Avatar, Chip, Drawer, DrawerCloseButton, MiniRow } from "./ui";
+import { FeedbackModal } from "./FeedbackModal";
 import { IconX } from "./icons";
 
 export function AlunoDrawer({
   aluno,
+  alunos,
   grupos,
   duplas,
   feedbacks,
@@ -18,6 +20,7 @@ export function AlunoDrawer({
   onRequestRemove,
 }: {
   aluno: Aluno;
+  alunos: Aluno[];
   grupos: GrupoRevisao[];
   duplas: Dupla[];
   feedbacks: Feedback[];
@@ -30,6 +33,7 @@ export function AlunoDrawer({
   const [salvandoPrazo, setSalvandoPrazo] = useState<string | null>(null);
   const [salvandoCondicao, setSalvandoCondicao] = useState(false);
   const [prazosEditados, setPrazosEditados] = useState(new Map<string, string>());
+  const [listaFeedbackAberta, setListaFeedbackAberta] = useState<Lista | null>(null);
   const afb = feedbacks.filter((f) => f.alunoId === aluno.id);
   const grupoNome = grupos.find((g) => g.id === aluno.dupla?.grupoRevisaoId)?.nome ?? "—";
   const monitoresDupla = duplas.find((d) => d.id === aluno.duplaId)?.monitores ?? [];
@@ -157,16 +161,30 @@ export function AlunoDrawer({
         <h5>Histórico por lista</h5>
         {listas.map((lista) => {
           const f = afb.find((x) => x.listaId === lista.id);
+          const editarBtn = (
+            <button className="btn sm ghost" onClick={() => setListaFeedbackAberta(lista)}>
+              editar
+            </button>
+          );
           if (!f)
             return (
               <MiniRow key={lista.id} label={lista.nome}>
-                <span className="mono-cell">não entregue</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="mono-cell">não entregue</span>
+                  {editarBtn}
+                </span>
               </MiniRow>
             );
           if (!f.usouIa && !f.plagiou && !f.usouProibicao)
             return (
               <MiniRow key={lista.id} label={lista.nome}>
-                <Chip tone="off">sem ocorrências</Chip>
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Chip tone="ok">
+                    {f.qtdQuestoesPontuadas}/{lista.qtdQuestoesTotal} questões
+                  </Chip>
+                  <Chip tone="off">sem ocorrências</Chip>
+                  {editarBtn}
+                </span>
               </MiniRow>
             );
           return (
@@ -177,6 +195,9 @@ export function AlunoDrawer({
             >
               <span className="l">{lista.nome}</span>
               <div className="flags-cell">
+                <Chip tone="ok">
+                  {f.qtdQuestoesPontuadas}/{lista.qtdQuestoesTotal} questões
+                </Chip>
                 {f.usouIa && (
                   <Chip tone="info">
                     IA · Q{f.questoesIa.map((q) => q.numeroQuestao).join(", Q")}
@@ -192,11 +213,23 @@ export function AlunoDrawer({
                     proibição · Q{f.questoesProibicao.map((q) => q.numeroQuestao).join(", Q")}
                   </Chip>
                 )}
+                {editarBtn}
               </div>
             </div>
           );
         })}
       </div>
+      {listaFeedbackAberta && (
+        <FeedbackModal
+          token={token}
+          aluno={aluno}
+          lista={listaFeedbackAberta}
+          alunosPeriodo={alunos}
+          feedbackExistente={afb.find((f) => f.listaId === listaFeedbackAberta.id)}
+          onClose={() => setListaFeedbackAberta(null)}
+          onSaved={onReload}
+        />
+      )}
       <div className="modal-actions" style={{ marginTop: 6 }}>
         <button
           className="btn ghost"

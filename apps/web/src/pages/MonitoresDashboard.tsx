@@ -32,7 +32,7 @@ export function MonitoresDashboard({
     () =>
       feedbacks.filter(
         (f) =>
-          (!grupoId || duplaGrupo.get(f.duplaId) === grupoId) &&
+          (!grupoId || (f.duplaId && duplaGrupo.get(f.duplaId)) === grupoId) &&
           (!listaId || f.listaId === listaId),
       ),
     [feedbacks, grupoId, listaId, duplaGrupo],
@@ -72,7 +72,7 @@ export function MonitoresDashboard({
   const gruposVisiveis = grupos.filter((g) => !grupoId || g.id === grupoId);
   const porGrupo = gruposVisiveis.map((g) => {
     const gfb = fb.filter(
-      (f) => duplaGrupo.get(f.duplaId) === g.id && f.prazoEntregaFeedback !== null,
+      (f) => (f.duplaId && duplaGrupo.get(f.duplaId)) === g.id && f.prazoEntregaFeedback !== null,
     );
     return {
       nome: g.nome.replace("Grupo ", ""),

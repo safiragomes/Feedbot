@@ -2675,6 +2675,12 @@ tbody tr.clickable {
 .special-condition-toggle input {
   accent-color: var(--sage);
 }
+.questoes-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
 /* PLANILHA */
 .sheet-guide {
   margin: -4px 0 20px;

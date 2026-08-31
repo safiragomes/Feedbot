@@ -123,7 +123,7 @@ export type Feedback = {
   alunoId: string;
   monitorId: string;
   listaId: string;
-  duplaId: string;
+  duplaId: string | null;
   semana: "A" | "B";
   qtdQuestoesPontuadas: number;
   usouIa: boolean;
@@ -142,6 +142,15 @@ export type Feedback = {
     alunoEnvolvido: { id: string; nome: string };
   }[];
   questoesProibicao: { numeroQuestao: number }[];
+};
+
+export type NovoFeedbackInput = {
+  alunoId: string;
+  listaId: string;
+  qtdQuestoesPontuadas: number;
+  questoesIa?: number[];
+  questoesPlagio?: { numeroQuestao: number; alunoEnvolvidoId: string }[];
+  questoesProibicao?: number[];
 };
 
 export type Bot = {

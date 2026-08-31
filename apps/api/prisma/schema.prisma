@@ -252,7 +252,7 @@ model Feedback {
   alunoId              String
   monitorId            String
   listaId              String
-  duplaId              String
+  duplaId              String?
   semana               Semana
   qtdQuestoesPontuadas Int
   usouIa               Boolean  @default(false)
@@ -265,7 +265,7 @@ model Feedback {
   aluno             Aluno                      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   monitor           Monitor                    @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   lista             Lista                      @relation(fields: [listaId], references: [id])
-  dupla             Dupla                      @relation(fields: [duplaId], references: [id], onDelete: Cascade)
+  dupla             Dupla?                     @relation(fields: [duplaId], references: [id], onDelete: Cascade)
   questoesIa        FeedbackQuestaoIA[]
   questoesPlagio    FeedbackQuestaoPlagio[]
   questoesProibicao FeedbackQuestaoProibicao[]

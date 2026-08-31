@@ -2,7 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/db/client.js";
 import { calcularSemana } from "../../src/domain/semana.js";
-import { criarFeedback } from "../../src/services/feedback.js";
+import { criarFeedback, resolverMonitorResponsavel } from "../../src/services/feedback.js";
 
 describe("criarFeedback", () => {
   const sufixo = Date.now();
@@ -17,6 +17,9 @@ describe("criarFeedback", () => {
   let alunoId: string;
   let alunoParaPlagioId: string;
   let alunoDeOutraDuplaId: string;
+  let alunoSemDuplaId: string;
+  let alunoParaResolverId: string;
+  let chefeId: string;
 
   beforeAll(async () => {
     const periodo = await prisma.periodo.create({
@@ -36,6 +39,7 @@ describe("criarFeedback", () => {
     const chefe = await prisma.monitor.create({
       data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
     });
+    chefeId = chefe.id;
 
     const grupo = await prisma.grupoRevisao.create({
       data: { periodoId, chefeId: chefe.id, nome: "Grupo teste" },
@@ -95,6 +99,29 @@ describe("criarFeedback", () => {
       },
     });
     alunoDeOutraDuplaId = alunoDeOutraDupla.id;
+
+    const alunoSemDupla = await prisma.aluno.create({
+      data: {
+        nome: "Aluno sem dupla",
+        matricula: `TESTE-${sufixo}-4`,
+        turmaId: turma.id,
+      },
+    });
+    alunoSemDuplaId = alunoSemDupla.id;
+
+    // Aluno dedicado aos testes de resolverMonitorResponsavel: nunca recebe um
+    // Feedback de verdade nos outros testes, então o atalho de "feedback já
+    // existente" nunca entra em ação sem querer aqui.
+    const alunoParaResolver = await prisma.aluno.create({
+      data: {
+        nome: "Aluno para resolver monitor",
+        matricula: `TESTE-${sufixo}-5`,
+        turmaId: turma.id,
+        duplaId,
+        monitorSemanaAId: monitor.id,
+      },
+    });
+    alunoParaResolverId = alunoParaResolver.id;
 
     const lista = await prisma.lista.create({
       data: {
@@ -275,6 +302,53 @@ describe("criarFeedback", () => {
       }),
     ).rejects.toThrow("Monitor inativo não pode registrar feedback");
     await prisma.monitor.update({ where: { id: monitorId }, data: { status: "ATIVO" } });
+  });
+
+  it("resolverMonitorResponsavel resolve o monitor da semana automaticamente", async () => {
+    await expect(
+      resolverMonitorResponsavel(prisma, alunoParaResolverId, listaId, chefeId),
+    ).resolves.toBe(monitorId);
+  });
+
+  it("resolverMonitorResponsavel preserva o monitor de um feedback já existente, mesmo passando outro chefe como editor", async () => {
+    // alunoId já tem feedback registrado nos testes anteriores, creditado a
+    // "monitorId" — editar via chefeId (uma pessoa diferente) não deve reatribuir
+    // a autoria pra quem está corrigindo.
+    await expect(resolverMonitorResponsavel(prisma, alunoId, listaId, chefeId)).resolves.toBe(
+      monitorId,
+    );
+  });
+
+  it("resolverMonitorResponsavel cai pro chefe quando o monitor calculado pela rotação está inativo", async () => {
+    await prisma.monitor.update({ where: { id: monitorId }, data: { status: "INATIVO" } });
+    await expect(
+      resolverMonitorResponsavel(prisma, alunoParaResolverId, listaId, chefeId),
+    ).resolves.toBe(chefeId);
+    await prisma.monitor.update({ where: { id: monitorId }, data: { status: "ATIVO" } });
+  });
+
+  it("resolverMonitorResponsavel usa o chefe quando o aluno tem dupla mas não tem monitor definido para a semana", async () => {
+    await expect(
+      resolverMonitorResponsavel(prisma, alunoDeOutraDuplaId, listaId, chefeId),
+    ).resolves.toBe(chefeId);
+  });
+
+  it("resolverMonitorResponsavel usa o chefe quando o aluno não tem dupla", async () => {
+    await expect(
+      resolverMonitorResponsavel(prisma, alunoSemDuplaId, listaId, chefeId),
+    ).resolves.toBe(chefeId);
+  });
+
+  it("criarFeedback aceita aluno sem dupla, creditando o feedback ao chefe", async () => {
+    const feedback = await criarFeedback(prisma, {
+      alunoId: alunoSemDuplaId,
+      monitorId: chefeId,
+      listaId,
+      qtdQuestoesPontuadas: 4,
+    });
+    expect(feedback.duplaId).toBeNull();
+    expect(feedback.monitorId).toBe(chefeId);
+    expect(feedback.semana).toBe("A");
   });
 });
 

@@ -45,6 +45,47 @@ export async function posicaoDaLista(prisma: PrismaClient, listaId: string, peri
   return indice + 1;
 }
 
+// Usado pelo lançamento manual do chefe pela interface: quando dá pra calcular o
+// monitor responsável pela rotação semana A/B (mesma regra do bot), usa esse. Aluno
+// sem dupla, ou sem rotação resolvível, não tem "responsável" possível — nesse caso
+// o próprio chefe que está lançando o feedback assume (a palavra do chefe vale mais
+// que a rotação automática, que nem se aplica sem dupla).
+export async function resolverMonitorResponsavel(
+  prisma: PrismaClient,
+  alunoId: string,
+  listaId: string,
+  chefeMonitorId: string,
+) {
+  // Editar um feedback já existente não deve trocar de quem é o crédito — senão
+  // um chefe corrigindo um detalhe de outro chefe (ex.: número de questões) acabaria
+  // reatribuindo a autoria pra si mesmo sem querer.
+  const existente = await prisma.feedback.findUnique({
+    where: { alunoId_listaId: { alunoId, listaId } },
+    select: { monitorId: true },
+  });
+  if (existente) return existente.monitorId;
+
+  const [aluno, lista] = await Promise.all([
+    prisma.aluno.findUnique({ where: { id: alunoId } }),
+    prisma.lista.findUnique({ where: { id: listaId } }),
+  ]);
+  if (!aluno || !lista) throw new Error("Aluno ou lista não encontrado");
+  if (!aluno.duplaId) return chefeMonitorId;
+  const posicaoLista = await posicaoDaLista(prisma, lista.id, lista.periodoId);
+  const semana = calcularSemana({ posicaoLista, semanaOverride: lista.semanaOverride });
+  const monitorId = await monitorEsperadoDaSemana(
+    prisma,
+    { duplaId: aluno.duplaId, monitorSemanaAId: aluno.monitorSemanaAId },
+    semana,
+  );
+  if (!monitorId) return chefeMonitorId;
+  // Monitor calculado pode existir mas estar inativo (ex.: saiu da monitoria) — nesse
+  // caso não há para quem creditar pela rotação, então o chefe assume também.
+  const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
+  if (!monitor || monitor.status !== "ATIVO") return chefeMonitorId;
+  return monitorId;
+}
+
 export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback) {
   const questoesIa = [...new Set(entrada.questoesIa ?? [])];
   const questoesProibicao = [...new Set(entrada.questoesProibicao ?? [])];
@@ -55,7 +96,6 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     prisma.lista.findUnique({ where: { id: entrada.listaId } }),
   ]);
   if (!aluno || !monitor || !lista) throw new Error("Aluno, monitor ou lista não encontrado");
-  if (!aluno.duplaId) throw new Error("Atribua o aluno a uma dupla antes de registrar feedback");
   if (aluno.turma.periodoId !== lista.periodoId)
     throw new Error("Aluno e lista devem pertencer ao mesmo período");
   if (monitor.periodoId !== lista.periodoId)
@@ -95,15 +135,20 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
 
   const posicaoLista = await posicaoDaLista(prisma, lista.id, lista.periodoId);
   const semana = calcularSemana({ posicaoLista, semanaOverride: lista.semanaOverride });
-  const monitorEsperado = await monitorEsperadoDaSemana(
-    prisma,
-    { duplaId: aluno.duplaId, monitorSemanaAId: aluno.monitorSemanaAId },
-    semana,
-  );
-  if (monitorEsperado !== monitor.id) {
-    throw new Error(
-      `Esta lista é da semana ${semana} deste aluno, responsabilidade de outro monitor`,
+  // Sem dupla não há rotação semana A/B pra validar contra — o feedback é aceito
+  // como está (ver resolverMonitorResponsavel, que já credita o próprio chefe
+  // nesse caso).
+  if (aluno.duplaId) {
+    const monitorEsperado = await monitorEsperadoDaSemana(
+      prisma,
+      { duplaId: aluno.duplaId, monitorSemanaAId: aluno.monitorSemanaAId },
+      semana,
     );
+    if (monitorEsperado !== monitor.id) {
+      throw new Error(
+        `Esta lista é da semana ${semana} deste aluno, responsabilidade de outro monitor`,
+      );
+    }
   }
 
   return prisma.feedback.upsert({

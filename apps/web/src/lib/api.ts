@@ -9,6 +9,7 @@ import type {
   GrupoRevisao,
   Lista,
   Monitor,
+  NovoFeedbackInput,
   Periodo,
   PreviaImportacaoAlunos,
   PrazoListaItem,
@@ -210,6 +211,8 @@ export const api = {
 
   feedbacks: (token: string, periodoId: string) =>
     request<Feedback[]>(`/feedbacks?periodoId=${periodoId}`, token),
+  criarFeedback: (token: string, entrada: NovoFeedbackInput) =>
+    post<Feedback>("/feedbacks", token, entrada),
   atrasos: (token: string, periodoId: string) =>
     request<Atraso[]>(`/atrasos?periodoId=${periodoId}`, token),
   reprocessarPlanilha: (token: string, id: string) =>

@@ -457,6 +457,7 @@ function App() {
       {alunoAberto && (
         <AlunoDrawer
           aluno={alunoAberto}
+          alunos={alunos}
           grupos={grupos}
           duplas={duplas}
           feedbacks={feedbacks}

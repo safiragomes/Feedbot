@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { requireChief } from "../auth/require-chief.js";
-import { criarFeedback, type NovoFeedback } from "../services/feedback.js";
+import {
+  criarFeedback,
+  resolverMonitorResponsavel,
+  type NovoFeedback,
+} from "../services/feedback.js";
 import { GoogleSheetsSync } from "../services/google-sheets.js";
 import { buscarPendenciasAtrasadas } from "../services/atrasos.js";
 
@@ -54,7 +58,20 @@ export function feedbackRoutes(
 
   app.post("/feedbacks", protectedRoute, async (request, reply) => {
     try {
-      const feedback = await criarFeedback(prisma, request.body as NovoFeedback);
+      const entrada = request.body as Omit<NovoFeedback, "monitorId">;
+      const monitorId = await resolverMonitorResponsavel(
+        prisma,
+        entrada.alunoId,
+        entrada.listaId,
+        request.chefe!.monitorId,
+      );
+      const feedback = await criarFeedback(prisma, { ...entrada, monitorId });
+      try {
+        await sheets.sincronizarFeedback(prisma, feedback.id);
+      } catch {
+        // Feedback já está salvo; sincronização pode ser refeita depois pelo
+        // botão de reprocessar planilha (mesmo padrão do bot em whatsapp-bot.ts).
+      }
       return reply.code(201).send(feedback);
     } catch (error) {
       return reply.badRequest(error instanceof Error ? error.message : "Feedback inválido");
