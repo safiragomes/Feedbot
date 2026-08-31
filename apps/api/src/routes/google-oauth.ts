@@ -23,7 +23,10 @@ export function googleOAuthRoutes(app: FastifyInstance, prisma: PrismaClient) {
         httpOnly: true,
         sameSite: "lax",
         secure: process.env["GOOGLE_OAUTH_REDIRECT_URI"]?.startsWith("https://") ?? false,
-        path: "/google/oauth/callback",
+        // Path relativo à API interna não bate com o path externo visto pelo navegador
+        // quando um proxy (nginx/Caddy) expõe a rota sob um prefixo como /api — usar "/"
+        // garante que o cookie volte independentemente de prefixo.
+        path: "/",
         maxAge: 600,
       });
       return reply.redirect(
@@ -65,7 +68,7 @@ export function googleOAuthRoutes(app: FastifyInstance, prisma: PrismaClient) {
         conectadoEm: new Date(),
       },
     });
-    reply.clearCookie("feedbot_google_state", { path: "/google/oauth/callback" });
+    reply.clearCookie("feedbot_google_state", { path: "/" });
     return reply.redirect(`${webOrigins()[0]}/?google=conectado`);
   });
 
