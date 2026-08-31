@@ -5,7 +5,15 @@ import { api } from "../lib/api";
 import { monitorSemanaB } from "../lib/dupla";
 import { Avatar, Chip, Drawer, DrawerCloseButton, MiniRow } from "./ui";
 import { FeedbackModal } from "./FeedbackModal";
-import { IconX } from "./icons";
+import { IconChevronDown, IconX } from "./icons";
+
+function prazoEfetivo(aluno: Aluno, lista: Lista): string | null {
+  return (
+    aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
+    lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback ??
+    null
+  );
+}
 
 export function AlunoDrawer({
   aluno,
@@ -278,6 +286,7 @@ export function MonitorDrawer({
     (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === monitor.id,
   );
   const atrasosAbertos = atrasos.filter((atraso) => atraso.monitorId === monitor.id);
+  const [listaHistoricoAberta, setListaHistoricoAberta] = useState<string | null>(null);
   // A mesma conta usada no back-end (posição da lista, ímpar = semana A, salvo
   // override) — precisa pra saber qual roster (alunosA ou alunosB) vale pra cada
   // lista no histórico detalhado abaixo.
@@ -380,27 +389,42 @@ export function MonitorDrawer({
         {listas.map((lista) => {
           const roster = semanaPorLista.get(lista.id) === "A" ? alunosA : alunosB;
           if (!roster.length) return null;
+          const aberta = listaHistoricoAberta === lista.id;
           return (
-            <div key={lista.id} style={{ marginBottom: 10 }}>
-              <span className="l" style={{ display: "block", marginBottom: 4 }}>
+            <div key={lista.id} style={{ marginBottom: 6 }}>
+              <button
+                type="button"
+                className="btn ghost sm"
+                style={{ width: "100%", display: "flex", justifyContent: "space-between" }}
+                onClick={() => setListaHistoricoAberta(aberta ? null : lista.id)}
+              >
                 {lista.nome}
-              </span>
-              {roster.map((aluno) => {
-                const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === aluno.id);
-                const emDia = f ? noPrazo(f.criadoEm, f.prazoEntregaFeedback) : undefined;
-                const [texto, tone] = !f
-                  ? (["pendente", "danger"] as const)
-                  : emDia === null
-                    ? (["sem prazo definido", "off"] as const)
-                    : emDia
-                      ? (["no prazo", "ok"] as const)
-                      : (["entregue com atraso", "warn"] as const);
-                return (
-                  <MiniRow key={aluno.id} label={aluno.nome}>
-                    <Chip tone={tone}>{texto}</Chip>
-                  </MiniRow>
-                );
-              })}
+                <IconChevronDown
+                  style={{ transform: aberta ? "rotate(180deg)" : undefined, transition: "transform .15s" }}
+                />
+              </button>
+              {aberta &&
+                roster.map((aluno) => {
+                  const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === aluno.id);
+                  let texto: string;
+                  let tone: "ok" | "warn" | "danger" | "off";
+                  if (f) {
+                    const emDia = noPrazo(f.criadoEm, f.prazoEntregaFeedback);
+                    if (emDia === null) [texto, tone] = ["sem prazo definido", "off"];
+                    else if (emDia) [texto, tone] = ["no prazo", "ok"];
+                    else [texto, tone] = ["entregue com atraso", "warn"];
+                  } else {
+                    const prazo = prazoEfetivo(aluno, lista);
+                    if (!prazo) [texto, tone] = ["sem prazo definido", "off"];
+                    else if (new Date(prazo) < new Date()) [texto, tone] = ["atrasado", "danger"];
+                    else [texto, tone] = ["pendente", "warn"];
+                  }
+                  return (
+                    <MiniRow key={aluno.id} label={aluno.nome}>
+                      <Chip tone={tone}>{texto}</Chip>
+                    </MiniRow>
+                  );
+                })}
             </div>
           );
         })}

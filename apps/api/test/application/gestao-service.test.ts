@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import "dotenv/config";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "../../src/generated/prisma/client.js";
+import { prisma } from "../../src/db/client.js";
+import { criarFeedback } from "../../src/services/feedback.js";
 import {
+  atualizarMonitor,
   excluirDupla,
   excluirGrupoRevisao,
   excluirMonitor,
@@ -82,5 +86,99 @@ describe("exclusão de período", () => {
 
     await expect(excluirPeriodo(prisma, "periodo")).resolves.toBeUndefined();
     expect(prisma.periodo.delete).toHaveBeenCalledWith({ where: { id: "periodo" } });
+  });
+});
+
+// Desvincular um monitor (tirar da dupla, desativar) não pode fazer um feedback já
+// registrado perder a autoria — Feedback.monitorId precisa continuar apontando pro
+// mesmo monitor que de fato registrou, mesmo depois dele ser desvinculado/desativado.
+describe("atualizarMonitor preserva a autoria de feedback já registrado", () => {
+  const sufixo = Date.now();
+  const dataReferenciaRodizio = new Date("2026-08-03T00:00:00Z");
+
+  let periodoId: string;
+  let grupoId: string;
+  let monitorId: string;
+  let feedbackId: string;
+
+  beforeAll(async () => {
+    const periodo = await prisma.periodo.create({
+      data: {
+        nome: `Teste desvincular monitor ${sufixo}`,
+        dataInicio: dataReferenciaRodizio,
+        dataFim: new Date("2026-12-01T00:00:00Z"),
+        dataReferenciaRodizio,
+      },
+    });
+    periodoId = periodo.id;
+
+    const turma = await prisma.turma.create({
+      data: { periodoId, nome: "Turma teste", nomeAbaPlanilha: "Turma teste" },
+    });
+
+    const chefe = await prisma.monitor.create({
+      data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
+    });
+
+    const grupo = await prisma.grupoRevisao.create({
+      data: { periodoId, chefeId: chefe.id, nome: "Grupo teste" },
+    });
+    grupoId = grupo.id;
+
+    const dupla = await prisma.dupla.create({
+      data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
+    });
+
+    const monitor = await prisma.monitor.create({
+      data: { nome: "Monitor a desvincular", whatsappNumero: `+55${sufixo}1`, periodoId, duplaId: dupla.id },
+    });
+    monitorId = monitor.id;
+
+    const aluno = await prisma.aluno.create({
+      data: {
+        nome: "Aluno teste",
+        matricula: `TESTE-${sufixo}-1`,
+        turmaId: turma.id,
+        duplaId: dupla.id,
+        monitorSemanaAId: monitor.id,
+      },
+    });
+
+    const lista = await prisma.lista.create({
+      data: { periodoId, nome: "Lista teste", qtdQuestoesTotal: 6, ordem: 1 },
+    });
+
+    const feedback = await criarFeedback(prisma, {
+      alunoId: aluno.id,
+      monitorId: monitor.id,
+      listaId: lista.id,
+      qtdQuestoesPontuadas: 5,
+    });
+    feedbackId = feedback.id;
+  });
+
+  afterAll(async () => {
+    await prisma.feedback.deleteMany({ where: { monitorId } });
+    await prisma.aluno.deleteMany({ where: { turma: { periodoId } } });
+    await prisma.lista.deleteMany({ where: { periodoId } });
+    await prisma.dupla.deleteMany({ where: { grupoRevisaoId: grupoId } });
+    await prisma.grupoRevisao.deleteMany({ where: { periodoId } });
+    await prisma.monitor.deleteMany({ where: { periodoId } });
+    await prisma.turma.deleteMany({ where: { periodoId } });
+    await prisma.periodo.delete({ where: { id: periodoId } });
+  });
+
+  it("tirar o monitor da dupla e desativá-lo não muda o monitorId do feedback já salvo", async () => {
+    await atualizarMonitor(prisma, monitorId, { duplaId: null });
+    await atualizarMonitor(prisma, monitorId, { status: "INATIVO" });
+
+    const feedback = await prisma.feedback.findUnique({ where: { id: feedbackId } });
+    expect(feedback).not.toBeNull();
+    expect(feedback?.monitorId).toBe(monitorId);
+    expect(feedback?.qtdQuestoesPontuadas).toBe(5);
+
+    const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
+    expect(monitor?.duplaId).toBeNull();
+    expect(monitor?.status).toBe("INATIVO");
   });
 });
