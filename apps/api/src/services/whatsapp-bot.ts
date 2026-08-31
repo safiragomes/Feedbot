@@ -53,6 +53,10 @@ type Conversa = {
 };
 
 const SESSION_ID = "feedbot";
+// Quedas de socket costumam se resolver sozinhas em segundos (retry automático);
+// só avisamos os chefes por e-mail se a reconexão não se resolveu sozinha depois
+// desse tempo, evitando alarme falso a cada instabilidade momentânea.
+const AVISO_QUEDA_ATRASO_MS = 5 * 60_000;
 
 export interface BotLogger {
   info(contexto: Record<string, unknown>, mensagem: string): void;
@@ -87,6 +91,7 @@ export class WhatsAppBot {
   private ultimaTentativaEm?: Date;
   private quedaDesde?: Date;
   private avisoQuedaEnviado = false;
+  private avisoQuedaTimer?: NodeJS.Timeout;
   private desvinculadoLocalmente = false;
 
   constructor(
@@ -209,12 +214,15 @@ export class WhatsAppBot {
           .catch((error) =>
             this.logger.error({ err: error }, "falha ao atualizar nome do perfil do bot"),
           );
+        if (this.avisoQuedaTimer) clearTimeout(this.avisoQuedaTimer);
+        this.avisoQuedaTimer = undefined;
+        // Só avisamos da reconexão se antes tínhamos avisado da queda — reconectar
+        // dentro da janela de tolerância não gera e-mail nenhum, dos dois lados.
         if (this.avisoQuedaEnviado) {
           const minutos = this.quedaDesde
             ? Math.max(1, Math.round((Date.now() - this.quedaDesde.getTime()) / 60_000))
             : undefined;
           this.avisoQuedaEnviado = false;
-          this.quedaDesde = undefined;
           void this.avisarChefesPorEmail(
             "✅ Feedbot reconectado ao WhatsApp",
             minutos
@@ -224,6 +232,7 @@ export class WhatsAppBot {
             this.logger.error({ err: error }, "falha ao enviar aviso de reconexão do bot"),
           );
         }
+        this.quedaDesde = undefined;
       }
       if (connection === "close") {
         // Eventos podem chegar depois de uma reconexão. Se este já não é o socket
@@ -249,14 +258,22 @@ export class WhatsAppBot {
           );
         } else if (this.devePermanecerConectado) {
           this.quedaDesde ??= new Date();
-          if (!this.avisoQuedaEnviado) {
-            this.avisoQuedaEnviado = true;
-            void this.avisarChefesPorEmail(
-              "⚠️ Feedbot desconectado do WhatsApp",
-              "O Feedbot perdeu a conexão com o WhatsApp e está tentando reconectar automaticamente. Nenhuma ação é necessária a menos que a reconexão não se resolva sozinha.",
-            ).catch((error) =>
-              this.logger.error({ err: error }, "falha ao enviar aviso de queda do bot"),
-            );
+          // Só avisamos por e-mail se, depois desse prazo de tolerância, a reconexão
+          // automática ainda não tiver dado certo — a maioria das quedas se resolve
+          // sozinha em segundos e não merece alarme.
+          if (!this.avisoQuedaEnviado && !this.avisoQuedaTimer) {
+            this.avisoQuedaTimer = setTimeout(() => {
+              this.avisoQuedaTimer = undefined;
+              if (this.socket?.user || this.avisoQuedaEnviado) return;
+              this.avisoQuedaEnviado = true;
+              void this.avisarChefesPorEmail(
+                "⚠️ Feedbot desconectado do WhatsApp",
+                "O Feedbot perdeu a conexão com o WhatsApp e não conseguiu se reconectar sozinho até agora. Pode ser necessário reconectá-lo manualmente pelo painel.",
+              ).catch((error) =>
+                this.logger.error({ err: error }, "falha ao enviar aviso de queda do bot"),
+              );
+            }, AVISO_QUEDA_ATRASO_MS);
+            this.avisoQuedaTimer.unref();
           }
           this.agendarReconexao();
         }
@@ -331,6 +348,8 @@ export class WhatsAppBot {
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
+    if (this.avisoQuedaTimer) clearTimeout(this.avisoQuedaTimer);
+    this.avisoQuedaTimer = undefined;
     const socket = this.socket;
     this.socket = undefined;
     this.qr = undefined;
@@ -373,6 +392,8 @@ export class WhatsAppBot {
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
+    if (this.avisoQuedaTimer) clearTimeout(this.avisoQuedaTimer);
+    this.avisoQuedaTimer = undefined;
     const socket = this.socket;
     this.socket = undefined;
     this.qr = undefined;
@@ -389,6 +410,8 @@ export class WhatsAppBot {
     this.devePermanecerConectado = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = undefined;
+    if (this.avisoQuedaTimer) clearTimeout(this.avisoQuedaTimer);
+    this.avisoQuedaTimer = undefined;
     this.socket?.end(undefined);
     this.socket = undefined;
     this.ultimaTentativaEm = undefined;
