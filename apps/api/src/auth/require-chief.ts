@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { hashToken } from "./password.js";
 
-export type ChiefSession = { contaId: string; monitorId: string; email: string };
+export type ChiefSession = { contaId: string; monitorId: string; email: string; nome: string };
 export const SESSION_COOKIE = "feedbot_session";
 
 export function sessionToken(request: FastifyRequest) {
@@ -52,6 +52,7 @@ export function requireChief(prisma: PrismaClient) {
       contaId: session.contaChefeId,
       monitorId: session.contaChefe.monitorId,
       email: session.contaChefe.email,
+      nome: session.contaChefe.monitor.nome,
     };
   };
 }

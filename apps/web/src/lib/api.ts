@@ -52,6 +52,10 @@ export function logout(token: string) {
   return request<void>("/auth/logout", token, { method: "POST" });
 }
 
+export function me() {
+  return request<{ chefe: Chefe }>("/auth/me", "");
+}
+
 export function concluirConvite(tokenConvite: string, senha: string) {
   return request<void>("/auth/convites/concluir", "", {
     method: "POST",
@@ -89,6 +93,7 @@ function del(path: string, token: string) {
 export const api = {
   login,
   logout,
+  me,
   concluirConvite,
   solicitarRecuperacaoSenha,
   redefinirSenha,

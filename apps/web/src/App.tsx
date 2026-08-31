@@ -154,6 +154,17 @@ function App() {
   }, [load]);
 
   useEffect(() => {
+    if (chefe) return;
+    // sessionStorage some ao fechar a aba, mas o cookie de sessão (httpOnly) dura
+    // 12h — sem isso, qualquer fechamento de aba força um novo login desnecessário.
+    api
+      .me()
+      .then(({ chefe: chefeAtual }) => handleLogin(chefeAtual))
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const encerrarSessaoInvalida = () => {
       localStorage.removeItem("feedbot-token");
       sessionStorage.removeItem("feedbot-chefe");

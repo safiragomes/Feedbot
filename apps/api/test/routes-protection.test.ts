@@ -59,7 +59,7 @@ describe("rotas da API de gestão", () => {
           contaChefe: {
             email: "chefe@teste.dev",
             monitorId: "monitor-1",
-            monitor: { isChefe: true, status: "ATIVO" },
+            monitor: { nome: "Chefe Teste", isChefe: true, status: "ATIVO" },
           },
         }),
       },
@@ -72,7 +72,7 @@ describe("rotas da API de gestão", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().chefe.monitorId).toBe("monitor-1");
+    expect(response.json().chefe.id).toBe("monitor-1");
     await app.close();
   });
 

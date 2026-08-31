@@ -283,6 +283,10 @@ export function authRoutes(
   });
 
   app.get("/auth/me", { preHandler: requireChief(prisma) }, async (request) => ({
-    chefe: request.chefe,
+    chefe: {
+      id: request.chefe!.monitorId,
+      nome: request.chefe!.nome,
+      email: request.chefe!.email,
+    },
   }));
 }
