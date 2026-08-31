@@ -140,11 +140,11 @@ async function impedirExclusaoComFeedback(quantidade: number, recurso: string) {
   }
 }
 
+// Feedback é vinculado ao monitor que registrou (Feedback.monitorId), não à dupla —
+// a dupla é só uma referência organizacional (quem atende quem). Por isso excluir
+// grupo/dupla não é bloqueado por feedback: Feedback.duplaId é onDelete: SetNull no
+// schema, então o histórico continua intacto, só perde essa referência.
 export async function excluirGrupoRevisao(prisma: PrismaClient, id: string) {
-  await impedirExclusaoComFeedback(
-    await prisma.feedback.count({ where: { dupla: { grupoRevisaoId: id } } }),
-    "este grupo",
-  );
   await prisma.$transaction([
     prisma.aluno.updateMany({
       where: { dupla: { grupoRevisaoId: id } },
@@ -155,10 +155,6 @@ export async function excluirGrupoRevisao(prisma: PrismaClient, id: string) {
 }
 
 export async function excluirDupla(prisma: PrismaClient, id: string) {
-  await impedirExclusaoComFeedback(
-    await prisma.feedback.count({ where: { duplaId: id } }),
-    "esta dupla",
-  );
   await prisma.$transaction([
     prisma.aluno.updateMany({ where: { duplaId: id }, data: { monitorSemanaAId: null } }),
     prisma.dupla.delete({ where: { id } }),

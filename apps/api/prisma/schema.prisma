@@ -265,7 +265,7 @@ model Feedback {
   aluno             Aluno                      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   monitor           Monitor                    @relation(fields: [monitorId], references: [id], onDelete: Cascade)
   lista             Lista                      @relation(fields: [listaId], references: [id])
-  dupla             Dupla?                     @relation(fields: [duplaId], references: [id], onDelete: Cascade)
+  dupla             Dupla?                     @relation(fields: [duplaId], references: [id], onDelete: SetNull)
   questoesIa        FeedbackQuestaoIA[]
   questoesPlagio    FeedbackQuestaoPlagio[]
   questoesProibicao FeedbackQuestaoProibicao[]

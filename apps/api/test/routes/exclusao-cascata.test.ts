@@ -15,6 +15,7 @@ describe("DELETE /grupos-revisao/:id", () => {
   let duplaId: string;
   let monitorId: string;
   let alunoId: string;
+  let feedbackMovidoId: string;
 
   beforeAll(async () => {
     const periodo = await prisma.periodo.create({
@@ -82,8 +83,9 @@ describe("DELETE /grupos-revisao/:id", () => {
 
     // Simula um aluno que registrou feedback numa dupla e depois foi movido pra outra
     // — Feedback.duplaId é um retrato de quando o feedback foi criado, não acompanha
-    // Aluno.duplaId depois. A dupla original (com o feedback "órfão" apontando pra
-    // ela) também precisa impedir que o grupo inteiro seja apagado.
+    // Aluno.duplaId depois. O feedback é do monitor (Feedback.monitorId), não da
+    // dupla — excluir o grupo/dupla não deve apagar nem bloquear esse histórico,
+    // só limpar a referência (Feedback.duplaId vira null via SetNull no schema).
     const outraDupla = await prisma.dupla.create({
       data: { grupoRevisaoId: grupo.id, label: "Dupla 2" },
     });
@@ -104,12 +106,13 @@ describe("DELETE /grupos-revisao/:id", () => {
         ordem: 1,
       },
     });
-    await criarFeedback(prisma, {
+    const feedbackMovido = await criarFeedback(prisma, {
       alunoId: alunoMovido.id,
       monitorId: monitor.id,
       listaId: lista.id,
       qtdQuestoesPontuadas: 4,
     });
+    feedbackMovidoId = feedbackMovido.id;
     await prisma.aluno.update({
       where: { id: alunoMovido.id },
       data: { duplaId: outraDupla.id, monitorSemanaAId: null },
@@ -129,25 +132,34 @@ describe("DELETE /grupos-revisao/:id", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("bloqueia a exclusão do grupo quando uma de suas duplas possui feedback", async () => {
+  it("exclui o grupo mesmo com feedback vinculado às duplas, preservando o histórico", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/grupos-revisao/${grupoId}`,
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(response.statusCode).toBe(409);
-    expect(response.json().message).toContain("feedbacks registrados");
+    expect(response.statusCode).toBe(204);
 
-    expect(await prisma.grupoRevisao.findUnique({ where: { id: grupoId } })).not.toBeNull();
-    expect(await prisma.dupla.findUnique({ where: { id: duplaId } })).not.toBeNull();
+    expect(await prisma.grupoRevisao.findUnique({ where: { id: grupoId } })).toBeNull();
+    expect(await prisma.dupla.findUnique({ where: { id: duplaId } })).toBeNull();
+
+    // Aluno e monitor perdem o vínculo com a dupla que não existe mais, mas
+    // continuam existindo normalmente.
     const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });
-    expect(aluno?.duplaId).toBe(duplaId);
-    expect(aluno?.monitorSemanaAId).toBe(monitorId);
+    expect(aluno).not.toBeNull();
+    expect(aluno?.duplaId).toBeNull();
+    expect(aluno?.monitorSemanaAId).toBeNull();
 
     const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
     expect(monitor).not.toBeNull();
-    expect(monitor?.duplaId).toBe(duplaId);
-    expect(await prisma.feedback.count({ where: { duplaId } })).toBe(1);
+    expect(monitor?.duplaId).toBeNull();
+
+    // O feedback do aluno que já tinha trocado de dupla continua existindo, com
+    // monitor e aluno intactos — só a referência à dupla apagada some.
+    const feedback = await prisma.feedback.findUnique({ where: { id: feedbackMovidoId } });
+    expect(feedback).not.toBeNull();
+    expect(feedback?.duplaId).toBeNull();
+    expect(feedback?.monitorId).toBe(monitorId);
   });
 });
 

@@ -78,7 +78,7 @@ export function Gestao({
     onRequestConfirm({
       title: `Excluir ${grupo.nome}?`,
       message: gd.length
-        ? `Isso também remove ${gd.length} dupla(s). A operação será bloqueada se existir feedback no grupo. ${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla.`
+        ? `Isso também remove ${gd.length} dupla(s). ${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla. Feedbacks já registrados não são apagados — só deixam de referenciar essa dupla/grupo.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir grupo",
       onConfirm: () => run(() => api.excluirGrupo(token, grupo.id)),
@@ -89,7 +89,7 @@ export function Gestao({
     onRequestConfirm({
       title: "Excluir dupla?",
       message: qtdAlunos
-        ? `A operação será bloqueada se existir feedback ligado à dupla. ${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla.`
+        ? `${qtdAlunos} aluno(s) e os monitores serão preservados, mas ficarão sem dupla. Feedbacks já registrados não são apagados — só deixam de referenciar essa dupla.`
         : "Esta ação não pode ser desfeita.",
       confirmLabel: "Excluir dupla",
       onConfirm: () => run(() => api.excluirDupla(token, dupla.id)),

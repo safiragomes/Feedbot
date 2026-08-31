@@ -21,26 +21,30 @@ function prismaSemFeedback() {
 }
 
 describe("exclusões seguras da gestão", () => {
-  it("bloqueia os recursos que possuem feedback", async () => {
+  it("bloqueia só o monitor quando há feedback vinculado (feedback é dele, não da dupla/grupo)", async () => {
     const prisma = {
       feedback: { count: vi.fn().mockResolvedValue(1) },
     } as unknown as PrismaClient;
 
-    await expect(excluirGrupoRevisao(prisma, "grupo")).rejects.toBeInstanceOf(GestaoErro);
-    await expect(excluirDupla(prisma, "dupla")).rejects.toBeInstanceOf(GestaoErro);
     await expect(excluirMonitor(prisma, "monitor")).rejects.toBeInstanceOf(GestaoErro);
   });
 
-  it("mantém as exclusões de recursos sem histórico", async () => {
+  it("permite excluir grupo/dupla mesmo com feedback vinculado — a referência só some (SetNull)", async () => {
     const grupo = prismaSemFeedback();
     const dupla = prismaSemFeedback();
-    const monitor = prismaSemFeedback();
 
     await expect(excluirGrupoRevisao(grupo, "grupo")).resolves.toBeUndefined();
     await expect(excluirDupla(dupla, "dupla")).resolves.toBeUndefined();
-    await expect(excluirMonitor(monitor, "monitor")).resolves.toBeUndefined();
     expect(grupo.$transaction).toHaveBeenCalledOnce();
     expect(dupla.$transaction).toHaveBeenCalledOnce();
+    expect(grupo.feedback.count).not.toHaveBeenCalled();
+    expect(dupla.feedback.count).not.toHaveBeenCalled();
+  });
+
+  it("mantém a exclusão de monitor sem histórico", async () => {
+    const monitor = prismaSemFeedback();
+
+    await expect(excluirMonitor(monitor, "monitor")).resolves.toBeUndefined();
     expect(monitor.monitor.delete).toHaveBeenCalledWith({ where: { id: "monitor" } });
   });
 });
