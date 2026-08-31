@@ -20,7 +20,9 @@ COPY apps/api apps/api
 # de sobra de um `prisma generate` local anterior, o que falha silenciosamente
 # em CI/deploy de verdade.
 RUN pnpm --filter @feedbot/api exec prisma generate
-RUN pnpm --filter @feedbot/api build
+# tsc pode estourar o heap padrão do V8 em hosts com pouca RAM (ex.: instâncias
+# free-tier de 1GB); folga explícita evita OOM durante o build de produção.
+RUN NODE_OPTIONS="--max-old-space-size=1536" pnpm --filter @feedbot/api build
 RUN chmod +x apps/api/docker-entrypoint.sh
 
 WORKDIR /app/apps/api
