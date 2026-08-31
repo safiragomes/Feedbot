@@ -6,7 +6,7 @@ import { buildApp } from "../../src/app.js";
 import { hashPassword, hashToken, newSessionToken } from "../../src/auth/password.js";
 
 describe("POST /alunos", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const telefoneTeste = `+5581${Number.parseInt(randomUUID().slice(0, 8), 16)
     .toString()
     .padStart(10, "0")

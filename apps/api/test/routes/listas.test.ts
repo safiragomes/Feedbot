@@ -6,7 +6,7 @@ import { hashPassword, hashToken, newSessionToken } from "../../src/auth/passwor
 import { NUM_LISTAS_POR_PERIODO, QTD_QUESTOES_PADRAO } from "../../src/domain/lista.js";
 
 describe("Listas fixas por período e prazos por turma", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const app = buildApp({ prisma });
   const token = newSessionToken();
 

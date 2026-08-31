@@ -5,7 +5,7 @@ import { calcularSemana } from "../../src/domain/semana.js";
 import { criarFeedback, resolverMonitorResponsavel } from "../../src/services/feedback.js";
 
 describe("criarFeedback", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const dataReferenciaRodizio = new Date("2026-08-03T00:00:00Z");
 
   let periodoId: string;
@@ -353,7 +353,7 @@ describe("criarFeedback", () => {
 });
 
 describe("criarFeedback - dupla com um único monitor (chefe sem parceiro)", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const dataReferenciaRodizio = new Date("2026-08-03T00:00:00Z");
 
   let periodoId: string;

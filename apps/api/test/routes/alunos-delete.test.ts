@@ -6,7 +6,7 @@ import { hashPassword, hashToken, newSessionToken } from "../../src/auth/passwor
 import { criarFeedback } from "../../src/services/feedback.js";
 
 describe("DELETE /alunos/:id", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const app = buildApp({ prisma });
   const token = newSessionToken();
 

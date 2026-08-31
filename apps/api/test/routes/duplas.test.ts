@@ -5,7 +5,7 @@ import { buildApp } from "../../src/app.js";
 import { hashPassword, hashToken, newSessionToken } from "../../src/auth/password.js";
 
 describe("Dupla de monitores e atribuição de monitor A por aluno", () => {
-  const sufixo = Date.now();
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const app = buildApp({ prisma });
   const token = newSessionToken();
 
