@@ -130,15 +130,15 @@ export function BotPage({
           <button
             className="btn primary"
             style={{ width: "100%", justifyContent: "center" }}
-            disabled={carregando || status !== "DESCONECTADO" || possuiCredenciaisAntigas}
+            disabled={carregando || status !== "DESCONECTADO"}
             onClick={conectar}
           >
             <IconWhatsapp />
-            {status === "DESCONECTADO" && !possuiCredenciaisAntigas
-              ? "Conectar bot"
+            {status !== "DESCONECTADO"
+              ? "Conectando…"
               : possuiCredenciaisAntigas
-                ? "Desvincule o número antigo primeiro"
-                : "Conectando…"}
+                ? "Reconectar"
+                : "Conectar bot"}
           </button>
           {(status !== "DESCONECTADO" || possuiCredenciaisAntigas) && (
             <button
