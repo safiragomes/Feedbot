@@ -278,6 +278,16 @@ export function MonitorDrawer({
     (a) => monitorSemanaB(monitoresDupla, a.monitorSemanaAId)?.id === monitor.id,
   );
   const atrasosAbertos = atrasos.filter((atraso) => atraso.monitorId === monitor.id);
+  // A mesma conta usada no back-end (posição da lista, ímpar = semana A, salvo
+  // override) — precisa pra saber qual roster (alunosA ou alunosB) vale pra cada
+  // lista no histórico detalhado abaixo.
+  const listasOrdenadas = [...listas].sort((a, b) => a.ordem - b.ordem);
+  const semanaPorLista = new Map(
+    listasOrdenadas.map((lista, index) => [
+      lista.id,
+      lista.semanaOverride ?? (((index + 1) % 2 === 1 ? "A" : "B") as "A" | "B"),
+    ]),
+  );
 
   // Monitor B nunca é armazenado — é sempre "o outro monitor da dupla" (ou o próprio,
   // sem parceiro). Por isso desatribuir este monitor de um aluno (seja como A ou como
@@ -315,16 +325,17 @@ export function MonitorDrawer({
         <MiniRow label="Papel">{monitor.isChefe ? "Chefe de monitoria" : "Monitor"}</MiniRow>
       </div>
       <div className="drawer-section">
-        <h5>Feedbacks em atraso</h5>
-        {atrasosAbertos.length ? (
-          atrasosAbertos.map((atraso) => (
-            <MiniRow key={`${atraso.alunoId}:${atraso.listaId}`} label={atraso.listaNome}>
-              <Chip tone="danger">{atraso.alunoNome}</Chip>
+        <h5>Progresso por lista</h5>
+        {listas.map((lista) => {
+          const pendentes = atrasosAbertos.filter((a) => a.listaId === lista.id).length;
+          return (
+            <MiniRow key={lista.id} label={lista.nome}>
+              <Chip tone={pendentes ? "danger" : "ok"}>
+                {pendentes ? `${pendentes} pendente(s)` : "em dia"}
+              </Chip>
             </MiniRow>
-          ))
-        ) : (
-          <p className="mono-cell">nenhum feedback em atraso</p>
-        )}
+          );
+        })}
       </div>
       <div className="drawer-section">
         <h5>Alunos · semana A</h5>
@@ -365,22 +376,32 @@ export function MonitorDrawer({
         )}
       </div>
       <div className="drawer-section">
-        <h5>Histórico por lista</h5>
+        <h5>Histórico detalhado</h5>
         {listas.map((lista) => {
-          const f = mfb.find((x) => x.listaId === lista.id);
-          if (!f)
-            return (
-              <MiniRow key={lista.id} label={lista.nome}>
-                <span className="mono-cell">sem registro</span>
-              </MiniRow>
-            );
-          const emDia = noPrazo(f.criadoEm, f.prazoEntregaFeedback);
+          const roster = semanaPorLista.get(lista.id) === "A" ? alunosA : alunosB;
+          if (!roster.length) return null;
           return (
-            <MiniRow key={lista.id} label={lista.nome}>
-              <Chip tone={emDia === null ? "off" : emDia ? "ok" : "warn"}>
-                {emDia === null ? "sem prazo" : emDia ? "no prazo" : "entregue com atraso"}
-              </Chip>
-            </MiniRow>
+            <div key={lista.id} style={{ marginBottom: 10 }}>
+              <span className="l" style={{ display: "block", marginBottom: 4 }}>
+                {lista.nome}
+              </span>
+              {roster.map((aluno) => {
+                const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === aluno.id);
+                const emDia = f ? noPrazo(f.criadoEm, f.prazoEntregaFeedback) : undefined;
+                const [texto, tone] = !f
+                  ? (["pendente", "danger"] as const)
+                  : emDia === null
+                    ? (["sem prazo definido", "off"] as const)
+                    : emDia
+                      ? (["no prazo", "ok"] as const)
+                      : (["entregue com atraso", "warn"] as const);
+                return (
+                  <MiniRow key={aluno.id} label={aluno.nome}>
+                    <Chip tone={tone}>{texto}</Chip>
+                  </MiniRow>
+                );
+              })}
+            </div>
           );
         })}
       </div>
