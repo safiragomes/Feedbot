@@ -113,11 +113,38 @@ BACKUP_DIR=/caminho/fora-do-projeto ./scripts/backup-database.sh
 Agende-o no `cron` do servidor e copie os arquivos para outro equipamento ou armazenamento. Teste
 periodicamente a restauração. O script não apaga backups antigos automaticamente.
 
+### Não leve o banco local para produção
+
+O dump inicial (`pg_dump` do banco local restaurado em produção) foi um passo **único**, de
+inicialização — usado apenas para levar a primeira conta de chefe real sem depender do fluxo de
+bootstrap. Não repita isso depois que a produção estiver no ar: o banco local normalmente acumula
+dados de teste/seed (`prisma:seed`), e um dump gerado dali para produção mistura esse lixo com os
+dados reais — foi exatamente isso que aconteceu no primeiro deploy e exigiu limpeza manual depois.
+
+A partir do primeiro deploy bem-sucedido, os dois bancos são independentes: qualquer cadastro real
+(monitor, grupo, dupla) é feito **direto no painel em produção**. O banco local serve só para testar
+código antes de subir uma correção — o que viaja de local para produção é o *código* (via Git +
+imagem no GHCR), nunca o banco de dados.
+
 ### Atualizações
 
+Como o build do frontend/API não cabe confortavelmente em instâncias de 1 vCPU/1GB, as imagens são
+compiladas localmente e publicadas no GitHub Container Registry — o servidor só baixa a imagem
+pronta, nunca compila:
+
 ```bash
+# no seu computador, após alterar o código:
+docker build -f apps/api/Dockerfile -t ghcr.io/safiragomes/feedbot-api:latest .
+docker build -f apps/web/Dockerfile -t ghcr.io/safiragomes/feedbot-web:latest --build-arg VITE_API_URL=/api .
+docker push ghcr.io/safiragomes/feedbot-api:latest
+docker push ghcr.io/safiragomes/feedbot-web:latest
+```
+
+```bash
+# no servidor:
 git pull --ff-only
-docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
+docker compose --env-file .env.production -f docker-compose.production.yml pull
+docker compose --env-file .env.production -f docker-compose.production.yml up -d
 ```
 
 Antes de atualizar, crie um backup. Confira a instalação com `docker compose ... ps` e com
