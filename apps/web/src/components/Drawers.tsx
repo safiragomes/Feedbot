@@ -387,7 +387,17 @@ export function MonitorDrawer({
       <div className="drawer-section">
         <h5>Histórico detalhado</h5>
         {listas.map((lista) => {
-          const roster = semanaPorLista.get(lista.id) === "A" ? alunosA : alunosB;
+          const rosterAtual = semanaPorLista.get(lista.id) === "A" ? alunosA : alunosB;
+          const idsAtuais = new Set(rosterAtual.map((a) => a.id));
+          // Alunos que já receberam feedback deste monitor nesta lista continuam
+          // aparecendo mesmo depois de desvinculados da dupla — o registro é
+          // histórico e não deve sumir, só sinalizar que o vínculo atual não existe mais.
+          const roster = [
+            ...rosterAtual.map((a) => ({ id: a.id, nome: a.nome, desvinculado: false, aluno: a })),
+            ...mfb
+              .filter((f) => f.listaId === lista.id && !idsAtuais.has(f.alunoId))
+              .map((f) => ({ id: f.alunoId, nome: f.aluno.nome, desvinculado: true, aluno: undefined })),
+          ];
           if (!roster.length) return null;
           const aberta = listaHistoricoAberta === lista.id;
           return (
@@ -404,8 +414,8 @@ export function MonitorDrawer({
                 />
               </button>
               {aberta &&
-                roster.map((aluno) => {
-                  const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === aluno.id);
+                roster.map((item) => {
+                  const f = mfb.find((x) => x.listaId === lista.id && x.alunoId === item.id);
                   let texto: string;
                   let tone: "ok" | "warn" | "danger" | "off";
                   if (f) {
@@ -414,13 +424,16 @@ export function MonitorDrawer({
                     else if (emDia) [texto, tone] = ["no prazo", "ok"];
                     else [texto, tone] = ["entregue com atraso", "warn"];
                   } else {
-                    const prazo = prazoEfetivo(aluno, lista);
+                    const prazo = item.aluno ? prazoEfetivo(item.aluno, lista) : null;
                     if (!prazo) [texto, tone] = ["sem prazo definido", "off"];
                     else if (new Date(prazo) < new Date()) [texto, tone] = ["atrasado", "danger"];
                     else [texto, tone] = ["pendente", "warn"];
                   }
                   return (
-                    <MiniRow key={aluno.id} label={aluno.nome}>
+                    <MiniRow
+                      key={item.id}
+                      label={item.desvinculado ? `${item.nome} (desvinculado)` : item.nome}
+                    >
                       <Chip tone={tone}>{texto}</Chip>
                     </MiniRow>
                   );
