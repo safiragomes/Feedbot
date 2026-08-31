@@ -4,7 +4,7 @@ import { IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { FilterSelect } from "../components/FilterSelect";
-import { solicitarRemocaoMonitor } from "../lib/acoes";
+import { solicitarRemocaoMonitor, solicitarRemocaoVariosMonitores } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
 import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
 import { api } from "../lib/api";
@@ -40,6 +40,7 @@ export function DiretorioMonitores({
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
   const [modal, setModal] = useState<"novo" | Monitor | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const q = busca.trim().toLowerCase();
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
@@ -77,6 +78,27 @@ export function DiretorioMonitores({
   function confirmarExclusao(monitor: Monitor, event: React.MouseEvent) {
     event.stopPropagation();
     solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
+  }
+
+  function alternarSelecao(id: string) {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  }
+
+  function confirmarExclusaoSelecionados() {
+    const monitoresSelecionados = filtrados.filter((m) => selecionados.has(m.id));
+    solicitarRemocaoVariosMonitores({
+      monitores: monitoresSelecionados,
+      token,
+      onRequestConfirm,
+      onReload,
+      onErro: setErro,
+      onConcluido: () => setSelecionados(new Set()),
+    });
   }
 
   async function promoverChefe(monitor: Monitor, event: React.MouseEvent) {
@@ -193,6 +215,12 @@ export function DiretorioMonitores({
           </div>
         </div>
         <div className="head-actions">
+          {selecionados.size > 0 && (
+            <button className="btn sm danger-solid" onClick={confirmarExclusaoSelecionados}>
+              <IconTrash />
+              Remover {selecionados.size} selecionado{selecionados.size === 1 ? "" : "s"}
+            </button>
+          )}
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
@@ -277,6 +305,11 @@ export function DiretorioMonitores({
             hint="Ajuste os filtros ou a busca acima."
           />
         }
+        selection={{
+          selectedKeys: selecionados,
+          onToggleRow: alternarSelecao,
+          onToggleAll: (keys) => setSelecionados(new Set(keys)),
+        }}
       />
       {modal === "novo" && (
         <NovoMonitorModal

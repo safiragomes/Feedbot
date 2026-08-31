@@ -54,6 +54,20 @@ function loadTheme(): ThemeMode {
   return saved === "light" ? "light" : "dark";
 }
 
+const PAGE_IDS: PageId[] = [
+  "dashboard",
+  "diretorio-alunos",
+  "diretorio-monitores",
+  "gestao",
+  "planilha",
+  "bot",
+];
+
+function loadPage(): PageId {
+  const saved = sessionStorage.getItem("feedbot-page");
+  return PAGE_IDS.includes(saved as PageId) ? (saved as PageId) : "dashboard";
+}
+
 function App() {
   const [token, setToken] = useState(() => {
     localStorage.removeItem("feedbot-token");
@@ -61,7 +75,7 @@ function App() {
     return loadChefe() ? "cookie-session" : "";
   });
   const [chefe, setChefe] = useState<Chefe | null>(() => loadChefe());
-  const [page, setPage] = useState<PageId>("dashboard");
+  const [page, setPage] = useState<PageId>(() => loadPage());
   const [dashboardView, setDashboardView] = useState<"alunos" | "monitores">("alunos");
   const [periodoId, setPeriodoId] = useState("");
   const [erro, setErro] = useState("");
@@ -181,6 +195,10 @@ function App() {
     localStorage.setItem("feedbot-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    sessionStorage.setItem("feedbot-page", page);
+  }, [page]);
+
   function handleLogin(newChefe: Chefe) {
     sessionStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
     setToken("cookie-session");
@@ -190,9 +208,11 @@ function App() {
     void api.logout(token).catch(() => undefined);
     localStorage.removeItem("feedbot-token");
     sessionStorage.removeItem("feedbot-chefe");
+    sessionStorage.removeItem("feedbot-page");
     setToken("");
     setChefe(null);
     setPeriodoId("");
+    setPage("dashboard");
   }
   function handleChangePeriodo(id: string) {
     setDrawer(null);

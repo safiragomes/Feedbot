@@ -32,6 +32,80 @@ export function solicitarRemocaoAluno({
   });
 }
 
+export function solicitarRemocaoVariosAlunos({
+  alunos,
+  token,
+  onRequestConfirm,
+  onReload,
+  onErro,
+  onConcluido,
+}: {
+  alunos: { id: string; nome: string }[];
+  token: string;
+  onRequestConfirm: (request: ConfirmRequest) => void;
+  onReload: () => Promise<void>;
+  onErro: (mensagem: string) => void;
+  onConcluido: () => void;
+}) {
+  onRequestConfirm({
+    title: `Remover ${alunos.length} aluno${alunos.length === 1 ? "" : "s"}?`,
+    message:
+      "Alunos que já possuem feedback registrado não serão removidos, para preservar o histórico acadêmico; os demais serão excluídos.",
+    confirmLabel: "Remover selecionados",
+    onConfirm: async () => {
+      onErro("");
+      const resultados = await Promise.allSettled(
+        alunos.map((aluno) => api.excluirAluno(token, aluno.id)),
+      );
+      const falhas = resultados.filter((r) => r.status === "rejected").length;
+      onConcluido();
+      await onReload();
+      if (falhas > 0) {
+        onErro(
+          `${falhas} de ${alunos.length} aluno${alunos.length === 1 ? "" : "s"} não ${falhas === 1 ? "pôde" : "puderam"} ser removido${falhas === 1 ? "" : "s"} (provavelmente já tem feedback registrado).`,
+        );
+      }
+    },
+  });
+}
+
+export function solicitarRemocaoVariosMonitores({
+  monitores,
+  token,
+  onRequestConfirm,
+  onReload,
+  onErro,
+  onConcluido,
+}: {
+  monitores: { id: string; nome: string }[];
+  token: string;
+  onRequestConfirm: (request: ConfirmRequest) => void;
+  onReload: () => Promise<void>;
+  onErro: (mensagem: string) => void;
+  onConcluido: () => void;
+}) {
+  onRequestConfirm({
+    title: `Excluir ${monitores.length} monitor${monitores.length === 1 ? "" : "es"}?`,
+    message:
+      "Monitores que já têm feedback registrado não serão removidos; os demais serão excluídos.",
+    confirmLabel: "Excluir selecionados",
+    onConfirm: async () => {
+      onErro("");
+      const resultados = await Promise.allSettled(
+        monitores.map((monitor) => api.excluirMonitor(token, monitor.id)),
+      );
+      const falhas = resultados.filter((r) => r.status === "rejected").length;
+      onConcluido();
+      await onReload();
+      if (falhas > 0) {
+        onErro(
+          `${falhas} de ${monitores.length} monitor${monitores.length === 1 ? "" : "es"} não ${falhas === 1 ? "pôde" : "puderam"} ser removido${falhas === 1 ? "" : "s"} (provavelmente já tem feedback registrado).`,
+        );
+      }
+    },
+  });
+}
+
 export function solicitarRemocaoMonitor({
   monitor,
   token,

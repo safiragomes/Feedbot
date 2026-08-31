@@ -10,6 +10,12 @@ export type DataTableColumn<T> = {
   headStyle?: CSSProperties;
 };
 
+export type DataTableSelection = {
+  selectedKeys: Set<string>;
+  onToggleRow: (key: string) => void;
+  onToggleAll: (keys: string[]) => void;
+};
+
 export function DataTable<T>({
   columns,
   rows,
@@ -18,6 +24,7 @@ export function DataTable<T>({
   pageSize = 20,
   emptyState,
   className,
+  selection,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
@@ -26,6 +33,7 @@ export function DataTable<T>({
   pageSize?: number;
   emptyState?: ReactNode;
   className?: string;
+  selection?: DataTableSelection;
 }) {
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
   const [page, setPage] = useState(0);
@@ -63,11 +71,32 @@ export function DataTable<T>({
     });
   }
 
+  const todasChaves = useMemo(() => rows.map(rowKey), [rows, rowKey]);
+  const todasSelecionadas =
+    selection !== undefined &&
+    todasChaves.length > 0 &&
+    todasChaves.every((key) => selection.selectedKeys.has(key));
+  const algumasSelecionadas =
+    selection !== undefined && !todasSelecionadas && todasChaves.some((key) => selection.selectedKeys.has(key));
+
   return (
     <div className={`table-wrap${className ? ` ${className}` : ""}`}>
       <table>
         <thead>
           <tr>
+            {selection && (
+              <th style={{ width: 36 }}>
+                <input
+                  type="checkbox"
+                  aria-label="Selecionar todos"
+                  checked={todasSelecionadas}
+                  ref={(el) => {
+                    if (el) el.indeterminate = algumasSelecionadas;
+                  }}
+                  onChange={() => selection.onToggleAll(todasSelecionadas ? [] : todasChaves)}
+                />
+              </th>
+            )}
             {columns.map((col) => (
               <th key={col.key} style={col.headStyle}>
                 {col.sortValue ? (
@@ -98,19 +127,32 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {pageRows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              className={onRowClick ? "clickable" : undefined}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
-              {columns.map((col) => (
-                <td key={col.key} style={{ textAlign: col.align }}>
-                  {col.render(row)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {pageRows.map((row) => {
+            const key = rowKey(row);
+            return (
+              <tr
+                key={key}
+                className={onRowClick ? "clickable" : undefined}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {selection && (
+                  <td onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar linha"
+                      checked={selection.selectedKeys.has(key)}
+                      onChange={() => selection.onToggleRow(key)}
+                    />
+                  </td>
+                )}
+                {columns.map((col) => (
+                  <td key={col.key} style={{ textAlign: col.align }}>
+                    {col.render(row)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {!rows.length && emptyState}

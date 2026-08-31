@@ -4,7 +4,7 @@ import { IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { FilterSelect } from "../components/FilterSelect";
-import { solicitarRemocaoAluno } from "../lib/acoes";
+import { solicitarRemocaoAluno, solicitarRemocaoVariosAlunos } from "../lib/acoes";
 import { turmasUnicas } from "../lib/format";
 
 type TipoOcorrencia = "ia" | "plagio" | "proibicao";
@@ -34,6 +34,7 @@ export function DiretorioAlunos({
   const [ocorrencias, setOcorrencias] = useState<TipoOcorrencia[]>([]);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const turmas = useMemo(() => turmasUnicas(alunos), [alunos]);
 
@@ -99,6 +100,27 @@ export function DiretorioAlunos({
   function confirmarExclusao(aluno: Aluno, event: React.MouseEvent) {
     event.stopPropagation();
     solicitarRemocaoAluno({ aluno, token, onRequestConfirm, onReload, onErro: setErro });
+  }
+
+  function alternarSelecao(id: string) {
+    setSelecionados((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      return proximo;
+    });
+  }
+
+  function confirmarExclusaoSelecionados() {
+    const alunosSelecionados = filtrados.filter((a) => selecionados.has(a.id));
+    solicitarRemocaoVariosAlunos({
+      alunos: alunosSelecionados,
+      token,
+      onRequestConfirm,
+      onReload,
+      onErro: setErro,
+      onConcluido: () => setSelecionados(new Set()),
+    });
   }
 
   const alunoColunas: DataTableColumn<Aluno>[] = [
@@ -190,6 +212,12 @@ export function DiretorioAlunos({
           </div>
         </div>
         <div className="head-actions">
+          {selecionados.size > 0 && (
+            <button className="btn sm danger-solid" onClick={confirmarExclusaoSelecionados}>
+              <IconTrash />
+              Remover {selecionados.size} selecionado{selecionados.size === 1 ? "" : "s"}
+            </button>
+          )}
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
@@ -286,6 +314,11 @@ export function DiretorioAlunos({
         emptyState={
           <EmptyState title="Nenhum aluno encontrado" hint="Ajuste os filtros ou a busca acima." />
         }
+        selection={{
+          selectedKeys: selecionados,
+          onToggleRow: alternarSelecao,
+          onToggleAll: (keys) => setSelecionados(new Set(keys)),
+        }}
       />
     </>
   );
