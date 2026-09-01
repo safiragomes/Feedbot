@@ -34,6 +34,10 @@ model Periodo {
   dataFim                DateTime
   dataReferenciaRodizio  DateTime
   ativo                  Boolean   @default(true)
+  // Critério de desempate quando dois períodos têm o mesmo dataInicio — sem isso,
+  // a ordem de retorno de /periodos (e portanto o período escolhido por padrão no
+  // login) fica indefinida entre eles.
+  criadoEm               DateTime  @default(now())
   whatsappAvisosId       String?   @unique
   whatsappComunidadeNome String?
   planilhaId             String?
@@ -250,7 +254,11 @@ model PrazoAlunoLista {
 model Feedback {
   id                   String   @id @default(cuid())
   alunoId              String
-  monitorId            String
+  monitorId            String?
+  // Retrato do nome do monitor no momento do registro. monitorId vira null se o
+  // monitor for excluído (SetNull); este campo garante que o histórico continua
+  // mostrando quem atendeu o aluno mesmo depois disso.
+  monitorNome          String
   listaId              String
   duplaId              String?
   semana               Semana
@@ -263,7 +271,9 @@ model Feedback {
   atualizadoEm         DateTime @updatedAt
 
   aluno             Aluno                      @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  monitor           Monitor                    @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  // O feedback é sobre o aluno; o monitor é só quem registrou. Excluir o monitor não
+  // pode apagar o histórico acadêmico do aluno — só perde essa referência de autoria.
+  monitor           Monitor?                   @relation(fields: [monitorId], references: [id], onDelete: SetNull)
   lista             Lista                      @relation(fields: [listaId], references: [id])
   dupla             Dupla?                     @relation(fields: [duplaId], references: [id], onDelete: SetNull)
   questoesIa        FeedbackQuestaoIA[]

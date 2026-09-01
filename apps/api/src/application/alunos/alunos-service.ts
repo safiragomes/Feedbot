@@ -157,14 +157,17 @@ export async function importarAlunos(prisma: PrismaClient, csv: string) {
   return alunos.length;
 }
 
-export async function excluirAlunoSemHistorico(prisma: PrismaClient, alunoId: string) {
-  const feedbacks = await prisma.feedback.count({ where: { alunoId } });
-  if (feedbacks > 0) {
-    throw new AlunoComHistoricoErro(
-      "Existem feedbacks registrados para este aluno; use o fluxo de anonimização para preservar o histórico.",
-    );
-  }
+// Feedback.alunoId é onDelete: Cascade no schema: excluir o aluno apaga em cascata
+// todo o histórico de feedback dele. Decisão do chefe de monitoria: a exclusão deve
+// funcionar mesmo com histórico, sem bloqueio — não há fluxo de anonimização exposto
+// na interface hoje para justificar impedir a exclusão.
+export async function excluirAluno(prisma: PrismaClient, alunoId: string) {
   await prisma.aluno.delete({ where: { id: alunoId } });
 }
 
-export class AlunoComHistoricoErro extends Error {}
+// Um DELETE por aluno em lotes grandes estoura o rate limit da API (cada requisição
+// conta pra cota) — deleteMany faz tudo numa única query, independente da quantidade.
+export async function excluirAlunos(prisma: PrismaClient, alunoIds: string[]) {
+  const resultado = await prisma.aluno.deleteMany({ where: { id: { in: alunoIds } } });
+  return resultado.count;
+}

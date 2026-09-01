@@ -6,7 +6,11 @@ import type {
   EmailSender,
 } from "../application/auth/convites-service.js";
 
-export type { AvisoBotEmail, ConviteEmail, EmailSender } from "../application/auth/convites-service.js";
+export type {
+  AvisoBotEmail,
+  ConviteEmail,
+  EmailSender,
+} from "../application/auth/convites-service.js";
 
 function smtpConfig() {
   const host = process.env["SMTP_HOST"];

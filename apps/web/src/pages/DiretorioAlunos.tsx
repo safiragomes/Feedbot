@@ -85,6 +85,11 @@ export function DiretorioAlunos({
     ),
   ).length;
   const alunosSemDupla = filtrados.filter((aluno) => !aluno.duplaId).length;
+  // A exclusão em massa só considera quem está selecionado E ainda visível sob os
+  // filtros atuais — sem isso, o contador do botão ficava desatualizado quando o
+  // filtro mudava depois da seleção (ex.: mostrava "3 selecionados" mas a exclusão
+  // de fato afetava 0, porque nenhum dos 3 seguia visível).
+  const selecionadosVisiveis = filtrados.filter((a) => selecionados.has(a.id));
   const filtrosAtivos = [turma, grupoId, listaId, busca.trim(), ocorrencias.join(",")].filter(
     Boolean,
   ).length;
@@ -112,9 +117,8 @@ export function DiretorioAlunos({
   }
 
   function confirmarExclusaoSelecionados() {
-    const alunosSelecionados = filtrados.filter((a) => selecionados.has(a.id));
     solicitarRemocaoVariosAlunos({
-      alunos: alunosSelecionados,
+      alunos: selecionadosVisiveis,
       token,
       onRequestConfirm,
       onReload,
@@ -212,10 +216,11 @@ export function DiretorioAlunos({
           </div>
         </div>
         <div className="head-actions">
-          {selecionados.size > 0 && (
+          {selecionadosVisiveis.length > 0 && (
             <button className="btn sm danger-solid" onClick={confirmarExclusaoSelecionados}>
               <IconTrash />
-              Remover {selecionados.size} selecionado{selecionados.size === 1 ? "" : "s"}
+              Remover {selecionadosVisiveis.length} selecionado
+              {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>

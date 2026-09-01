@@ -92,14 +92,20 @@ export function VincularAlunoModal({
         <button
           type="button"
           className={`btn sm${modo === "existentes" ? " primary" : ""}`}
-          onClick={() => setModo("existentes")}
+          onClick={() => {
+            setErro("");
+            setModo("existentes");
+          }}
         >
           Selecionar existentes
         </button>
         <button
           type="button"
           className={`btn sm${modo === "novo" ? " primary" : ""}`}
-          onClick={() => setModo("novo")}
+          onClick={() => {
+            setErro("");
+            setModo("novo");
+          }}
         >
           Cadastrar novo
         </button>

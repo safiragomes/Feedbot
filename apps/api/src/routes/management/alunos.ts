@@ -3,8 +3,8 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 import { requireChief } from "../../auth/require-chief.js";
 import {
   atribuirAlunosADupla,
-  AlunoComHistoricoErro,
-  excluirAlunoSemHistorico,
+  excluirAluno,
+  excluirAlunos,
   importarAlunos,
   validarMonitorSemanaA,
   validarVinculosAluno,
@@ -139,13 +139,19 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
   });
 
   app.delete("/alunos/:id", protectedRoute, async (request, reply) => {
-    try {
-      await excluirAlunoSemHistorico(prisma, (request.params as IdParams).id);
-    } catch (error) {
-      if (error instanceof AlunoComHistoricoErro) return reply.conflict(error.message);
-      throw error;
-    }
+    await excluirAluno(prisma, (request.params as IdParams).id);
     return reply.code(204).send();
+  });
+
+  app.post("/alunos/excluir-lote", protectedRoute, async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map(parseText).filter((id): id is string => Boolean(id))
+      : [];
+    if (ids.length === 0 || ids.length > 500) {
+      return reply.badRequest("Informe de 1 a 500 alunos");
+    }
+    return { excluidos: await excluirAlunos(prisma, ids) };
   });
 
   app.put("/alunos/:id/prazos-lista", protectedRoute, async (request, reply) => {

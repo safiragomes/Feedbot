@@ -104,6 +104,17 @@ function App() {
   // acabaram de ser vinculados). `loadRequestId` garante que só a última chamada em
   // curso tem permissão de aplicar seu resultado ao estado.
   const loadRequestId = useRef(0);
+  // Guarda o caso "load() resolveu o período padrão sozinho" (periodoId estava vazio)
+  // pra distinguir do usuário trocando de período de propósito — só o segundo caso
+  // deve disparar um novo load() pelo efeito de baixo (senão login/refresh sempre
+  // faziam duas rodadas completas de requisições, uma delas jogada fora).
+  const periodoResolvidoAoCarregar = useRef(false);
+  // O efeito de periodoId roda também na primeira montagem (com periodoId ainda
+  // vazio) — nesse instante o efeito de token já cobre o carregamento, então essa
+  // primeira execução deve ser ignorada. Mas ao contrário do que um simples
+  // `if (!periodoId) return` faria, transições PARA "" depois da montagem (ex.:
+  // excluir o período ativo, ver Topbar) continuam precisando recarregar.
+  const periodoEfeitoMontado = useRef(false);
   const load = useCallback(async () => {
     if (!token) return;
     const requestId = ++loadRequestId.current;
@@ -117,6 +128,7 @@ function App() {
         setErro("");
         return;
       }
+      if (!periodoId) periodoResolvidoAoCarregar.current = true;
       const [
         turmasResp,
         gruposResp,
@@ -160,12 +172,36 @@ function App() {
   }, [token, periodoId]);
 
   useEffect(() => {
+    // Dispara o carregamento inicial quando a sessão fica disponível (login ou
+    // restauração por cookie). Não depende de `load` inteiro — só de `token` — pra
+    // não duplicar essa rodada quando load() resolve o período padrão logo em
+    // seguida (ver periodoResolvidoAoCarregar abaixo).
+    if (!token) return;
     // Data-fetching effect: `load` awaits before touching state, but the
     // compiler-based lint rule can't see across the async boundary.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCarregando(true);
     void load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => {
+    // Recarrega quando o usuário troca de período pela UI (inclusive para "" — ex.:
+    // excluiu o período ativo e precisa recair num novo padrão). Ignora só a
+    // primeira execução (montagem) e a mudança que o próprio load() já fez ao
+    // resolver o padrão (efeito de cima já cobriu essa rodada).
+    if (!periodoEfeitoMontado.current) {
+      periodoEfeitoMontado.current = true;
+      return;
+    }
+    if (periodoResolvidoAoCarregar.current) {
+      periodoResolvidoAoCarregar.current = false;
+      return;
+    }
+    setCarregando(true);
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodoId]);
 
   useEffect(() => {
     if (chefe) return;
@@ -203,6 +239,10 @@ function App() {
     sessionStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
     setToken("cookie-session");
     setChefe(newChefe);
+    // Uma tentativa silenciosa de restaurar sessão anterior (ver api.me() acima) pode
+    // ter deixado erro de sessão expirada no ar — sem isso, ele pisca na tela assim
+    // que o painel novo aparece, mesmo com o login atual válido.
+    setErro("");
   }
   function handleLogout() {
     void api.logout(token).catch(() => undefined);
@@ -428,20 +468,20 @@ function App() {
                     onRequestConfirm={setConfirm}
                   />
                 )}
-                {page === "bot" && (
+                {page === "bot" && periodoAtual && (
                   <BotPage
                     token={token}
                     bot={bot}
-                    periodo={periodos.find((p) => p.id === periodoId)!}
+                    periodo={periodoAtual}
                     onReload={load}
                     onRequestConfirm={setConfirm}
                   />
                 )}
-                {page === "planilha" && periodos.find((p) => p.id === periodoId) && (
+                {page === "planilha" && periodoAtual && (
                   <PlanilhaPage
                     key={periodoId}
                     token={token}
-                    periodo={periodos.find((p) => p.id === periodoId)!}
+                    periodo={periodoAtual}
                     turmas={turmas}
                     listas={listas}
                     onReload={load}

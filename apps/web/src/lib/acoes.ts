@@ -1,7 +1,7 @@
 import { api } from "./api";
 import type { ConfirmRequest } from "./types";
 
-/** Exclusões com feedback são recusadas pela API para preservar o histórico acadêmico. */
+/** Excluir um aluno remove também, em cascata, todo o feedback registrado para ele. */
 export function solicitarRemocaoAluno({
   aluno,
   token,
@@ -18,7 +18,7 @@ export function solicitarRemocaoAluno({
   onRequestConfirm({
     title: `Remover ${aluno.nome}?`,
     message:
-      "O aluno só será removido se ainda não possuir feedback. Se houver histórico, use o fluxo de anonimização.",
+      "Esta ação é definitiva. Se o aluno já tiver feedback registrado, todo esse histórico também será apagado.",
     confirmLabel: "Remover",
     onConfirm: async () => {
       onErro("");
@@ -50,21 +50,28 @@ export function solicitarRemocaoVariosAlunos({
   onRequestConfirm({
     title: `Remover ${alunos.length} aluno${alunos.length === 1 ? "" : "s"}?`,
     message:
-      "Alunos que já possuem feedback registrado não serão removidos, para preservar o histórico acadêmico; os demais serão excluídos.",
+      "Esta ação é definitiva. Todo o feedback já registrado para esses alunos também será apagado junto.",
     confirmLabel: "Remover selecionados",
     onConfirm: async () => {
       onErro("");
-      const resultados = await Promise.allSettled(
-        alunos.map((aluno) => api.excluirAluno(token, aluno.id)),
-      );
-      const falhas = resultados.filter((r) => r.status === "rejected").length;
+      try {
+        // Um único request pro lote inteiro — evita estourar o rate limit da API
+        // quando muitos alunos são selecionados de uma vez (ver incidente de exclusão
+        // em massa: N requests em paralelo/sequência competiam com o reload seguinte).
+        const { excluidos } = await api.excluirAlunosEmLote(
+          token,
+          alunos.map((aluno) => aluno.id),
+        );
+        if (excluidos < alunos.length) {
+          onErro(
+            `${excluidos} de ${alunos.length} aluno${alunos.length === 1 ? "" : "s"} ${excluidos === 1 ? "foi removido" : "foram removidos"} — a seleção pode ter ficado desatualizada.`,
+          );
+        }
+      } catch (error) {
+        onErro(error instanceof Error ? error.message : "Não foi possível remover os alunos");
+      }
       onConcluido();
       await onReload();
-      if (falhas > 0) {
-        onErro(
-          `${falhas} de ${alunos.length} aluno${alunos.length === 1 ? "" : "s"} não ${falhas === 1 ? "pôde" : "puderam"} ser removido${falhas === 1 ? "" : "s"} (provavelmente já tem feedback registrado).`,
-        );
-      }
     },
   });
 }
@@ -87,21 +94,27 @@ export function solicitarRemocaoVariosMonitores({
   onRequestConfirm({
     title: `Excluir ${monitores.length} monitor${monitores.length === 1 ? "" : "es"}?`,
     message:
-      "Monitores que já têm feedback registrado não serão removidos; os demais serão excluídos.",
+      "Esta ação é definitiva. O feedback já registrado por eles é preservado (fica só sem essa autoria).",
     confirmLabel: "Excluir selecionados",
     onConfirm: async () => {
       onErro("");
-      const resultados = await Promise.allSettled(
-        monitores.map((monitor) => api.excluirMonitor(token, monitor.id)),
-      );
-      const falhas = resultados.filter((r) => r.status === "rejected").length;
+      try {
+        // Um único request pro lote inteiro — evita estourar o rate limit da API
+        // quando muitos monitores são selecionados de uma vez.
+        const { excluidos } = await api.excluirMonitoresEmLote(
+          token,
+          monitores.map((monitor) => monitor.id),
+        );
+        if (excluidos < monitores.length) {
+          onErro(
+            `${excluidos} de ${monitores.length} monitor${monitores.length === 1 ? "" : "es"} ${excluidos === 1 ? "foi removido" : "foram removidos"} — a seleção pode ter ficado desatualizada.`,
+          );
+        }
+      } catch (error) {
+        onErro(error instanceof Error ? error.message : "Não foi possível excluir os monitores");
+      }
       onConcluido();
       await onReload();
-      if (falhas > 0) {
-        onErro(
-          `${falhas} de ${monitores.length} monitor${monitores.length === 1 ? "" : "es"} não ${falhas === 1 ? "pôde" : "puderam"} ser removido${falhas === 1 ? "" : "s"} (provavelmente já tem feedback registrado).`,
-        );
-      }
     },
   });
 }
@@ -121,7 +134,8 @@ export function solicitarRemocaoMonitor({
 }) {
   onRequestConfirm({
     title: `Excluir ${monitor.nome}?`,
-    message: "O monitor só será removido se ainda não tiver feedback registrado.",
+    message:
+      "Esta ação é definitiva. O feedback já registrado por ele é preservado (fica só sem essa autoria).",
     confirmLabel: "Excluir monitor",
     onConfirm: async () => {
       onErro("");

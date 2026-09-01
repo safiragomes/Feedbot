@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/db/client.js";
 import { buildApp } from "../../src/app.js";
 import { hashPassword, hashToken, newSessionToken } from "../../src/auth/password.js";
-import { criarFeedback } from "../../src/services/feedback.js";
+import { criarFeedback, resolverMonitorResponsavel } from "../../src/services/feedback.js";
 
 describe("DELETE /grupos-revisao/:id", () => {
   const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -172,6 +172,8 @@ describe("DELETE /monitores/:id", () => {
   let monitorRemovidoId: string;
   let alunoId: string;
   let feedbackId: string;
+  let chefeSessaoId: string;
+  let listaId: string;
 
   beforeAll(async () => {
     const periodo = await prisma.periodo.create({
@@ -191,6 +193,7 @@ describe("DELETE /monitores/:id", () => {
     const chefeSessao = await prisma.monitor.create({
       data: { nome: "Chefe da sessão", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
     });
+    chefeSessaoId = chefeSessao.id;
     const conta = await prisma.contaChefe.create({
       data: {
         monitorId: chefeSessao.id,
@@ -213,8 +216,8 @@ describe("DELETE /monitores/:id", () => {
       data: { grupoRevisaoId: grupo.id, label: "Dupla 1" },
     });
 
-    // Monitor a remover: também é chefe, tem conta própria e feedback registrado;
-    // nenhum desses dados pode ser removido.
+    // Monitor a remover: também é chefe, tem conta própria e feedback registrado —
+    // a exclusão deve apagar tudo isso em cascata.
     const monitorRemovido = await prisma.monitor.create({
       data: {
         nome: "Monitor a remover",
@@ -252,6 +255,7 @@ describe("DELETE /monitores/:id", () => {
         ordem: 1,
       },
     });
+    listaId = lista.id;
     const feedback = await criarFeedback(prisma, {
       alunoId,
       monitorId: monitorRemovido.id,
@@ -274,25 +278,39 @@ describe("DELETE /monitores/:id", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
-  it("bloqueia a exclusão do monitor e preserva feedback, conta e atribuição", async () => {
+  it("exclui o monitor e apaga a conta, mas preserva o feedback do aluno (só perde a autoria)", async () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/monitores/${monitorRemovidoId}`,
       headers: { authorization: `Bearer ${token}` },
     });
-    expect(response.statusCode).toBe(409);
-    expect(response.json().message).toContain("feedbacks registrados");
+    expect(response.statusCode).toBe(204);
 
-    expect(await prisma.monitor.findUnique({ where: { id: monitorRemovidoId } })).not.toBeNull();
-    expect(await prisma.feedback.findUnique({ where: { id: feedbackId } })).not.toBeNull();
+    expect(await prisma.monitor.findUnique({ where: { id: monitorRemovidoId } })).toBeNull();
     expect(
       await prisma.contaChefe.findFirst({ where: { monitorId: monitorRemovidoId } }),
-    ).not.toBeNull();
+    ).toBeNull();
+
+    // O feedback continua existindo — é histórico do aluno, não do monitor. Só a
+    // referência a quem registrou some (SetNull).
+    const feedback = await prisma.feedback.findUnique({ where: { id: feedbackId } });
+    expect(feedback).not.toBeNull();
+    expect(feedback?.monitorId).toBeNull();
 
     // O aluno continua existindo — só perde a atribuição de monitor da semana A.
     const aluno = await prisma.aluno.findUnique({ where: { id: alunoId } });
     expect(aluno).not.toBeNull();
-    expect(aluno?.monitorSemanaAId).toBe(monitorRemovidoId);
+    expect(aluno?.monitorSemanaAId).toBeNull();
+  });
+
+  it("resolverMonitorResponsavel cai pro chefe ao reeditar feedback cujo monitor original foi excluído", async () => {
+    // Depois do teste anterior, feedbackId aponta pra um aluno cujo monitor original
+    // foi apagado (monitorId virou null). Reeditar esse feedback não pode tentar
+    // creditar um monitor que não existe mais nem quebrar — precisa cair pro chefe
+    // que está fazendo a correção agora, igual ao caso "sem monitor calculável".
+    await expect(resolverMonitorResponsavel(prisma, alunoId, listaId, chefeSessaoId)).resolves.toBe(
+      chefeSessaoId,
+    );
   });
 
   it("a rota de anonimizar monitor não existe mais", async () => {
@@ -302,5 +320,112 @@ describe("DELETE /monitores/:id", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("POST /monitores/excluir-lote", () => {
+  const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+  const app = buildApp({ prisma });
+  const token = newSessionToken();
+
+  let periodoId: string;
+  let monitorIds: string[];
+  let feedbackId: string;
+
+  beforeAll(async () => {
+    const periodo = await prisma.periodo.create({
+      data: {
+        nome: `Teste exclusao monitores lote ${sufixo}`,
+        dataInicio: new Date("2026-08-03T00:00:00Z"),
+        dataFim: new Date("2026-12-01T00:00:00Z"),
+        dataReferenciaRodizio: new Date("2026-08-03T00:00:00Z"),
+      },
+    });
+    periodoId = periodo.id;
+
+    const turma = await prisma.turma.create({
+      data: { periodoId, nome: "Turma teste", nomeAbaPlanilha: "Turma teste" },
+    });
+
+    const chefe = await prisma.monitor.create({
+      data: { nome: "Chefe teste", whatsappNumero: `+55${sufixo}0`, isChefe: true, periodoId },
+    });
+    const conta = await prisma.contaChefe.create({
+      data: {
+        monitorId: chefe.id,
+        email: `chefe-monlote-${sufixo}@teste.dev`,
+        senhaHash: await hashPassword("senha-de-teste-1234"),
+      },
+    });
+    await prisma.sessaoChefe.create({
+      data: {
+        contaChefeId: conta.id,
+        tokenHash: await hashToken(token),
+        expiraEm: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const monitores = await prisma.$transaction(
+      Array.from({ length: 20 }).map((_, i) =>
+        prisma.monitor.create({
+          data: { nome: `Monitor lote ${i}`, whatsappNumero: `+55${sufixo}${i + 1}`, periodoId },
+        }),
+      ),
+    );
+    monitorIds = monitores.map((m) => m.id);
+
+    const aluno = await prisma.aluno.create({
+      data: { nome: "Aluno com feedback", matricula: `MONLOTE-${sufixo}`, turmaId: turma.id },
+    });
+    const lista = await prisma.lista.create({
+      data: { periodoId, nome: "Lista teste", qtdQuestoesTotal: 6, ordem: 1 },
+    });
+    const feedback = await criarFeedback(prisma, {
+      alunoId: aluno.id,
+      monitorId: monitorIds[0]!,
+      listaId: lista.id,
+      qtdQuestoesPontuadas: 4,
+    });
+    feedbackId = feedback.id;
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.feedback.deleteMany({ where: { lista: { periodoId } } });
+    await prisma.lista.deleteMany({ where: { periodoId } });
+    await prisma.aluno.deleteMany({ where: { turma: { periodoId } } });
+    await prisma.contaChefe.deleteMany({ where: { monitor: { periodoId } } });
+    await prisma.monitor.deleteMany({ where: { periodoId } });
+    await prisma.turma.deleteMany({ where: { periodoId } });
+    await prisma.periodo.delete({ where: { id: periodoId } });
+  });
+
+  it("rejeita lote vazio ou maior que 500", async () => {
+    const vazio = await app.inject({
+      method: "POST",
+      url: "/monitores/excluir-lote",
+      headers: { authorization: `Bearer ${token}`, "x-feedbot-client": "web" },
+      payload: { ids: [] },
+    });
+    expect(vazio.statusCode).toBe(400);
+  });
+
+  it("exclui todos os monitores do lote e preserva o feedback (só perde a autoria)", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/monitores/excluir-lote",
+      headers: { authorization: `Bearer ${token}`, "x-feedbot-client": "web" },
+      payload: { ids: monitorIds },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ excluidos: monitorIds.length });
+
+    const restantes = await prisma.monitor.count({ where: { id: { in: monitorIds } } });
+    expect(restantes).toBe(0);
+
+    const feedback = await prisma.feedback.findUnique({ where: { id: feedbackId } });
+    expect(feedback).not.toBeNull();
+    expect(feedback?.monitorId).toBeNull();
+    expect(feedback?.monitorNome).toBe("Monitor lote 0");
   });
 });

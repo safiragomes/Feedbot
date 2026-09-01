@@ -54,9 +54,7 @@ export function FeedbackModal({
   onClose: () => void;
   onSaved: () => Promise<void> | void;
 }) {
-  const [pontuacao, setPontuacao] = useState(
-    String(feedbackExistente?.qtdQuestoesPontuadas ?? ""),
-  );
+  const [pontuacao, setPontuacao] = useState(String(feedbackExistente?.qtdQuestoesPontuadas ?? ""));
   const [usouIa, setUsouIa] = useState(feedbackExistente?.usouIa ?? false);
   const [questoesIa, setQuestoesIa] = useState(
     new Set(feedbackExistente?.questoesIa.map((q) => q.numeroQuestao) ?? []),
@@ -99,7 +97,10 @@ export function FeedbackModal({
         qtdQuestoesPontuadas: pontos,
         questoesIa: usouIa ? [...questoesIa] : [],
         questoesPlagio: plagiou
-          ? [...questoesPlagio].map((numeroQuestao) => ({ numeroQuestao, alunoEnvolvidoId: envolvidoId }))
+          ? [...questoesPlagio].map((numeroQuestao) => ({
+              numeroQuestao,
+              alunoEnvolvidoId: envolvidoId,
+            }))
           : [],
         questoesProibicao: usouProibicao ? [...questoesProibicao] : [],
       });

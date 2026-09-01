@@ -11,6 +11,8 @@ describe("Modal", () => {
     );
 
     expect(container.querySelector(".overlay")).not.toBeInTheDocument();
-    expect(screen.getByText("Alterar senha").closest(".overlay")?.parentElement).toBe(document.body);
+    expect(screen.getByText("Alterar senha").closest(".overlay")?.parentElement).toBe(
+      document.body,
+    );
   });
 });

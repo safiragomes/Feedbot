@@ -40,6 +40,7 @@ export function AlunoDrawer({
 }) {
   const [salvandoPrazo, setSalvandoPrazo] = useState<string | null>(null);
   const [salvandoCondicao, setSalvandoCondicao] = useState(false);
+  const [salvandoDupla, setSalvandoDupla] = useState(false);
   const [prazosEditados, setPrazosEditados] = useState(new Map<string, string>());
   const [listaFeedbackAberta, setListaFeedbackAberta] = useState<Lista | null>(null);
   const afb = feedbacks.filter((f) => f.alunoId === aluno.id);
@@ -75,12 +76,18 @@ export function AlunoDrawer({
         <MiniRow label="Dupla">
           <select
             value={aluno.duplaId ?? ""}
+            disabled={salvandoDupla}
             onChange={async (event) => {
-              await api.atualizarAluno(token, aluno.id, {
-                duplaId: event.target.value || null,
-                monitorSemanaAId: null,
-              });
-              await onReload();
+              setSalvandoDupla(true);
+              try {
+                await api.atualizarAluno(token, aluno.id, {
+                  duplaId: event.target.value || null,
+                  monitorSemanaAId: null,
+                });
+                await onReload();
+              } finally {
+                setSalvandoDupla(false);
+              }
             }}
           >
             <option value="">não atribuída</option>
@@ -149,14 +156,17 @@ export function AlunoDrawer({
                 disabled={salvandoPrazo === lista.id}
                 onClick={async () => {
                   setSalvandoPrazo(lista.id);
-                  await api.salvarPrazoAluno(
-                    token,
-                    aluno.id,
-                    lista.id,
-                    valor ? fimDoDiaIso(valor) : null,
-                  );
-                  await onReload();
-                  setSalvandoPrazo(null);
+                  try {
+                    await api.salvarPrazoAluno(
+                      token,
+                      aluno.id,
+                      lista.id,
+                      valor ? fimDoDiaIso(valor) : null,
+                    );
+                    await onReload();
+                  } finally {
+                    setSalvandoPrazo(null);
+                  }
                 }}
               >
                 {valor ? "Salvar" : individual ? "Usar turma" : "—"}
@@ -396,7 +406,12 @@ export function MonitorDrawer({
             ...rosterAtual.map((a) => ({ id: a.id, nome: a.nome, desvinculado: false, aluno: a })),
             ...mfb
               .filter((f) => f.listaId === lista.id && !idsAtuais.has(f.alunoId))
-              .map((f) => ({ id: f.alunoId, nome: f.aluno.nome, desvinculado: true, aluno: undefined })),
+              .map((f) => ({
+                id: f.alunoId,
+                nome: f.aluno.nome,
+                desvinculado: true,
+                aluno: undefined,
+              })),
           ];
           if (!roster.length) return null;
           const aberta = listaHistoricoAberta === lista.id;
@@ -410,7 +425,10 @@ export function MonitorDrawer({
               >
                 {lista.nome}
                 <IconChevronDown
-                  style={{ transform: aberta ? "rotate(180deg)" : undefined, transition: "transform .15s" }}
+                  style={{
+                    transform: aberta ? "rotate(180deg)" : undefined,
+                    transition: "transform .15s",
+                  }}
                 />
               </button>
               {aberta &&

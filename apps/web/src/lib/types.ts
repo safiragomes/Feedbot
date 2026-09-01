@@ -121,7 +121,7 @@ export type PrazoListaItem = {
 export type Feedback = {
   id: string;
   alunoId: string;
-  monitorId: string;
+  monitorId: string | null;
   listaId: string;
   duplaId: string | null;
   semana: "A" | "B";
@@ -133,7 +133,8 @@ export type Feedback = {
   sincronizadoPlanilha: boolean;
   prazoEntregaFeedback: string | null;
   aluno: { id: string; nome: string; turma: Turma };
-  monitor: { id: string; nome: string };
+  monitor: { id: string; nome: string } | null;
+  monitorNome: string;
   lista: Lista;
   questoesIa: { numeroQuestao: number }[];
   questoesPlagio: {

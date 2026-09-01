@@ -10,6 +10,7 @@ import {
   excluirDupla,
   excluirGrupoRevisao,
   excluirMonitor,
+  excluirMonitores,
   excluirPeriodo,
   GestaoErro,
   validarMonitorDupla,
@@ -35,7 +36,10 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   alunoRoutes(app, prisma);
 
   app.get("/periodos", protectedRoute, async () =>
-    prisma.periodo.findMany({ orderBy: { dataInicio: "desc" } }),
+    // Dois períodos com o mesmo dataInicio (ex.: início de semestre em massa)
+    // ficariam em ordem indefinida sem o desempate por criadoEm — e é o primeiro
+    // da lista que o painel abre por padrão no login.
+    prisma.periodo.findMany({ orderBy: [{ dataInicio: "desc" }, { criadoEm: "desc" }] }),
   );
   app.post("/periodos", protectedRoute, async (request, reply) => {
     const body = request.body as Record<string, unknown>;
@@ -287,6 +291,17 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       return responderErroGestao(reply, error);
     }
     return reply.code(204).send();
+  });
+
+  app.post("/monitores/excluir-lote", protectedRoute, async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map(text).filter((id): id is string => Boolean(id))
+      : [];
+    if (ids.length === 0 || ids.length > 500) {
+      return reply.badRequest("Informe de 1 a 500 monitores");
+    }
+    return { excluidos: await excluirMonitores(prisma, ids) };
   });
 
   app.get("/listas", protectedRoute, async (request) =>

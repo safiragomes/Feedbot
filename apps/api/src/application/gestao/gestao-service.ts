@@ -131,15 +131,6 @@ export async function atualizarPrazosDaTurma(
   return prazos.length;
 }
 
-async function impedirExclusaoComFeedback(quantidade: number, recurso: string) {
-  if (quantidade > 0) {
-    throw new GestaoErro(
-      "CONFLITO",
-      `Existem feedbacks registrados para ${recurso}; não é possível excluir.`,
-    );
-  }
-}
-
 // Feedback é vinculado ao monitor que registrou (Feedback.monitorId), não à dupla —
 // a dupla é só uma referência organizacional (quem atende quem). Por isso excluir
 // grupo/dupla não é bloqueado por feedback: Feedback.duplaId é onDelete: SetNull no
@@ -161,12 +152,17 @@ export async function excluirDupla(prisma: PrismaClient, id: string) {
   ]);
 }
 
+// Feedback.monitorId é onDelete: SetNull no schema: o feedback é histórico do aluno,
+// não do monitor — excluir o monitor não pode apagar isso, só perde a autoria.
 export async function excluirMonitor(prisma: PrismaClient, id: string) {
-  await impedirExclusaoComFeedback(
-    await prisma.feedback.count({ where: { monitorId: id } }),
-    "este monitor",
-  );
   await prisma.monitor.delete({ where: { id } });
+}
+
+// Um DELETE por monitor em lotes grandes estoura o rate limit da API (cada requisição
+// conta pra cota) — deleteMany faz tudo numa única query, independente da quantidade.
+export async function excluirMonitores(prisma: PrismaClient, ids: string[]) {
+  const resultado = await prisma.monitor.deleteMany({ where: { id: { in: ids } } });
+  return resultado.count;
 }
 
 export async function excluirPeriodo(prisma: PrismaClient, id: string) {

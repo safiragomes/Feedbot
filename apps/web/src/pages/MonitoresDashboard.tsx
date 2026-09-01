@@ -43,6 +43,9 @@ export function MonitoresDashboard({
     { id: string; nome: string; total: number; comPrazo: number; noPrazo: number }
   >();
   fb.forEach((f) => {
+    // Feedback de monitor já excluído não tem mais autoria — não entra no
+    // desempenho por monitor, mas continua contando no histórico do aluno.
+    if (!f.monitorId || !f.monitor) return;
     const atual = byMonitor.get(f.monitorId) ?? {
       id: f.monitorId,
       nome: f.monitor.nome,
@@ -103,7 +106,12 @@ export function MonitoresDashboard({
           backgroundColor: (context: ScriptableContext<"bar">) => {
             const area = context.chart.chartArea;
             if (!area) return palette.orange;
-            return chartGradient(context.chart.ctx, area, `${palette.orange}ee`, `${palette.amber}88`);
+            return chartGradient(
+              context.chart.ctx,
+              area,
+              `${palette.orange}ee`,
+              `${palette.amber}88`,
+            );
           },
           borderRadius: 8,
           borderSkipped: false,

@@ -119,8 +119,14 @@ export function Gestao({
     slot: "A" | "B",
     monitorId: string,
   ) {
-    const monitorSemanaAId =
-      slot === "A" ? monitorId : (monitoresDupla.find((m) => m.id !== monitorId)?.id ?? null);
+    // A semana B nunca é armazenada — é sempre "o outro monitor da dupla" (ver
+    // lib/dupla.ts). Por isso não existe "A atribuído, B vago" numa dupla de 2:
+    // escolher "vago" em qualquer um dos dois limpa a atribuição inteira.
+    const monitorSemanaAId = !monitorId
+      ? null
+      : slot === "A"
+        ? monitorId
+        : (monitoresDupla.find((m) => m.id !== monitorId)?.id ?? null);
     await run(() => api.atualizarAluno(token, aluno.id, { monitorSemanaAId }));
   }
 
@@ -259,7 +265,6 @@ export function Gestao({
                                       className={`select-papel${monitorAId ? "" : " vago"}`}
                                       value={monitorAId ?? ""}
                                       onChange={(e) =>
-                                        e.target.value &&
                                         escolherPapel(aluno, monitoresDupla, "A", e.target.value)
                                       }
                                     >
@@ -276,7 +281,6 @@ export function Gestao({
                                       value={monitorBId}
                                       disabled={monitoresDupla.length < 2}
                                       onChange={(e) =>
-                                        e.target.value &&
                                         escolherPapel(aluno, monitoresDupla, "B", e.target.value)
                                       }
                                     >

@@ -63,7 +63,10 @@ export async function resolverMonitorResponsavel(
     where: { alunoId_listaId: { alunoId, listaId } },
     select: { monitorId: true },
   });
-  if (existente) return existente.monitorId;
+  // Se o monitor que registrou originalmente já foi excluído (monitorId virou null
+  // via SetNull), não há mais quem creditar — cai no mesmo fallback do chefe usado
+  // abaixo quando não dá pra determinar o responsável.
+  if (existente) return existente.monitorId ?? chefeMonitorId;
 
   const [aluno, lista] = await Promise.all([
     prisma.aluno.findUnique({ where: { id: alunoId } }),
@@ -156,6 +159,7 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     create: {
       alunoId: aluno.id,
       monitorId: monitor.id,
+      monitorNome: monitor.nome,
       listaId: lista.id,
       duplaId: aluno.duplaId,
       semana,
@@ -176,6 +180,7 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     },
     update: {
       monitorId: monitor.id,
+      monitorNome: monitor.nome,
       duplaId: aluno.duplaId,
       semana,
       qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,

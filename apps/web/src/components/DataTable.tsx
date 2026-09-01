@@ -77,7 +77,9 @@ export function DataTable<T>({
     todasChaves.length > 0 &&
     todasChaves.every((key) => selection.selectedKeys.has(key));
   const algumasSelecionadas =
-    selection !== undefined && !todasSelecionadas && todasChaves.some((key) => selection.selectedKeys.has(key));
+    selection !== undefined &&
+    !todasSelecionadas &&
+    todasChaves.some((key) => selection.selectedKeys.has(key));
 
   return (
     <div className={`table-wrap${className ? ` ${className}` : ""}`}>

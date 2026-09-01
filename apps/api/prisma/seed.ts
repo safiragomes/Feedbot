@@ -142,6 +142,7 @@ async function main() {
   // Cada dupla tem no máximo 2 monitores (Monitor.duplaId). Guarda os 2 membros de
   // cada dupla para depois alternar, aluno a aluno, qual dos dois é a semana A.
   const duplaMembros = new Map<string, { m1Id: string; m2Id: string }>();
+  const monitorNomes = new Map<string, string>();
 
   for (const grupoDef of GRUPOS) {
     const chefe = await prisma.monitor.create({
@@ -153,6 +154,7 @@ async function main() {
       },
     });
     monitorIndex += 1;
+    monitorNomes.set(chefe.id, grupoDef.chefe);
 
     const grupo = await prisma.grupoRevisao.create({
       data: {
@@ -179,6 +181,7 @@ async function main() {
         },
       });
       monitorIndex += 1;
+      monitorNomes.set(monitorA.id, nomeA);
 
       const nomeB = MONITOR_NOMES[monitorIndex % MONITOR_NOMES.length]!;
       const monitorB = await prisma.monitor.create({
@@ -191,6 +194,7 @@ async function main() {
         },
       });
       monitorIndex += 1;
+      monitorNomes.set(monitorB.id, nomeB);
 
       duplaMembros.set(dupla.id, { m1Id: monitorA.id, m2Id: monitorB.id });
     }
@@ -260,7 +264,13 @@ async function main() {
     ),
   );
 
-  const qtdFeedbacks = await gerarFeedbacks({ alunos, listas, prazoPorListaTurma, duplaMembros });
+  const qtdFeedbacks = await gerarFeedbacks({
+    alunos,
+    listas,
+    prazoPorListaTurma,
+    duplaMembros,
+    monitorNomes,
+  });
 
   console.log(
     `Seed concluído: período ${periodo.nome} com ${duplaIndex} duplas, ${monitorIndex} monitores, ${ALUNO_NOMES.length} alunos, ${NUM_LISTAS_POR_PERIODO} listas e ${qtdFeedbacks} feedbacks.`,
@@ -274,6 +284,7 @@ async function gerarFeedbacks({
   listas,
   prazoPorListaTurma,
   duplaMembros,
+  monitorNomes,
 }: {
   alunos: {
     id: string;
@@ -284,6 +295,7 @@ async function gerarFeedbacks({
   listas: { id: string }[];
   prazoPorListaTurma: Map<string, Date>;
   duplaMembros: Map<string, { m1Id: string; m2Id: string }>;
+  monitorNomes: Map<string, string>;
 }) {
   let total = 0;
 
@@ -351,6 +363,7 @@ async function gerarFeedbacks({
         data: {
           alunoId: aluno.id,
           monitorId,
+          monitorNome: monitorNomes.get(monitorId) ?? "Monitor",
           listaId: lista.id,
           duplaId: aluno.duplaId,
           semana,

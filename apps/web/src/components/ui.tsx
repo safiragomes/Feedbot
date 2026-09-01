@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { avatarColor, initials } from "../lib/format";
 import { IconX } from "./icons";
@@ -147,22 +147,32 @@ export function ConfirmModal({
   request: ConfirmRequest;
   onClose: () => void;
 }) {
+  const [enviando, setEnviando] = useState(false);
   return (
     <Modal onClose={onClose}>
       <h4>{request.title}</h4>
       <p>{request.message}</p>
       <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>
+        <button className="btn ghost" onClick={onClose} disabled={enviando}>
           Cancelar
         </button>
         <button
           className="btn danger-solid"
+          disabled={enviando}
           onClick={async () => {
-            await request.onConfirm();
-            onClose();
+            // Sem essa guarda, um duplo clique (ou clique impaciente com a rede lenta)
+            // dispara a mesma exclusão duas vezes em paralelo.
+            if (enviando) return;
+            setEnviando(true);
+            try {
+              await request.onConfirm();
+              onClose();
+            } finally {
+              setEnviando(false);
+            }
           }}
         >
-          {request.confirmLabel}
+          {enviando ? "Aguarde…" : request.confirmLabel}
         </button>
       </div>
     </Modal>

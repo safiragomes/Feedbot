@@ -67,6 +67,10 @@ export function DiretorioMonitores({
   const filtrosAtivos = [grupoId, listaId, somenteAtrasados ? "atrasado" : "", busca.trim()].filter(
     Boolean,
   ).length;
+  // A exclusão em massa só considera quem está selecionado E ainda visível sob os
+  // filtros atuais — sem isso, o contador do botão ficava desatualizado quando o
+  // filtro mudava depois da seleção.
+  const selecionadosVisiveis = filtrados.filter((m) => selecionados.has(m.id));
 
   function limparFiltros() {
     setGrupoId("");
@@ -90,9 +94,8 @@ export function DiretorioMonitores({
   }
 
   function confirmarExclusaoSelecionados() {
-    const monitoresSelecionados = filtrados.filter((m) => selecionados.has(m.id));
     solicitarRemocaoVariosMonitores({
-      monitores: monitoresSelecionados,
+      monitores: selecionadosVisiveis,
       token,
       onRequestConfirm,
       onReload,
@@ -215,10 +218,11 @@ export function DiretorioMonitores({
           </div>
         </div>
         <div className="head-actions">
-          {selecionados.size > 0 && (
+          {selecionadosVisiveis.length > 0 && (
             <button className="btn sm danger-solid" onClick={confirmarExclusaoSelecionados}>
               <IconTrash />
-              Remover {selecionados.size} selecionado{selecionados.size === 1 ? "" : "s"}
+              Remover {selecionadosVisiveis.length} selecionado
+              {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>

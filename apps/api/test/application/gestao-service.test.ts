@@ -25,12 +25,12 @@ function prismaSemFeedback() {
 }
 
 describe("exclusões seguras da gestão", () => {
-  it("bloqueia só o monitor quando há feedback vinculado (feedback é dele, não da dupla/grupo)", async () => {
-    const prisma = {
-      feedback: { count: vi.fn().mockResolvedValue(1) },
-    } as unknown as PrismaClient;
+  it("exclui o monitor sem checar feedback vinculado (cascade cuida do histórico no schema)", async () => {
+    const monitor = prismaSemFeedback();
 
-    await expect(excluirMonitor(prisma, "monitor")).rejects.toBeInstanceOf(GestaoErro);
+    await expect(excluirMonitor(monitor, "monitor")).resolves.toBeUndefined();
+    expect(monitor.monitor.delete).toHaveBeenCalledWith({ where: { id: "monitor" } });
+    expect(monitor.feedback.count).not.toHaveBeenCalled();
   });
 
   it("permite excluir grupo/dupla mesmo com feedback vinculado — a referência só some (SetNull)", async () => {
@@ -43,13 +43,6 @@ describe("exclusões seguras da gestão", () => {
     expect(dupla.$transaction).toHaveBeenCalledOnce();
     expect(grupo.feedback.count).not.toHaveBeenCalled();
     expect(dupla.feedback.count).not.toHaveBeenCalled();
-  });
-
-  it("mantém a exclusão de monitor sem histórico", async () => {
-    const monitor = prismaSemFeedback();
-
-    await expect(excluirMonitor(monitor, "monitor")).resolves.toBeUndefined();
-    expect(monitor.monitor.delete).toHaveBeenCalledWith({ where: { id: "monitor" } });
   });
 });
 
@@ -130,7 +123,12 @@ describe("atualizarMonitor preserva a autoria de feedback já registrado", () =>
     });
 
     const monitor = await prisma.monitor.create({
-      data: { nome: "Monitor a desvincular", whatsappNumero: `+55${sufixo}1`, periodoId, duplaId: dupla.id },
+      data: {
+        nome: "Monitor a desvincular",
+        whatsappNumero: `+55${sufixo}1`,
+        periodoId,
+        duplaId: dupla.id,
+      },
     });
     monitorId = monitor.id;
 

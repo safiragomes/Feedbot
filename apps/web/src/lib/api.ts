@@ -159,6 +159,8 @@ export const api = {
   atualizarMonitor: (token: string, id: string, data: Record<string, unknown>) =>
     patch<Monitor>(`/monitores/${id}`, token, data),
   excluirMonitor: (token: string, id: string) => del(`/monitores/${id}`, token),
+  excluirMonitoresEmLote: (token: string, ids: string[]) =>
+    post<{ excluidos: number }>("/monitores/excluir-lote", token, { ids }),
 
   alunos: (token: string) => request<Aluno[]>("/alunos", token),
   criarAluno: (
@@ -187,6 +189,8 @@ export const api = {
     prazoEntregaFeedback: string | null,
   ) => put(`/alunos/${alunoId}/prazos-lista`, token, { listaId, prazoEntregaFeedback }),
   excluirAluno: (token: string, id: string) => del(`/alunos/${id}`, token),
+  excluirAlunosEmLote: (token: string, ids: string[]) =>
+    post<{ excluidos: number }>("/alunos/excluir-lote", token, { ids }),
 
   listas: (token: string, periodoId: string) =>
     request<Lista[]>(`/listas?periodoId=${periodoId}`, token),

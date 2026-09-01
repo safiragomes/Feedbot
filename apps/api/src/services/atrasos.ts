@@ -34,14 +34,18 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
     if (!aluno.duplaId || !aluno.dupla) continue;
     const entregues = new Set(aluno.feedbacks.map((f) => f.listaId));
     const listasPeriodo = listas.filter((l) => l.periodoId === aluno.turma.periodoId);
-    for (const lista of listasPeriodo) {
+    for (const [indice, lista] of listasPeriodo.entries()) {
       if (entregues.has(lista.id)) continue;
       const prazo =
         aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
         lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
       if (!prazo) continue;
+      // posicaoLista precisa ser a posição da lista entre as do período (1, 2, 3...),
+      // não o valor bruto de `ordem` — que fica com buracos depois que uma lista é
+      // excluída (ordem não é renumerado). Mesmo cálculo de posicaoDaLista em
+      // services/feedback.ts, senão a semana A/B diverge da usada no lançamento real.
       const semana = calcularSemana({
-        posicaoLista: lista.ordem,
+        posicaoLista: indice + 1,
         semanaOverride: lista.semanaOverride,
       });
       const monitor =

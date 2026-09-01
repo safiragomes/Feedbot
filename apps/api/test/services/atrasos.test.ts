@@ -78,6 +78,59 @@ describe("buscarPendenciasAtrasadas", () => {
     ]);
   });
 
+  it("calcula a semana pela posição da lista no período, não pelo valor bruto de ordem (que fica com buracos após exclusão)", async () => {
+    const agora = new Date("2026-09-10T12:00:00Z");
+    const monitorA = { id: "a", nome: "Monitor A", whatsappNumero: "+5581999999991" };
+    const monitorB = { id: "b", nome: "Monitor B", whatsappNumero: "+5581999999992" };
+    const prisma = {
+      aluno: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "aluno",
+            nome: "Aluno Teste",
+            turmaId: "turma",
+            duplaId: "dupla",
+            monitorSemanaAId: "a",
+            turma: { periodoId: "periodo" },
+            dupla: { monitores: [monitorA, monitorB] },
+            prazosIndividuais: [],
+            feedbacks: [],
+          },
+        ]),
+      },
+      lista: {
+        // "Lista 2" (ordem=2) foi excluída — ordem não é renumerado, então sobra um
+        // buraco. lista-3 continua com ordem=3 no banco, mas é a 2ª lista do período
+        // (posição 2 = semana B), não a 3ª (que seria semana A se usasse ordem cru).
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lista-1",
+            nome: "Lista 1",
+            periodoId: "periodo",
+            ordem: 1,
+            semanaOverride: null,
+            prazos: [{ turmaId: "turma", prazoEntregaFeedback: new Date("2026-09-08T12:00:00Z") }],
+          },
+          {
+            id: "lista-3",
+            nome: "Lista 3",
+            periodoId: "periodo",
+            ordem: 3,
+            semanaOverride: null,
+            prazos: [{ turmaId: "turma", prazoEntregaFeedback: new Date("2026-09-09T12:00:00Z") }],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    const pendencias = await buscarPendenciasAtrasadas(prisma, agora);
+
+    expect(pendencias.map((item) => [item.listaId, item.monitorId])).toEqual([
+      ["lista-1", "a"],
+      ["lista-3", "b"],
+    ]);
+  });
+
   it("ignora listas sem prazo, prazo futuro e aluno sem responsável definido", async () => {
     const prisma = {
       aluno: {
