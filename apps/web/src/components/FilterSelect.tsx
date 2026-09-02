@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconChevronDown, IconSearch, IconX } from "./icons";
+import { normalizarBusca } from "../lib/format";
 
 export type FilterOption = { value: string; label: string };
 
@@ -47,9 +48,9 @@ export function FilterSelect({
   }, [open]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalizarBusca(query.trim());
     if (!q) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter((o) => normalizarBusca(o.label).includes(q));
   }, [options, query]);
 
   const selected = options.find((o) => o.value === value);

@@ -5,7 +5,7 @@ import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui"
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoAluno, solicitarRemocaoVariosAlunos } from "../lib/acoes";
-import { turmasUnicas } from "../lib/format";
+import { normalizarBusca, turmasUnicas } from "../lib/format";
 
 type TipoOcorrencia = "ia" | "plagio" | "proibicao";
 
@@ -38,7 +38,7 @@ export function DiretorioAlunos({
 
   const turmas = useMemo(() => turmasUnicas(alunos), [alunos]);
 
-  const q = busca.trim().toLowerCase();
+  const q = normalizarBusca(busca.trim());
   const feedbacksCompativeis = feedbacks.filter(
     (feedback) => !listaId || feedback.listaId === listaId,
   );
@@ -74,7 +74,7 @@ export function DiretorioAlunos({
         (!turma || a.turma.nome === turma) &&
         (!grupoId || a.dupla?.grupoRevisaoId === grupoId) &&
         (!ocorrencias.length || alunoAtendeOcorrencias(a.id)) &&
-        (!q || a.nome.toLowerCase().includes(q) || a.matricula.includes(q)),
+        (!q || normalizarBusca(a.nome).includes(q) || a.matricula.toLowerCase().includes(q)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome));
   const alunosComOcorrencias = filtrados.filter((aluno) =>

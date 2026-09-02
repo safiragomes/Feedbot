@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "../../lib/api";
-import { validarWhatsapp } from "../../lib/format";
+import { normalizarBusca, validarWhatsapp } from "../../lib/format";
 import type { Monitor } from "../../lib/types";
 import { Modal } from "../ui";
 
@@ -28,12 +28,12 @@ export function AtribuirMonitorModal({
   const [salvando, setSalvando] = useState(false);
 
   const monitoresFiltrados = useMemo(() => {
-    const termo = busca.trim().toLocaleLowerCase("pt-BR");
+    const termo = normalizarBusca(busca.trim());
     if (!termo) return monitoresDisponiveis;
     const digitos = termo.replace(/\D/g, "");
     return monitoresDisponiveis.filter(
       (monitor) =>
-        monitor.nome.toLocaleLowerCase("pt-BR").includes(termo) ||
+        normalizarBusca(monitor.nome).includes(termo) ||
         (digitos && monitor.whatsappNumero.replace(/\D/g, "").includes(digitos)),
     );
   }, [busca, monitoresDisponiveis]);

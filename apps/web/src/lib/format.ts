@@ -8,6 +8,14 @@ const AVATAR_PALETTE: [string, string][] = [
   ["var(--sky)", "var(--sky-dim)"],
 ];
 
+// Separa a letra do diacrítico via Unicode NFD e descarta o diacrítico — "José" casa com "jose".
+export function normalizarBusca(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export function initials(nome: string): string {
   return nome
     .split(" ")

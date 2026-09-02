@@ -6,8 +6,86 @@ import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoMonitor, solicitarRemocaoVariosMonitores } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
+import { normalizarBusca, validarWhatsapp } from "../lib/format";
 import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
 import { api } from "../lib/api";
+
+function WhatsappCell({
+  monitor,
+  token,
+  onReload,
+  onErro,
+}: {
+  monitor: Monitor;
+  token: string;
+  onReload: () => Promise<void>;
+  onErro: (mensagem: string) => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(monitor.whatsappNumero);
+  const [salvando, setSalvando] = useState(false);
+
+  if (!editando) {
+    return (
+      <button
+        type="button"
+        className="whatsapp-cell-display"
+        title="Editar número de WhatsApp"
+        onClick={(event) => {
+          event.stopPropagation();
+          setValor(monitor.whatsappNumero);
+          setEditando(true);
+        }}
+      >
+        {monitor.whatsappNumero}
+      </button>
+    );
+  }
+
+  async function salvar() {
+    const numero = valor.trim();
+    if (!numero || numero === monitor.whatsappNumero) {
+      setEditando(false);
+      return;
+    }
+    const erroWhats = validarWhatsapp(numero);
+    if (erroWhats) {
+      onErro(erroWhats);
+      setEditando(false);
+      return;
+    }
+    setSalvando(true);
+    try {
+      await api.atualizarMonitor(token, monitor.id, { whatsappNumero: numero });
+      await onReload();
+      setEditando(false);
+    } catch (error) {
+      onErro(error instanceof Error ? error.message : "Não foi possível atualizar o WhatsApp");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <input
+      autoFocus
+      className="whatsapp-cell-input"
+      value={valor}
+      disabled={salvando}
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => setValor(event.target.value)}
+      onBlur={() => void salvar()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        } else if (event.key === "Escape") {
+          setValor(monitor.whatsappNumero);
+          setEditando(false);
+        }
+      }}
+    />
+  );
+}
 
 export function DiretorioMonitores({
   token,
@@ -42,7 +120,8 @@ export function DiretorioMonitores({
   const [modal, setModal] = useState<"novo" | Monitor | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
-  const q = busca.trim().toLowerCase();
+  const q = normalizarBusca(busca.trim());
+  const qDigitos = busca.replace(/\D/g, "");
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
   const duplaPorId = new Map(duplas.map((d) => [d.id, d]));
   const atrasosVisiveis = atrasos.filter((atraso) => !listaId || atraso.listaId === listaId);
@@ -52,7 +131,9 @@ export function DiretorioMonitores({
       const pertenceAoGrupo = !grupoId || (!!m.duplaId && grupoDaDupla.get(m.duplaId) === grupoId);
       return (
         pertenceAoGrupo &&
-        (!q || m.nome.toLowerCase().includes(q)) &&
+        (!q ||
+          normalizarBusca(m.nome).includes(q) ||
+          (qDigitos && m.whatsappNumero.replace(/\D/g, "").includes(qDigitos))) &&
         ((!listaId && !somenteAtrasados) || monitoresAtrasados.has(m.id))
       );
     })
@@ -135,6 +216,14 @@ export function DiretorioMonitores({
           <Avatar nome={m.nome} />
           <span className="person-name">{m.nome}</span>
         </div>
+      ),
+    },
+    {
+      key: "whatsapp",
+      header: "WhatsApp",
+      sortValue: (m) => m.whatsappNumero,
+      render: (m) => (
+        <WhatsappCell monitor={m} token={token} onReload={onReload} onErro={setErro} />
       ),
     },
     {
@@ -287,7 +376,7 @@ export function DiretorioMonitores({
           <div className="search-box">
             <IconSearch />
             <input
-              placeholder="Buscar por nome"
+              placeholder="Buscar por nome ou WhatsApp"
               autoComplete="off"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
