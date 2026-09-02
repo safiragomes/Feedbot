@@ -64,6 +64,23 @@ export async function validarMonitorDupla(
   if (quantidade >= 2) throw new GestaoErro("DADOS_INVALIDOS", "Esta dupla já tem 2 monitores");
 }
 
+// O unique constraint do banco já impede duas linhas com o mesmo número, mas o erro
+// que ele gera (P2002) vira uma mensagem genérica pro usuário. Checar antes permite
+// dizer de quem é o número, que é a informação que realmente importa pra resolver.
+export async function verificarWhatsappDisponivel(
+  prisma: PrismaClient,
+  whatsappNumero: string,
+  ignorarMonitorId?: string,
+) {
+  const existente = await prisma.monitor.findUnique({ where: { whatsappNumero } });
+  if (existente && existente.id !== ignorarMonitorId) {
+    throw new GestaoErro(
+      "CONFLITO",
+      `Esse número de WhatsApp já está cadastrado para ${existente.nome}`,
+    );
+  }
+}
+
 export async function atualizarMonitor(
   prisma: PrismaClient,
   monitorId: string,
@@ -77,6 +94,9 @@ export async function atualizarMonitor(
 ) {
   const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
   if (!monitor) throw new GestaoErro("NAO_ENCONTRADO", "Monitor não encontrado");
+  if (entrada.whatsappNumero !== undefined && entrada.whatsappNumero !== monitor.whatsappNumero) {
+    await verificarWhatsappDisponivel(prisma, entrada.whatsappNumero, monitorId);
+  }
   if (entrada.isChefe === false && monitor.isChefe) {
     const grupos = await prisma.grupoRevisao.count({ where: { chefeId: monitor.id } });
     if (grupos > 0) {
@@ -152,15 +172,30 @@ export async function excluirDupla(prisma: PrismaClient, id: string) {
   ]);
 }
 
+// GrupoRevisao.chefeId é obrigatório e sem onDelete — apagar um monitor que ainda lidera
+// um grupo bate no FK constraint e vira um 409 genérico do Postgres. Checa antes pra
+// devolver uma mensagem que diga o que fazer, no lugar de deixar o delete falhar.
+async function impedirExclusaoDeChefeDeGrupo(prisma: PrismaClient, ids: string[]) {
+  const grupos = await prisma.grupoRevisao.count({ where: { chefeId: { in: ids } } });
+  if (grupos > 0) {
+    throw new GestaoErro(
+      "DADOS_INVALIDOS",
+      "Troque o chefe dos grupos vinculados antes de excluir este monitor",
+    );
+  }
+}
+
 // Feedback.monitorId é onDelete: SetNull no schema: o feedback é histórico do aluno,
 // não do monitor — excluir o monitor não pode apagar isso, só perde a autoria.
 export async function excluirMonitor(prisma: PrismaClient, id: string) {
+  await impedirExclusaoDeChefeDeGrupo(prisma, [id]);
   await prisma.monitor.delete({ where: { id } });
 }
 
 // Um DELETE por monitor em lotes grandes estoura o rate limit da API (cada requisição
 // conta pra cota) — deleteMany faz tudo numa única query, independente da quantidade.
 export async function excluirMonitores(prisma: PrismaClient, ids: string[]) {
+  await impedirExclusaoDeChefeDeGrupo(prisma, ids);
   const resultado = await prisma.monitor.deleteMany({ where: { id: { in: ids } } });
   return resultado.count;
 }

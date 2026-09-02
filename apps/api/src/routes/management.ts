@@ -14,6 +14,7 @@ import {
   excluirPeriodo,
   GestaoErro,
   validarMonitorDupla,
+  verificarWhatsappDisponivel,
 } from "../application/gestao/gestao-service.js";
 import {
   type IdParams,
@@ -238,7 +239,9 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       return reply.badRequest("Dados do monitor inválidos");
     try {
       await validarMonitorDupla(prisma, periodoId, duplaId);
+      await verificarWhatsappDisponivel(prisma, whatsappNumero);
     } catch (error) {
+      if (error instanceof GestaoErro) return responderErroGestao(reply, error);
       return reply.badRequest(error instanceof Error ? error.message : "Dupla inválida");
     }
     return reply.code(201).send(
