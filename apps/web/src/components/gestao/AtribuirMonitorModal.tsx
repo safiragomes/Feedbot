@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { api } from "../../lib/api";
-import { normalizarBusca, validarWhatsapp } from "../../lib/format";
-import type { Monitor } from "../../lib/types";
+import { normalizarBusca } from "../../lib/format";
+import type { DiscordMembro, Monitor } from "../../lib/types";
+import { DiscordMemberPicker } from "../DiscordMemberPicker";
 import { Modal } from "../ui";
 
 export function AtribuirMonitorModal({
@@ -23,21 +24,30 @@ export function AtribuirMonitorModal({
   const [busca, setBusca] = useState("");
   const [monitorId, setMonitorId] = useState("");
   const [nome, setNome] = useState("");
-  const [whatsappNumero, setWhatsappNumero] = useState("");
+  const [membro, setMembro] = useState<DiscordMembro | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const monitoresFiltrados = useMemo(() => {
     const termo = normalizarBusca(busca.trim());
     if (!termo) return monitoresDisponiveis;
-    const digitos = termo.replace(/\D/g, "");
     return monitoresDisponiveis.filter(
       (monitor) =>
         normalizarBusca(monitor.nome).includes(termo) ||
-        (digitos && monitor.whatsappNumero.replace(/\D/g, "").includes(digitos)),
+        normalizarBusca(monitor.discordUsername ?? "").includes(termo) ||
+        normalizarBusca(monitor.discordDisplayName ?? "").includes(termo),
     );
   }, [busca, monitoresDisponiveis]);
   const monitorSelecionadoVisivel = monitoresFiltrados.some((monitor) => monitor.id === monitorId);
+
+  function selecionarMembro(novoMembro: DiscordMembro | null) {
+    setMembro(novoMembro);
+    // Mesmo comportamento do cadastro em MonitorAccessModals.tsx: preenche o nome a
+    // partir do Discord enquanto o campo não foi digitado à mão.
+    if (novoMembro && (!nome.trim() || nome === membro?.displayName)) {
+      setNome(novoMembro.displayName);
+    }
+  }
 
   async function vincularExistente() {
     if (!monitorSelecionadoVisivel) return setErro("Selecione um monitor da lista");
@@ -55,15 +65,16 @@ export function AtribuirMonitorModal({
   }
 
   async function cadastrarEVincular() {
-    if (!nome.trim() || !whatsappNumero.trim()) return setErro("Preencha nome e WhatsApp");
-    const erroWhats = validarWhatsapp(whatsappNumero);
-    if (erroWhats) return setErro(erroWhats);
+    if (!nome.trim()) return setErro("Preencha o nome");
     setSalvando(true);
     setErro("");
     try {
       await api.criarMonitor(token, {
         nome: nome.trim(),
-        whatsappNumero: whatsappNumero.trim(),
+        discordUserId: membro?.discordUserId,
+        discordUsername: membro?.username,
+        discordDisplayName: membro?.displayName,
+        discordAvatarUrl: membro?.avatarUrl ?? undefined,
         periodoId,
         duplaId,
       });
@@ -111,7 +122,7 @@ export function AtribuirMonitorModal({
         >
           <p>Pesquise e selecione um monitor ativo que ainda não pertence a uma dupla.</p>
           <div className="field">
-            <label htmlFor="busca-monitor">Nome ou WhatsApp</label>
+            <label htmlFor="busca-monitor">Nome ou Discord</label>
             <input
               id="busca-monitor"
               value={busca}
@@ -130,7 +141,7 @@ export function AtribuirMonitorModal({
                 />
                 <span className="student-link-identity">
                   <strong>{monitor.nome}</strong>
-                  <small>{monitor.whatsappNumero}</small>
+                  <small>{monitor.discordUsername ? `@${monitor.discordUsername}` : "sem Discord vinculado"}</small>
                 </span>
                 <span className="student-link-meta">
                   <small>{monitor.isChefe ? "Monitor-chefe" : "Monitor"}</small>
@@ -177,18 +188,16 @@ export function AtribuirMonitorModal({
               placeholder="Nome completo"
             />
           </div>
-          <div className="field">
-            <label htmlFor="novo-monitor-whatsapp">WhatsApp</label>
-            <input
-              id="novo-monitor-whatsapp"
-              value={whatsappNumero}
-              onChange={(event) => setWhatsappNumero(event.target.value)}
-              placeholder="+55 81 9XXXX-XXXX"
-            />
-            <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
-              Inclua DDI, DDD e o 9 do celular.
-            </p>
-          </div>
+          <DiscordMemberPicker
+            token={token}
+            periodoId={periodoId}
+            value={membro?.discordUserId ?? null}
+            onChange={selecionarMembro}
+          />
+          <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: -4 }}>
+            Opcional agora — pode ser vinculado depois pelo diretório de monitores. Escolher um
+            membro preenche o nome acima com o nome de exibição dele no Discord (ainda editável).
+          </p>
           {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
           <div className="modal-actions">
             <button className="btn ghost" type="button" onClick={onClose}>

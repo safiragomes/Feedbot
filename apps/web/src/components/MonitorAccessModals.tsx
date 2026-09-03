@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api";
-import { validarWhatsapp } from "../lib/format";
-import type { Monitor } from "../lib/types";
+import type { DiscordMembro, Monitor } from "../lib/types";
+import { DiscordMemberPicker } from "./DiscordMemberPicker";
 import { Modal } from "./ui";
 
 export function ConvidarChefeModal({
@@ -100,20 +100,31 @@ export function NovoMonitorModal({
   onCreated: () => void;
 }) {
   const [nome, setNome] = useState("");
-  const [whatsappNumero, setWhatsappNumero] = useState("");
+  const [membro, setMembro] = useState<DiscordMembro | null>(null);
   const [isChefe, setIsChefe] = useState(false);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
+  function selecionarMembro(novoMembro: DiscordMembro | null) {
+    setMembro(novoMembro);
+    // Preenche o nome a partir do Discord pra não precisar digitar duas vezes — mas só
+    // enquanto o campo ainda não foi digitado à mão (vazio ou igual ao nome de exibição
+    // do membro escolhido antes), pra não sobrescrever um nome que a chefe já ajustou.
+    if (novoMembro && (!nome.trim() || nome === membro?.displayName)) {
+      setNome(novoMembro.displayName);
+    }
+  }
+
   async function submit() {
-    if (!nome.trim() || !whatsappNumero.trim()) return setErro("Preencha nome e WhatsApp");
-    const erroWhats = validarWhatsapp(whatsappNumero);
-    if (erroWhats) return setErro(erroWhats);
+    if (!nome.trim()) return setErro("Preencha o nome");
     setSalvando(true);
     try {
       await api.criarMonitor(token, {
         nome: nome.trim(),
-        whatsappNumero: whatsappNumero.trim(),
+        discordUserId: membro?.discordUserId,
+        discordUsername: membro?.username,
+        discordDisplayName: membro?.displayName,
+        discordAvatarUrl: membro?.avatarUrl ?? undefined,
         periodoId,
         isChefe,
       });
@@ -146,18 +157,16 @@ export function NovoMonitorModal({
             placeholder="Nome completo"
           />
         </div>
-        <div className="field">
-          <label>WhatsApp</label>
-          <input
-            value={whatsappNumero}
-            onChange={(e) => setWhatsappNumero(e.target.value)}
-            placeholder="+55 81 9XXXX-XXXX"
-          />
-          <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 4 }}>
-            Não esqueça o 9 do celular — o bot reconhece o número exatamente como aparece no
-            WhatsApp.
-          </p>
-        </div>
+        <DiscordMemberPicker
+          token={token}
+          periodoId={periodoId}
+          value={membro?.discordUserId ?? null}
+          onChange={selecionarMembro}
+        />
+        <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: -4 }}>
+          Opcional agora — pode ser vinculado depois pelo diretório de monitores. Escolher um
+          membro preenche o nome acima com o nome de exibição dele no Discord (ainda editável).
+        </p>
         <div className="field">
           <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none" }}>
             <input
