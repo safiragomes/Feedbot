@@ -1,6 +1,6 @@
 # Feedbot
 
-Bot de WhatsApp + dashboard para a monitoria de Introdução à Programação registrar o resultado da correção de listas e escrever automaticamente na planilha oficial. Ver `monitoria-especificacao.md` (spec mestra), `politica-privacidade.md` e `plano-desenvolvimento.md` (roteiro de fases).
+Bot do Discord + dashboard para a monitoria de Introdução à Programação registrar o resultado da correção de listas e escrever automaticamente na planilha oficial. Ver `monitoria-especificacao.md` (spec mestra), `politica-privacidade.md` e `plano-desenvolvimento.md` (roteiro de fases), e `docs/arquitetura.md` para uma visão geral de como o repositório é organizado.
 
 ## Integração com Google Sheets
 
@@ -44,7 +44,7 @@ O arquivo `docker-compose.production.yml` entrega uma instalação completa:
 - API com migrações automáticas antes de cada inicialização;
 - frontend React compilado e servido por Nginx;
 - proxy Caddy com certificado HTTPS automático;
-- volumes persistentes para banco, certificados e sessão do WhatsApp.
+- volumes persistentes para banco e certificados.
 
 ### 1. Preparar DNS e arquivos de ambiente
 
@@ -80,8 +80,7 @@ produção: a seed contém dados fictícios e limpa tabelas existentes.
 
 Preencha temporariamente em `apps/api/.env.production`:
 
-- `BOOTSTRAP_CHIEF_NAME`, `BOOTSTRAP_CHIEF_EMAIL`, `BOOTSTRAP_CHIEF_PASSWORD` e
-  `BOOTSTRAP_CHIEF_WHATSAPP`;
+- `BOOTSTRAP_CHIEF_NAME`, `BOOTSTRAP_CHIEF_EMAIL` e `BOOTSTRAP_CHIEF_PASSWORD`;
 - `BOOTSTRAP_PERIOD_NAME`, `BOOTSTRAP_PERIOD_START`, `BOOTSTRAP_PERIOD_END` e
   `BOOTSTRAP_ROTATION_REFERENCE`, usando datas ISO.
 
@@ -175,10 +174,15 @@ apps/
   api/    Fastify + TypeScript + Prisma (PostgreSQL)
   web/    React + TypeScript + Vite + Chart.js
 docs/
+  arquitetura.md  visão geral de como o código está organizado
+  seguranca.md    controles de segurança e checklist de produção
   specs/  specs de feature (SDD)
   adr/    Architecture Decision Records
   change/ registro de mudanças entregues
 ```
+
+Ver `docs/arquitetura.md` para uma explicação mais detalhada de como o repositório é organizado
+(camadas do backend, estrutura do painel, como as pastas de `docs/` se relacionam).
 
 ## Como este projeto é desenvolvido
 
@@ -200,27 +204,57 @@ Toda entrega significativa (uma fase do `plano-desenvolvimento.md`, uma migraç�
 
 Fluxo fechado, ponta a ponta: **spec → red → green → refactor → change record** (linkando a spec e, se houver, o ADR relacionado).
 
-## Bot do WhatsApp
+## Bot do Discord
 
-O bot usa uma biblioteca não-oficial multi-device (ex. Baileys), pareada por QR code — ver [ADR-0003](docs/adr/0003-bot-whatsapp-biblioteca-nao-oficial.md). A sessão de autenticação nunca é versionada (`apps/api/.baileys-auth/` está no `.gitignore`).
+O bot usa a API oficial do Discord (`discord.js`), autenticado por um token estático de
+aplicação (`DISCORD_BOT_TOKEN`) — sem pareamento por QR code — ver
+[ADR-0005](docs/adr/0005-bot-discord-em-vez-de-whatsapp.md) (substitui a decisão anterior de
+WhatsApp, [ADR-0003](docs/adr/0003-bot-whatsapp-biblioteca-nao-oficial.md)) e
+`docs/specs/controle-sessao-bot.md` para o comportamento completo do fluxo.
+
+Cada **período** (semestre) usa um servidor do Discord próprio, criado do zero — servidor,
+cargo de monitores e canal de registro são escolhidos pela chefe direto no painel (tela
+**Bot**, fluxo Servidor → Cargo → Canal, cada passo buscado ao vivo na API do Discord), não
+por variável de ambiente.
+
+### Configurar a aplicação no Discord Developer Portal
+
+1. Crie uma aplicação em [discord.com/developers/applications](https://discord.com/developers/applications)
+   e, dentro dela, um Bot.
+2. Em **Bot**, ative o intent privilegiado **Server Members Intent** (necessário para listar
+   membros por cargo no vínculo de monitores). O bot não precisa do Message Content Intent — o
+   fluxo é só slash command/componentes, nunca lê texto livre de mensagens normais.
+3. Copie o **token** do bot para `DISCORD_BOT_TOKEN`.
+4. Em **OAuth2 → URL Generator**, marque os escopos `bot` e `applications.commands` e as
+   permissões `View Channels`, `Send Messages`, `Embed Links` e `Use Application Commands`.
+   Use a URL gerada para convidar o bot a cada servidor de período. Link de convite do bot
+   atual (aplicação do Feedbot no Developer Portal):
+
+   ```
+   https://discord.com/oauth2/authorize?client_id=1544875651369271397&permissions=2147503104&integration_type=0&scope=bot+applications.commands
+   ```
+
+5. Convide o bot ao servidor do período atual e, no painel, vincule servidor → cargo "Monitores"
+   → canal de registro. Um período novo (servidor novo) repete só os passos 4 e 5 — o mesmo
+   link acima serve pra convidar o bot a qualquer servidor novo, sem precisar gerar de novo.
 
 ### Execução contínua (24/7)
 
 O painel pode ser fechado sem desconectar o bot: a conexão pertence à API, não ao
-navegador. A API também mantém um watchdog independente do painel para refazer conexões
-interrompidas ou presas. Para manter API, bot e banco ativos com reinício automático, execute:
+navegador. A API mantém um watchdog interno (`DiscordBot.verificarConexao`) que detecta quedas
+e reconexões e avisa cada chefe por e-mail se a queda passar de 5 minutos sem se resolver
+sozinha. Para manter API, bot e banco ativos com reinício automático, execute:
 
 ```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-O serviço `api` usa `restart: unless-stopped`. As credenciais do WhatsApp ficam no
-volume `feedbot-baileys-auth`, portanto reiniciar ou recriar o container não exige novo
-QR code. Um novo pareamento só é necessário quando o próprio WhatsApp revoga a sessão
-ou quando o usuário solicita **Desconectar** no painel.
+O serviço `api` usa `restart: unless-stopped`. Como a autenticação é por token estático (sem
+sessão pareada), reiniciar ou recriar o container não exige nenhuma ação manual — o bot volta a
+conectar sozinho assim que `DISCORD_BOT_TOKEN` estiver disponível.
 
-O computador/servidor e o Docker precisam permanecer ligados. Para disponibilidade
-real 24/7, execute o Compose em um servidor permanente e configure o Docker para iniciar
-com o sistema operacional. A disponibilidade ainda depende da internet e do WhatsApp;
-revogação do aparelho conectado exige um novo pareamento manual.
+O computador/servidor e o Docker precisam permanecer ligados. Para disponibilidade real 24/7,
+execute o Compose em um servidor permanente e configure o Docker para iniciar com o sistema
+operacional. A disponibilidade ainda depende da internet e da API do Discord; revogar/regenerar
+o token do bot no Developer Portal exige atualizar `DISCORD_BOT_TOKEN` e reiniciar a API.

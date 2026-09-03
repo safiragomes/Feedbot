@@ -13,7 +13,7 @@ Adotar quatro responsabilidades com dependência dirigida para dentro:
 1. `domain/`: regras puras e determinísticas, sem HTTP, Prisma, banco ou serviços externos.
 2. `application/`: casos de uso e classificação; pode depender do domínio e, durante a migração,
    de tipos do repositório, mas nunca de rotas ou adaptadores externos.
-3. `services/` e `db/`: adaptadores de infraestrutura para Google, WhatsApp e PostgreSQL.
+3. `services/` e `db/`: adaptadores de infraestrutura para Google, Discord e PostgreSQL.
 4. `routes/`: entrada HTTP, autenticação, parsing e tradução de respostas.
 
 Testes arquiteturais impedem dependências de `domain` para infraestrutura e de `application` para

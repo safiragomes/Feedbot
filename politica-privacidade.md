@@ -15,7 +15,7 @@ O Feedbot é operado pela equipe de chefes de monitoria da disciplina, como ferr
 **Sobre monitores:**
 
 - Nome
-- Número de WhatsApp (usado para identificar o monitor automaticamente no bot)
+- Conta do Discord (usada para identificar o monitor automaticamente no bot)
 - Grupo de revisão e dupla aos quais está vinculado
 - Registros de feedback preenchidos (data, lista, aluno, ocorrências)
 
@@ -38,7 +38,7 @@ O Feedbot é operado pela equipe de chefes de monitoria da disciplina, como ferr
 
 - **Planilha oficial da disciplina** (Google Sheets), mantida pelos professores — recebe apenas a quantidade de questões corretas por aluno e por lista.
 - Os dados **não são vendidos, compartilhados com terceiros externos à disciplina, nem usados para fins publicitários**.
-- O WhatsApp (Meta) processa as mensagens trocadas com o bot como parte do funcionamento da WhatsApp Business Platform, sujeito à própria política de privacidade da Meta.
+- O Discord processa as mensagens e interações trocadas com o bot como parte do funcionamento da plataforma, sujeito à própria política de privacidade do Discord.
 
 ## 6. Por quanto tempo os dados são mantidos
 
@@ -56,7 +56,7 @@ Pedidos podem ser feitos diretamente a qualquer chefe de monitoria da disciplina
 
 ## 8. Segurança
 
-O acesso aos dashboards é restrito aos chefes de monitoria da disciplina. O acesso ao bot é vinculado ao número de WhatsApp cadastrado de cada monitor, e cada monitor só visualiza os alunos da própria dupla.
+O acesso aos dashboards é restrito aos chefes de monitoria da disciplina. O acesso ao bot é vinculado à conta do Discord cadastrada de cada monitor, e cada monitor só visualiza os alunos da própria dupla.
 
 ## 9. Contato
 
