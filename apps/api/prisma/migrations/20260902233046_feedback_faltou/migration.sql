@@ -1,0 +1,1 @@
+ALTER TABLE "Feedback" ADD COLUMN     "faltou" BOOLEAN NOT NULL DEFAULT false;

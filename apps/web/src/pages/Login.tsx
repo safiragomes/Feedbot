@@ -120,7 +120,7 @@ export function Login({
         </div>
         <h1>Um painel só para a monitoria</h1>
         <p>
-          Acompanhe progresso dos alunos, distribua duplas e mantenha o bot do WhatsApp sob controle
+          Acompanhe progresso dos alunos, distribua duplas e mantenha o bot do Discord sob controle
           — tudo no mesmo lugar, sem planilhas soltas.
         </p>
         <div className="login-highlights">
@@ -138,7 +138,7 @@ export function Login({
           </div>
           <div className="login-highlight">
             <strong>Bot</strong>
-            <span>atendimento pelo WhatsApp</span>
+            <span>atendimento pelo Discord</span>
           </div>
         </div>
         <div className="login-orbit" aria-hidden="true" />

@@ -11,7 +11,7 @@ import { feedbackRoutes } from "./routes/feedback.js";
 import { healthRoutes } from "./routes/health.js";
 import { managementRoutes } from "./routes/management.js";
 import { privacyRoutes } from "./routes/privacy.js";
-import { WhatsAppBot } from "./services/whatsapp-bot.js";
+import { DiscordBot } from "./services/discord-bot.js";
 import { GoogleSheetsSync } from "./services/google-sheets.js";
 import { planilhaRoutes } from "./routes/planilha.js";
 import { googleOAuthRoutes } from "./routes/google-oauth.js";
@@ -21,7 +21,7 @@ import { SmtpEmailSender, type EmailSender } from "./services/email.js";
 export function buildApp(
   options: {
     prisma?: PrismaClient;
-    bot?: WhatsAppBot;
+    bot?: DiscordBot;
     sheets?: GoogleSheetsSync;
     emailSender?: EmailSender;
   } = {},

@@ -4,7 +4,7 @@ Data: 2026-08-17
 
 ## Status
 
-Aceito — substitui a decisão original registrada na seção 3 e 8 de `monitoria-especificacao.md`.
+Substituído por [ADR-0005](0005-bot-discord-em-vez-de-whatsapp.md) — substituía a decisão original registrada na seção 3 e 8 de `monitoria-especificacao.md`.
 
 ## Contexto
 

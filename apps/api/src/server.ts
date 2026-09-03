@@ -2,27 +2,16 @@ import "dotenv/config";
 import { buildApp } from "./app.js";
 import { prisma } from "./db/client.js";
 import { botRoutes } from "./routes/bot.js";
-import { WhatsAppBot } from "./services/whatsapp-bot.js";
+import { DiscordBot } from "./services/discord-bot.js";
 
 const app = buildApp({ prisma });
-const bot = new WhatsAppBot(prisma, undefined, undefined, undefined, app.log);
+const bot = new DiscordBot(prisma, undefined, undefined, undefined, app.log);
 botRoutes(app, prisma, bot);
 const port = Number(process.env.PORT ?? 3333);
 
-// Sessões multi-device válidas sobrevivem a reinícios da API. Se as credenciais
-// persistidas existirem, restaura a conexão sem exigir um novo QR code.
 void bot.iniciar().catch((error) => app.log.error(error));
 
-// O navegador não participa da conexão. Este watchdog roda dentro da API e recupera
-// sockets que ficaram presos sem emitir "close", inclusive com o painel fechado.
-const conexaoBotTimer = setInterval(
-  () => void bot.garantirConexao().catch((error) => app.log.error(error)),
-  60_000,
-);
-conexaoBotTimer.unref();
-
 app.addHook("onClose", async () => {
-  clearInterval(conexaoBotTimer);
   await bot.encerrarParaReinicio();
 });
 

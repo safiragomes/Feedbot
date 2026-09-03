@@ -12,8 +12,10 @@ export type Periodo = {
   dataFim: string;
   dataReferenciaRodizio: string;
   ativo: boolean;
-  whatsappAvisosId: string | null;
-  whatsappComunidadeNome: string | null;
+  discordGuildId: string | null;
+  discordMonitoresRoleId: string | null;
+  discordAvisosCanalId: string | null;
+  discordAvisosCanalNome: string | null;
   planilhaId: string | null;
   planilhaUrl: string | null;
   planilhaVinculadaEm: string | null;
@@ -55,7 +57,11 @@ export type Turma = {
 export type Monitor = {
   id: string;
   nome: string;
-  whatsappNumero: string;
+  whatsappNumero: string | null;
+  discordUserId: string | null;
+  discordUsername: string | null;
+  discordDisplayName: string | null;
+  discordAvatarUrl: string | null;
   isChefe: boolean;
   periodoId: string;
   duplaId: string | null;
@@ -155,10 +161,24 @@ export type NovoFeedbackInput = {
 };
 
 export type Bot = {
-  sessao: { status: "DESCONECTADO" | "CONECTANDO" | "CONECTADO"; numeroConectado?: string } | null;
-  qr?: string;
-  credenciaisSalvas?: boolean;
+  sessao: {
+    status: "DESCONECTADO" | "CONECTANDO" | "CONECTADO";
+    discordBotTag?: string | null;
+    guildNome?: string | null;
+  } | null;
 };
+
+export type DiscordMembro = {
+  discordUserId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  jaVinculado: string | null;
+};
+
+export type DiscordServidor = { id: string; nome: string };
+export type DiscordCargo = { id: string; nome: string };
+export type DiscordCanal = { id: string; nome: string };
 
 export type Atraso = {
   alunoId: string;

@@ -8,7 +8,7 @@ export type PendenciaAtrasada = {
   listaNome: string;
   monitorId: string;
   monitorNome: string;
-  whatsappNumero: string;
+  whatsappNumero: string | null;
   duplaId: string;
   prazoEntregaFeedback: Date;
 };

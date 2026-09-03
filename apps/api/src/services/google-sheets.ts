@@ -299,11 +299,13 @@ export class GoogleSheetsSync {
         requestBody: {
           values: [
             [
-              calcularQuestoesEquivalentes({
-                corretas: feedback.qtdQuestoesPontuadas,
-                total: feedback.lista.qtdQuestoesTotal,
-                condicaoEspecial: feedback.aluno.isPcd,
-              }),
+              feedback.faltou
+                ? "F"
+                : calcularQuestoesEquivalentes({
+                    corretas: feedback.qtdQuestoesPontuadas,
+                    total: feedback.lista.qtdQuestoesTotal,
+                    condicaoEspecial: feedback.aluno.isPcd,
+                  }),
             ],
           ],
         },

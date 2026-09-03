@@ -8,6 +8,10 @@ const chefe: Monitor = {
   id: "chefe",
   nome: "Chefe Atual",
   whatsappNumero: "+5581999999990",
+  discordUserId: "discord-chefe",
+  discordUsername: "chefe",
+  discordDisplayName: "Chefe Atual",
+  discordAvatarUrl: null,
   isChefe: true,
   periodoId: "periodo",
   duplaId: null,
@@ -52,13 +56,13 @@ describe("Gestao", () => {
     await user.click(screen.getAllByRole("button", { name: "vago" })[0]!);
 
     expect(screen.getByRole("heading", { name: "Vincular monitor à dupla" })).toBeInTheDocument();
-    const busca = screen.getByRole("textbox", { name: "Nome ou WhatsApp" });
+    const busca = screen.getByRole("textbox", { name: "Nome ou Discord" });
     await user.type(busca, "Bruno");
     expect(screen.getByText("Bruno Disponível")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cadastrar novo" }));
     expect(screen.getByRole("textbox", { name: "Nome" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "WhatsApp" })).toBeInTheDocument();
+    expect(screen.getByText("Conta do Discord")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cadastrar e vincular" })).toBeInTheDocument();
   });
 });

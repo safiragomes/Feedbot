@@ -38,8 +38,12 @@ model Periodo {
   // a ordem de retorno de /periodos (e portanto o período escolhido por padrão no
   // login) fica indefinida entre eles.
   criadoEm               DateTime  @default(now())
-  whatsappAvisosId       String?   @unique
-  whatsappComunidadeNome String?
+  // Cada período usa um servidor do Discord próprio (criado do zero a cada semestre) —
+  // por isso servidor e cargo são configuração por período, não global do bot.
+  discordGuildId         String?   @unique
+  discordMonitoresRoleId String?
+  discordAvisosCanalId   String?   @unique
+  discordAvisosCanalNome String?
   planilhaId             String?
   planilhaUrl            String?
   planilhaVinculadaEm    DateTime?
@@ -108,13 +112,21 @@ model Dupla {
 /// não pelo schema. Para cada aluno da dupla, um dos dois é escolhido como monitor
 /// da semana A (Aluno.monitorSemanaAId) — o outro é implicitamente o da semana B.
 model Monitor {
-  id             String        @id @default(cuid())
-  nome           String
-  whatsappNumero String        @unique
-  isChefe        Boolean       @default(false)
-  periodoId      String
-  duplaId        String?
-  status         MonitorStatus @default(ATIVO)
+  id                 String        @id @default(cuid())
+  nome               String
+  // Histórico: chave de identidade do antigo bot de WhatsApp. Não é mais obrigatório
+  // nem usado para autenticar o bot — ver discordUserId.
+  whatsappNumero     String?       @unique
+  discordUserId      String?       @unique
+  discordUsername    String?
+  discordDisplayName String?
+  discordAvatarUrl   String?
+  // Quando a chefe vinculou manualmente esse monitor a uma conta do Discord.
+  discordVinculadoEm DateTime?
+  isChefe            Boolean       @default(false)
+  periodoId          String
+  duplaId            String?
+  status             MonitorStatus @default(ATIVO)
 
   periodo              Periodo            @relation(fields: [periodoId], references: [id])
   dupla                Dupla?             @relation(fields: [duplaId], references: [id], onDelete: SetNull)
@@ -263,6 +275,10 @@ model Feedback {
   duplaId              String?
   semana               Semana
   qtdQuestoesPontuadas Int
+  // Distingue "respondeu e acertou 0" (qtdQuestoesPontuadas = 0, faltou = false) de
+  // "não respondeu/entregou a lista" (faltou = true) — a planilha usa "F" pra esse
+  // segundo caso em vez de um número.
+  faltou               Boolean  @default(false)
   usouIa               Boolean  @default(false)
   plagiou              Boolean  @default(false)
   usouProibicao        Boolean  @default(false)
@@ -334,8 +350,9 @@ model MapeamentoPlanilhaLista {
 /// Tabela singleton: uma única linha reflete o estado de conexão do bot no dashboard
 /// (ver docs/specs/modelo-dados.md e ADR-0003). Mantida por upsert com id fixo pela aplicação.
 model BotSessao {
-  id              String          @id @default(cuid())
-  status          BotSessaoStatus @default(DESCONECTADO)
-  numeroConectado String?
-  atualizadoEm    DateTime        @updatedAt
+  id           String          @id @default(cuid())
+  status       BotSessaoStatus @default(DESCONECTADO)
+  discordBotTag String?
+  guildNome    String?
+  atualizadoEm DateTime        @updatedAt
 }

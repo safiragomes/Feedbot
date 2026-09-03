@@ -350,6 +350,32 @@ describe("criarFeedback", () => {
     expect(feedback.monitorId).toBe(chefeId);
     expect(feedback.semana).toBe("A");
   });
+
+  it("faltou zera pontuação e ocorrências independente do que for passado", async () => {
+    const alunoFaltou = await prisma.aluno.create({
+      data: {
+        nome: "Aluno que faltou",
+        matricula: `TESTE-${sufixo}-6`,
+        turmaId: (await prisma.aluno.findUniqueOrThrow({ where: { id: alunoId } })).turmaId,
+        duplaId,
+        monitorSemanaAId: monitorId,
+      },
+    });
+    const feedback = await criarFeedback(prisma, {
+      alunoId: alunoFaltou.id,
+      monitorId,
+      listaId,
+      qtdQuestoesPontuadas: 5,
+      faltou: true,
+      questoesIa: [1, 2],
+      questoesProibicao: [3],
+    });
+    expect(feedback.faltou).toBe(true);
+    expect(feedback.qtdQuestoesPontuadas).toBe(0);
+    expect(feedback.usouIa).toBe(false);
+    expect(feedback.usouProibicao).toBe(false);
+    expect(await prisma.feedbackQuestaoIA.count({ where: { feedbackId: feedback.id } })).toBe(0);
+  });
 });
 
 describe("criarFeedback - dupla com um único monitor (chefe sem parceiro)", () => {

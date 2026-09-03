@@ -17,4 +17,6 @@ Sempre que uma decisão for difícil de reverter ou afetar múltiplas partes do 
 
 - [ADR-0001](0001-registrar-decisoes-arquiteturais.md) — Registrar decisões arquiteturais
 - [ADR-0002](0002-stack-tecnologica.md) — Stack tecnológica do Feedbot
-- [ADR-0003](0003-bot-whatsapp-biblioteca-nao-oficial.md) — Bot do WhatsApp via biblioteca não-oficial (QR code) e suporte a grupos
+- [ADR-0003](0003-bot-whatsapp-biblioteca-nao-oficial.md) — Bot do WhatsApp via biblioteca não-oficial (QR code) e suporte a grupos — substituído por ADR-0005
+- [ADR-0004](0004-arquitetura-em-camadas-e-seguranca.md) — Arquitetura em camadas e configuração segura
+- [ADR-0005](0005-bot-discord-em-vez-de-whatsapp.md) — Bot do Discord em vez de WhatsApp

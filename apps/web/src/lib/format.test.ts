@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avatarColor, fimDoDiaIso, initials, noPrazo, pct, validarWhatsapp } from "./format";
+import { avatarColor, fimDoDiaIso, initials, noPrazo, pct } from "./format";
 
 describe("formatação compartilhada", () => {
   it("gera iniciais, cor determinística e percentual", () => {
@@ -14,12 +14,5 @@ describe("formatação compartilhada", () => {
     expect(noPrazo("2026-08-30T12:00:00Z", "2026-08-30T11:00:00Z")).toBe(false);
     expect(noPrazo("2026-08-30T12:00:00Z", null)).toBeNull();
     expect(new Date(fimDoDiaIso("2026-08-30")).getHours()).toBe(23);
-  });
-
-  it("valida WhatsApp vazio, inválido, brasileiro sem o 9 e completo", () => {
-    expect(validarWhatsapp("")).toContain("incompleto");
-    expect(validarWhatsapp("123")).toContain("inválido");
-    expect(validarWhatsapp("+55 81 3456-7890")).toContain("Falta o 9");
-    expect(validarWhatsapp("+55 81 98765-4321")).toBeNull();
   });
 });

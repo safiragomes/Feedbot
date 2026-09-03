@@ -5,7 +5,7 @@
  * parceiro). `outroMonitorId` é responsabilidade do chamador resolver via
  * Prisma — esta função é pura para poder ser testada sem banco e para ser a
  * única fonte da regra (antes duplicada entre services/feedback.ts e
- * services/whatsapp-bot.ts).
+ * services/discord-bot.ts).
  *
  * Assume que `monitorSemanaAId`, quando não nulo, sempre pertence à dupla do
  * aluno — invariante garantida por `validateAlunoMonitorA` em

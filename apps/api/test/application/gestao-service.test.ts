@@ -10,6 +10,7 @@ import {
   excluirMonitor,
   excluirPeriodo,
   GestaoErro,
+  verificarDiscordDisponivel,
 } from "../../src/application/gestao/gestao-service.js";
 
 describe("atualizarMonitor bloqueia número de WhatsApp já usado por outro monitor", () => {
@@ -61,6 +62,41 @@ describe("atualizarMonitor bloqueia número de WhatsApp já usado por outro moni
     await expect(
       atualizarMonitor(prisma, "m1", { whatsappNumero: "+5581911111111" }),
     ).resolves.toBeDefined();
+  });
+});
+
+describe("atualizarMonitor bloqueia conta do Discord já vinculada a outro monitor", () => {
+  it("recusa o vínculo quando o discordUserId já pertence a outro monitor", async () => {
+    const monitorAtual = {
+      id: "m1",
+      discordUserId: null,
+      isChefe: false,
+      duplaId: null,
+      periodoId: "p1",
+    };
+    const outroMonitor = { id: "m2", nome: "Outro Monitor", discordUserId: "discord-2" };
+    const prisma = {
+      monitor: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(monitorAtual)
+          .mockResolvedValueOnce(outroMonitor),
+      },
+    } as unknown as PrismaClient;
+
+    await expect(
+      atualizarMonitor(prisma, "m1", { discordUserId: "discord-2" }),
+    ).rejects.toThrow("Essa conta do Discord já está vinculada a Outro Monitor");
+  });
+
+  it("verificarDiscordDisponivel não bloqueia o próprio monitor mantendo o mesmo id", async () => {
+    const prisma = {
+      monitor: { findUnique: vi.fn().mockResolvedValue({ id: "m1", nome: "Eu mesmo" }) },
+    } as unknown as PrismaClient;
+
+    await expect(
+      verificarDiscordDisponivel(prisma, "discord-1", "m1"),
+    ).resolves.toBeUndefined();
   });
 });
 

@@ -155,10 +155,14 @@ export function IconLogout(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function IconWhatsapp(props: SVGProps<SVGSVGElement>) {
+export function IconDiscord(props: SVGProps<SVGSVGElement>) {
   return (
     <Svg {...props}>
-      <path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H8l-5 4z" />
+      <rect x="3" y="7" width="18" height="11" rx="5.5" />
+      <path d="M8 4.5 9.5 7" />
+      <path d="M16 4.5 14.5 7" />
+      <circle cx="9" cy="12.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12.5" r="1.1" fill="currentColor" stroke="none" />
     </Svg>
   );
 }

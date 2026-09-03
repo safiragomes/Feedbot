@@ -30,9 +30,6 @@ services:
       APP_URL: https://${DOMAIN}
       GOOGLE_OAUTH_REDIRECT_URI: https://${DOMAIN}/api/google/oauth/callback
       TRUST_PROXY: "true"
-      BAILEYS_AUTH_DIR: /var/lib/feedbot/baileys-auth
-    volumes:
-      - feedbot-baileys-auth:/var/lib/feedbot/baileys-auth
     healthcheck:
       test:
         [
@@ -72,6 +69,5 @@ services:
 
 volumes:
   feedbot-db-data:
-  feedbot-baileys-auth:
   caddy-data:
   caddy-config:

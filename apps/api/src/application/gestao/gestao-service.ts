@@ -67,6 +67,9 @@ export async function validarMonitorDupla(
 // O unique constraint do banco já impede duas linhas com o mesmo número, mas o erro
 // que ele gera (P2002) vira uma mensagem genérica pro usuário. Checar antes permite
 // dizer de quem é o número, que é a informação que realmente importa pra resolver.
+// Mantido por compatibilidade histórica com whatsappNumero (campo não obrigatório
+// desde a migração para o Discord) — verificarDiscordDisponivel é o equivalente
+// usado pela nova identidade do bot.
 export async function verificarWhatsappDisponivel(
   prisma: PrismaClient,
   whatsappNumero: string,
@@ -81,12 +84,31 @@ export async function verificarWhatsappDisponivel(
   }
 }
 
+export async function verificarDiscordDisponivel(
+  prisma: PrismaClient,
+  discordUserId: string,
+  ignorarMonitorId?: string,
+) {
+  const existente = await prisma.monitor.findUnique({ where: { discordUserId } });
+  if (existente && existente.id !== ignorarMonitorId) {
+    throw new GestaoErro(
+      "CONFLITO",
+      `Essa conta do Discord já está vinculada a ${existente.nome}`,
+    );
+  }
+}
+
 export async function atualizarMonitor(
   prisma: PrismaClient,
   monitorId: string,
   entrada: {
     nome?: string;
     whatsappNumero?: string;
+    discordUserId?: string;
+    discordUsername?: string;
+    discordDisplayName?: string;
+    discordAvatarUrl?: string;
+    discordVinculadoEm?: Date;
     isChefe?: boolean;
     status?: MonitorStatus;
     duplaId?: string | null;
@@ -96,6 +118,9 @@ export async function atualizarMonitor(
   if (!monitor) throw new GestaoErro("NAO_ENCONTRADO", "Monitor não encontrado");
   if (entrada.whatsappNumero !== undefined && entrada.whatsappNumero !== monitor.whatsappNumero) {
     await verificarWhatsappDisponivel(prisma, entrada.whatsappNumero, monitorId);
+  }
+  if (entrada.discordUserId !== undefined && entrada.discordUserId !== monitor.discordUserId) {
+    await verificarDiscordDisponivel(prisma, entrada.discordUserId, monitorId);
   }
   if (entrada.isChefe === false && monitor.isChefe) {
     const grupos = await prisma.grupoRevisao.count({ where: { chefeId: monitor.id } });

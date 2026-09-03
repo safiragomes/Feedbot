@@ -4,6 +4,10 @@ import type {
   Bot,
   Chefe,
   ConfiguracaoPlanilha,
+  DiscordCanal,
+  DiscordCargo,
+  DiscordMembro,
+  DiscordServidor,
   Dupla,
   Feedback,
   GrupoRevisao,
@@ -150,7 +154,10 @@ export const api = {
     token: string,
     data: {
       nome: string;
-      whatsappNumero: string;
+      discordUserId?: string;
+      discordUsername?: string;
+      discordDisplayName?: string;
+      discordAvatarUrl?: string;
       periodoId: string;
       isChefe?: boolean;
       duplaId?: string | null;
@@ -223,15 +230,26 @@ export const api = {
     post(`/feedbacks/${id}/reprocessar-planilha`, token, {}),
 
   bot: (token: string) => request<Bot>("/bot", token),
-  conectarBot: (token: string) => post("/bot/conectar", token, {}),
-  desconectarBot: (token: string) => request<void>("/bot/desconectar", token, { method: "POST" }),
-  desvincularBot: (token: string) => request<void>("/bot/desvincular", token, { method: "POST" }),
-  comunidadesWhatsappDisponiveis: (token: string) =>
-    request<{ id: string; nome: string }[]>("/bot/comunidades-disponiveis", token),
-  vincularComunidadeWhatsapp: (token: string, periodoId: string, whatsappAvisosId: string) =>
-    put<Periodo>(`/bot/periodos/${periodoId}/comunidade`, token, { whatsappAvisosId }),
-  desvincularComunidadeWhatsapp: (token: string, periodoId: string) =>
+  // Cada período usa um servidor do Discord próprio (criado do zero a cada semestre) —
+  // por isso servidor, cargo, canal e membros são todos escopados por período.
+  servidoresDiscordDisponiveis: (token: string) =>
+    request<DiscordServidor[]>("/bot/servidores-disponiveis", token),
+  vincularServidorDiscord: (token: string, periodoId: string, discordGuildId: string) =>
+    put<Periodo>(`/bot/periodos/${periodoId}/servidor`, token, { discordGuildId }),
+  desvincularServidorDiscord: (token: string, periodoId: string) =>
+    del(`/bot/periodos/${periodoId}/servidor`, token),
+  cargosDiscordDisponiveis: (token: string, periodoId: string) =>
+    request<DiscordCargo[]>(`/bot/periodos/${periodoId}/cargos-disponiveis`, token),
+  vincularCargoDiscord: (token: string, periodoId: string, discordMonitoresRoleId: string) =>
+    put<Periodo>(`/bot/periodos/${periodoId}/cargo`, token, { discordMonitoresRoleId }),
+  canaisDiscordDisponiveis: (token: string, periodoId: string) =>
+    request<DiscordCanal[]>(`/bot/periodos/${periodoId}/canais-disponiveis`, token),
+  discordMembrosMonitores: (token: string, periodoId: string) =>
+    request<DiscordMembro[]>(`/bot/periodos/${periodoId}/membros-monitores`, token),
+  vincularCanalDiscord: (token: string, periodoId: string, discordAvisosCanalId: string) =>
+    put<Periodo>(`/bot/periodos/${periodoId}/comunidade`, token, { discordAvisosCanalId }),
+  desvincularCanalDiscord: (token: string, periodoId: string) =>
     del(`/bot/periodos/${periodoId}/comunidade`, token),
-  enviarLinkComunidadeWhatsapp: (token: string, periodoId: string) =>
-    post<{ link: string }>(`/bot/periodos/${periodoId}/enviar-link`, token, {}),
+  enviarPainelDiscord: (token: string, periodoId: string) =>
+    request<void>(`/bot/periodos/${periodoId}/enviar-link`, token, { method: "POST" }),
 };

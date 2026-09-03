@@ -16,7 +16,9 @@ build/
 apps/api/prisma/dev.db
 apps/api/src/generated/
 
-# whatsapp bot session (Baileys auth state) — never commit session secrets
+# sessão antiga do bot de WhatsApp (Baileys) — código removido no migração pro
+# Discord, mas a pasta local ainda pode conter credenciais reais da sessão antiga;
+# nunca versionar. Pode ser apagada manualmente (não é mais lida por nenhum código).
 apps/api/.baileys-auth/
 
 # logs

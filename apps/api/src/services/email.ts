@@ -173,7 +173,7 @@ export function montarHtmlAvisoBot(nome: string, mensagem: string) {
               </td>
             </tr>
             <tr>
-              <td style="padding:20px 40px;background-color:#0c1626;border-top:1px solid #263954;font-size:12px;line-height:19px;color:#6f88ab;">Este é um aviso automático do Feedbot para quem administra a conexão com o WhatsApp.</td>
+              <td style="padding:20px 40px;background-color:#0c1626;border-top:1px solid #263954;font-size:12px;line-height:19px;color:#6f88ab;">Este é um aviso automático do Feedbot para quem administra a conexão com o Discord.</td>
             </tr>
           </table>
         </td>

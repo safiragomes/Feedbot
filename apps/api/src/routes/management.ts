@@ -14,7 +14,7 @@ import {
   excluirPeriodo,
   GestaoErro,
   validarMonitorDupla,
-  verificarWhatsappDisponivel,
+  verificarDiscordDisponivel,
 } from "../application/gestao/gestao-service.js";
 import {
   type IdParams,
@@ -214,10 +214,10 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   app.post("/monitores", protectedRoute, async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const nome = text(body.nome);
-    const whatsappNumeroBruto = text(body.whatsappNumero);
-    const whatsappNumero = whatsappNumeroBruto
-      ? normalizarWhatsapp(whatsappNumeroBruto)
-      : undefined;
+    const discordUserId = text(body.discordUserId);
+    const discordUsername = text(body.discordUsername);
+    const discordDisplayName = text(body.discordDisplayName);
+    const discordAvatarUrl = text(body.discordAvatarUrl);
     const periodoId = text(body.periodoId);
     const isChefe = bool(body.isChefe) ?? false;
     const duplaId = body.duplaId === null || body.duplaId === undefined ? null : text(body.duplaId);
@@ -227,11 +227,8 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         : body.status === undefined || body.status === "ATIVO"
           ? MonitorStatus.ATIVO
           : undefined;
-    if (whatsappNumeroBruto && !whatsappNumero)
-      return reply.badRequest("Número de WhatsApp inválido");
     if (
       !nome ||
-      !whatsappNumero ||
       !periodoId ||
       !status ||
       (body.duplaId !== undefined && body.duplaId !== null && !duplaId)
@@ -239,14 +236,25 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       return reply.badRequest("Dados do monitor inválidos");
     try {
       await validarMonitorDupla(prisma, periodoId, duplaId);
-      await verificarWhatsappDisponivel(prisma, whatsappNumero);
+      if (discordUserId) await verificarDiscordDisponivel(prisma, discordUserId);
     } catch (error) {
       if (error instanceof GestaoErro) return responderErroGestao(reply, error);
       return reply.badRequest(error instanceof Error ? error.message : "Dupla inválida");
     }
     return reply.code(201).send(
       await prisma.monitor.create({
-        data: { nome, whatsappNumero, periodoId, isChefe, status, duplaId },
+        data: {
+          nome,
+          periodoId,
+          isChefe,
+          status,
+          duplaId,
+          discordUserId: discordUserId || undefined,
+          discordUsername: discordUsername || undefined,
+          discordDisplayName: discordDisplayName || undefined,
+          discordAvatarUrl: discordAvatarUrl || undefined,
+          discordVinculadoEm: discordUserId ? new Date() : undefined,
+        },
       }),
     );
   });
@@ -272,6 +280,9 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         : normalizarWhatsapp(text(body.whatsappNumero) ?? "");
     if (body.whatsappNumero !== undefined && !whatsappNumero)
       return reply.badRequest("Número de WhatsApp inválido");
+    const discordUserId = body.discordUserId === undefined ? undefined : text(body.discordUserId);
+    if (body.discordUserId !== undefined && !discordUserId)
+      return reply.badRequest("Conta do Discord inválida");
     const isChefe = body.isChefe === undefined ? undefined : bool(body.isChefe);
     if (body.isChefe !== undefined && isChefe === undefined)
       return reply.badRequest("Papel do monitor inválido");
@@ -279,6 +290,11 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
       return await atualizarMonitor(prisma, monitorId, {
         nome: body.nome === undefined ? undefined : text(body.nome),
         whatsappNumero: whatsappNumero ?? undefined,
+        discordUserId,
+        discordUsername: text(body.discordUsername) ?? undefined,
+        discordDisplayName: text(body.discordDisplayName) ?? undefined,
+        discordAvatarUrl: text(body.discordAvatarUrl) ?? undefined,
+        discordVinculadoEm: discordUserId ? new Date() : undefined,
         isChefe,
         status,
         duplaId,

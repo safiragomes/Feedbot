@@ -30,7 +30,7 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
   },
   {
     group: "Bot",
-    items: [{ id: "bot", label: "Bot do WhatsApp", icon: <IconBot /> }],
+    items: [{ id: "bot", label: "Bot do Discord", icon: <IconBot /> }],
   },
 ];
 

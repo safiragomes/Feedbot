@@ -70,7 +70,7 @@ export function feedbackRoutes(
         await sheets.sincronizarFeedback(prisma, feedback.id);
       } catch {
         // Feedback já está salvo; sincronização pode ser refeita depois pelo
-        // botão de reprocessar planilha (mesmo padrão do bot em whatsapp-bot.ts).
+        // botão de reprocessar planilha (mesmo padrão do bot em discord-bot.ts).
       }
       return reply.code(201).send(feedback);
     } catch (error) {

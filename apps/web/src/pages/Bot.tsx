@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import { api } from "../lib/api";
-import type { Bot, Periodo } from "../lib/types";
-import { IconCheck, IconRefresh, IconWhatsapp, IconX } from "../components/icons";
-import { Chip, Panel, type ConfirmRequest } from "../components/ui";
-import { Skeleton } from "../components/ui/skeleton";
+import type { Bot, DiscordCanal, DiscordCargo, DiscordServidor, Periodo } from "../lib/types";
+import { IconCheck, IconDiscord, IconRefresh, IconX } from "../components/icons";
+import { Chip, Panel } from "../components/ui";
+import { FilterSelect } from "../components/FilterSelect";
 import { toast } from "../lib/toast";
 
 export function BotPage({
@@ -12,77 +11,22 @@ export function BotPage({
   bot,
   periodo,
   onReload,
-  onRequestConfirm,
 }: {
   token: string;
   bot: Bot | null;
   periodo: Periodo;
   onReload: () => Promise<void>;
-  onRequestConfirm: (request: ConfirmRequest) => void;
 }) {
-  const [carregando, setCarregando] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState("");
   const status = bot?.sessao?.status ?? "DESCONECTADO";
-  const possuiCredenciaisAntigas = Boolean(bot?.credenciaisSalvas);
-
-  useEffect(() => {
-    if (!bot?.qr) return;
-    let ativo = true;
-    QRCode.toDataURL(bot.qr, { margin: 1, width: 220 }).then((url) => {
-      if (ativo) setQrDataUrl(url);
-    });
-    return () => {
-      ativo = false;
-    };
-  }, [bot?.qr]);
-
-  useEffect(() => {
-    if (status !== "CONECTANDO") return;
-    const id = setInterval(() => void onReload(), 2500);
-    return () => clearInterval(id);
-  }, [status, onReload]);
-
-  async function conectar() {
-    setCarregando(true);
-    try {
-      await api.conectarBot(token);
-      await onReload();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível conectar o bot");
-    } finally {
-      setCarregando(false);
-    }
-  }
-  function desconectar() {
-    onRequestConfirm({
-      title: "Desvincular este número?",
-      message:
-        "As credenciais locais serão removidas mesmo se o número estiver banido ou offline. Depois, será necessário ler o QR code do novo número.",
-      confirmLabel: "Desvincular",
-      onConfirm: async () => {
-        setCarregando(true);
-        try {
-          await api.desvincularBot(token);
-          await onReload();
-        } catch (error) {
-          toast.error(
-            error instanceof Error ? error.message : "Não foi possível desconectar o bot",
-          );
-        } finally {
-          setCarregando(false);
-        }
-      },
-    });
-  }
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Bot do WhatsApp</h1>
+          <h1>Bot do Discord</h1>
           <div className="subtitle">
-            Conecte o número dedicado via QR code e vincule a comunidade de Avisos correspondente a
-            cada período.
+            Acompanhe a conexão do bot e vincule o servidor, o cargo de monitores e o canal de
+            registro de cada período — cada período usa um servidor do Discord próprio.
           </div>
         </div>
       </div>
@@ -97,62 +41,26 @@ export function BotPage({
               {status === "CONECTADO"
                 ? "conectado"
                 : status === "CONECTANDO"
-                  ? "aguardando leitura do QR code"
+                  ? "conectando…"
                   : "desconectado"}
             </span>
           </div>
 
-          {status === "CONECTADO" && (
+          {status === "CONECTADO" ? (
             <div className="connected-card">
-              <div className="num">{bot?.sessao?.numeroConectado ?? "—"}</div>
-              <div className="mono-cell">Feedbot · Introdução à Programação</div>
+              <div className="num">{bot?.sessao?.discordBotTag ?? "—"}</div>
+              <div className="mono-cell">{bot?.sessao?.guildNome ?? "—"}</div>
             </div>
-          )}
-
-          {status === "CONECTANDO" && (
-            <>
-              <div className="qr-box">
-                {bot?.qr && qrDataUrl ? (
-                  <img src={qrDataUrl} alt="QR code de pareamento" width={220} height={220} />
-                ) : (
-                  <Skeleton style={{ width: 220, height: 220 }} />
-                )}
-              </div>
-              <p
-                style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600, marginBottom: 14 }}
-              >
-                No WhatsApp do número dedicado: Aparelhos conectados → Conectar um aparelho, e
-                escaneie o código acima.
-              </p>
-            </>
-          )}
-
-          <button
-            className="btn primary"
-            style={{ width: "100%", justifyContent: "center" }}
-            disabled={carregando || status !== "DESCONECTADO"}
-            onClick={conectar}
-          >
-            <IconWhatsapp />
-            {status !== "DESCONECTADO"
-              ? "Conectando…"
-              : possuiCredenciaisAntigas
-                ? "Reconectar"
-                : "Conectar bot"}
-          </button>
-          {(status !== "DESCONECTADO" || possuiCredenciaisAntigas) && (
-            <button
-              className="btn ghost"
-              style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
-              disabled={carregando}
-              onClick={desconectar}
-            >
-              {possuiCredenciaisAntigas ? "Desvincular número antigo" : "Desvincular número"}
-            </button>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
+              {status === "CONECTANDO"
+                ? "O bot está iniciando a conexão com o Discord."
+                : "O bot está desligado ou sem o token configurado (DISCORD_BOT_TOKEN)."}
+            </p>
           )}
         </Panel>
-        <Panel title="Comunidade do período">
-          <ComunidadeWhatsapp
+        <Panel title="Servidor, cargo e canal do período">
+          <ConfiguracaoDiscordPeriodo
             token={token}
             periodo={periodo}
             conectado={status === "CONECTADO"}
@@ -164,7 +72,35 @@ export function BotPage({
   );
 }
 
-function ComunidadeWhatsapp({
+function ConfiguracaoDiscordPeriodo({
+  token,
+  periodo,
+  conectado,
+  onReload,
+}: {
+  token: string;
+  periodo: Periodo;
+  conectado: boolean;
+  onReload: () => Promise<void>;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="info-row">
+        <span className="l">Período</span>
+        <span>{periodo.nome}</span>
+      </div>
+      <ServidorDiscord token={token} periodo={periodo} conectado={conectado} onReload={onReload} />
+      {periodo.discordGuildId && (
+        <CargoDiscord token={token} periodo={periodo} conectado={conectado} onReload={onReload} />
+      )}
+      {periodo.discordGuildId && (
+        <CanalDiscord token={token} periodo={periodo} conectado={conectado} onReload={onReload} />
+      )}
+    </div>
+  );
+}
+
+function ServidorDiscord({
   token,
   periodo,
   conectado,
@@ -176,46 +112,237 @@ function ComunidadeWhatsapp({
   onReload: () => Promise<void>;
 }) {
   const [valor, setValor] = useState("");
-  const [disponiveis, setDisponiveis] = useState<{ id: string; nome: string }[]>([]);
+  const [disponiveis, setDisponiveis] = useState<DiscordServidor[]>([]);
   const [pendente, setPendente] = useState(false);
+  const [erro, setErro] = useState("");
 
-  async function carregarComunidades() {
+  function carregar() {
     if (!conectado) return;
-    try {
-      const atuais = await api.comunidadesWhatsappDisponiveis(token);
-      setDisponiveis(atuais);
-      setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível listar as comunidades",
+    api
+      .servidoresDiscordDisponiveis(token)
+      .then((atuais) => setDisponiveis(atuais))
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os servidores"),
       );
-      await onReload();
-    }
   }
 
   useEffect(() => {
     if (!conectado) return;
     api
-      .comunidadesWhatsappDisponiveis(token)
-      .then(setDisponiveis)
-      .catch(async (error) => {
-        toast.error(
-          error instanceof Error ? error.message : "Não foi possível listar as comunidades",
-        );
-        await onReload();
-      });
+      .servidoresDiscordDisponiveis(token)
+      .then((atuais) => setDisponiveis(atuais))
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os servidores"),
+      );
   }, [token, conectado]);
 
   async function vincular() {
-    if (!valor) return toast.error("Selecione uma comunidade");
+    if (!valor) return setErro("Selecione um servidor");
     setPendente(true);
+    setErro("");
     try {
-      await api.vincularComunidadeWhatsapp(token, periodo.id, valor);
+      await api.vincularServidorDiscord(token, periodo.id, valor);
       await onReload();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível vincular a comunidade",
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular o servidor");
+    } finally {
+      setPendente(false);
+    }
+  }
+
+  async function trocar() {
+    setPendente(true);
+    setErro("");
+    try {
+      await api.desvincularServidorDiscord(token, periodo.id);
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível desvincular o servidor");
+    } finally {
+      setPendente(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <strong style={{ fontSize: 13 }}>1. Servidor</strong>
+      <p style={{ color: "var(--text-3)", fontSize: 12.5, margin: 0 }}>
+        Cada período tem um servidor do Discord próprio — convide o bot para ele primeiro (ver
+        README), depois escolha-o aqui.
+      </p>
+      {periodo.discordGuildId ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Chip tone="ok">
+            {disponiveis.find((s) => s.id === periodo.discordGuildId)?.nome ?? "Servidor vinculado"}
+          </Chip>
+          <button className="btn sm" disabled={pendente} onClick={() => void trocar()}>
+            <IconX />
+            Trocar servidor
+          </button>
+        </div>
+      ) : (
+        <>
+          <FilterSelect
+            label="servidor"
+            placeholder="Selecione um servidor…"
+            value={valor}
+            onChange={setValor}
+            options={disponiveis.map((s) => ({ value: s.id, label: s.nome }))}
+          />
+          {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={() => void vincular()}>
+              <IconCheck />
+              Vincular
+            </button>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={carregar}>
+              <IconRefresh />
+              Atualizar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CargoDiscord({
+  token,
+  periodo,
+  conectado,
+  onReload,
+}: {
+  token: string;
+  periodo: Periodo;
+  conectado: boolean;
+  onReload: () => Promise<void>;
+}) {
+  const [valor, setValor] = useState("");
+  const [disponiveis, setDisponiveis] = useState<DiscordCargo[]>([]);
+  const [pendente, setPendente] = useState(false);
+  const [erro, setErro] = useState("");
+
+  function carregar() {
+    if (!conectado) return;
+    api
+      .cargosDiscordDisponiveis(token, periodo.id)
+      .then((atuais) => setDisponiveis(atuais))
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os cargos"),
       );
+  }
+
+  useEffect(() => {
+    if (!conectado) return;
+    api
+      .cargosDiscordDisponiveis(token, periodo.id)
+      .then((atuais) => setDisponiveis(atuais))
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os cargos"),
+      );
+  }, [token, periodo.id, conectado]);
+
+  async function vincular() {
+    if (!valor) return setErro("Selecione um cargo");
+    setPendente(true);
+    setErro("");
+    try {
+      await api.vincularCargoDiscord(token, periodo.id, valor);
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular o cargo");
+    } finally {
+      setPendente(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <strong style={{ fontSize: 13 }}>2. Cargo de monitores</strong>
+      <p style={{ color: "var(--text-3)", fontSize: 12.5, margin: 0 }}>
+        Usado pra listar quem pode ser vinculado a um monitor (tela Monitores).
+      </p>
+      {periodo.discordMonitoresRoleId ? (
+        <Chip tone="ok">
+          {disponiveis.find((c) => c.id === periodo.discordMonitoresRoleId)?.nome ?? "Cargo vinculado"}
+        </Chip>
+      ) : (
+        <>
+          <FilterSelect
+            label="cargo"
+            placeholder="Selecione um cargo…"
+            value={valor}
+            onChange={setValor}
+            options={disponiveis.map((c) => ({ value: c.id, label: c.nome }))}
+          />
+          {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={() => void vincular()}>
+              <IconCheck />
+              Vincular
+            </button>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={carregar}>
+              <IconRefresh />
+              Atualizar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CanalDiscord({
+  token,
+  periodo,
+  conectado,
+  onReload,
+}: {
+  token: string;
+  periodo: Periodo;
+  conectado: boolean;
+  onReload: () => Promise<void>;
+}) {
+  const [valor, setValor] = useState("");
+  const [disponiveis, setDisponiveis] = useState<DiscordCanal[]>([]);
+  const [pendente, setPendente] = useState(false);
+  const [erro, setErro] = useState("");
+
+  function carregarCanais() {
+    if (!conectado) return;
+    api
+      .canaisDiscordDisponiveis(token, periodo.id)
+      .then((atuais) => {
+        setDisponiveis(atuais);
+        setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
+      })
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os canais"),
+      );
+  }
+
+  useEffect(() => {
+    if (!conectado) return;
+    api
+      .canaisDiscordDisponiveis(token, periodo.id)
+      .then((atuais) => {
+        setDisponiveis(atuais);
+        setValor((anterior) => (atuais.some((item) => item.id === anterior) ? anterior : ""));
+      })
+      .catch((error) =>
+        setErro(error instanceof Error ? error.message : "Não foi possível listar os canais"),
+      );
+  }, [token, periodo.id, conectado]);
+
+  async function vincular() {
+    if (!valor) return setErro("Selecione um canal");
+    setPendente(true);
+    setErro("");
+    try {
+      await api.vincularCanalDiscord(token, periodo.id, valor);
+      await onReload();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Não foi possível vincular o canal");
     } finally {
       setPendente(false);
     }
@@ -223,85 +350,68 @@ function ComunidadeWhatsapp({
 
   async function desvincular() {
     setPendente(true);
+    setErro("");
     try {
-      await api.desvincularComunidadeWhatsapp(token, periodo.id);
+      await api.desvincularCanalDiscord(token, periodo.id);
       await onReload();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível desvincular a comunidade",
-      );
+      setErro(error instanceof Error ? error.message : "Não foi possível desvincular o canal");
     } finally {
       setPendente(false);
     }
   }
 
-  async function reenviarLink() {
+  async function reenviarPainel() {
     setPendente(true);
+    setErro("");
     try {
-      await api.enviarLinkComunidadeWhatsapp(token, periodo.id);
-      toast.success("Link de acesso enviado em Avisos.");
+      await api.enviarPainelDiscord(token, periodo.id);
+      toast.success("Painel de registro publicado no canal.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o link");
+      setErro(error instanceof Error ? error.message : "Não foi possível publicar o painel");
     } finally {
       setPendente(false);
     }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <strong style={{ fontSize: 13 }}>3. Canal de registro</strong>
       <p style={{ color: "var(--text-3)", fontSize: 12.5, margin: 0 }}>
-        Ao vincular, o Feedbot publica um acesso direto à conversa privada para os monitores
-        iniciarem o registro com um toque.
+        Único canal onde o comando /feedback funciona. Ao vincular, o Feedbot publica uma mensagem
+        fixa nele com um botão pros monitores iniciarem o registro com um toque.
       </p>
-      <div className="info-row">
-        <span className="l">Período</span>
-        <span>{periodo.nome}</span>
-      </div>
-      <div className="info-row">
-        <span className="l">Comunidade · Avisos</span>
-        <span>
-          {periodo.whatsappAvisosId ? (
-            <Chip tone="ok">{periodo.whatsappComunidadeNome ?? "Comunidade vinculada"}</Chip>
-          ) : (
-            <select
-              disabled={!conectado}
-              value={valor}
-              onFocus={() => void carregarComunidades()}
-              onChange={(e) => setValor(e.target.value)}
-            >
-              <option value="">Selecione uma comunidade…</option>
-              {disponiveis.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nome} · Avisos
-                </option>
-              ))}
-            </select>
-          )}
-        </span>
-      </div>
+      {periodo.discordAvisosCanalId ? (
+        <Chip tone="ok">{periodo.discordAvisosCanalNome ?? "Canal vinculado"}</Chip>
+      ) : (
+        <FilterSelect
+          label="canal"
+          placeholder="Selecione um canal…"
+          value={valor}
+          onChange={setValor}
+          options={disponiveis.map((c) => ({ value: c.id, label: `#${c.nome}` }))}
+        />
+      )}
+      {erro && <p style={{ color: "var(--rose)" }}>{erro}</p>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {periodo.whatsappAvisosId ? (
+        {periodo.discordAvisosCanalId ? (
           <>
-            <button className="btn sm" disabled={!conectado || pendente} onClick={reenviarLink}>
-              <IconCheck />
-              Reenviar link
+            <button className="btn sm" disabled={!conectado || pendente} onClick={() => void reenviarPainel()}>
+              <IconDiscord />
+              Reenviar painel
             </button>
-            <button className="btn sm" disabled={pendente} onClick={desvincular}>
+            <button className="btn sm" disabled={pendente} onClick={() => void desvincular()}>
               <IconX />
               Remover
             </button>
           </>
         ) : (
           <>
-            <button className="btn sm" disabled={!conectado || pendente} onClick={vincular}>
+            <button className="btn sm" disabled={!conectado || pendente} onClick={() => void vincular()}>
               <IconCheck />
               Vincular
             </button>
-            <button
-              className="btn sm"
-              disabled={!conectado || pendente}
-              onClick={() => void carregarComunidades()}
-            >
+            <button className="btn sm" disabled={!conectado || pendente} onClick={carregarCanais}>
               <IconRefresh />
               Atualizar
             </button>

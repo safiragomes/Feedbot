@@ -1,16 +1,88 @@
 import { useState } from "react";
-import type { Aluno, Atraso, Dupla, GrupoRevisao, Lista, Monitor } from "../lib/types";
+import type { Aluno, Atraso, DiscordMembro, Dupla, GrupoRevisao, Lista, Monitor } from "../lib/types";
 import { IconPlus, IconSearch, IconTrash } from "../components/icons";
-import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
+import { Avatar, Chip, EmptyState, Modal, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { DiscordMemberPicker } from "../components/DiscordMemberPicker";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoMonitor, solicitarRemocaoVariosMonitores } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
-import { normalizarBusca, validarWhatsapp } from "../lib/format";
+import { normalizarBusca } from "../lib/format";
 import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
 import { api } from "../lib/api";
 
-function WhatsappCell({
+function VincularDiscordModal({
+  monitor,
+  token,
+  onClose,
+  onReload,
+  onErro,
+}: {
+  monitor: Monitor;
+  token: string;
+  onClose: () => void;
+  onReload: () => Promise<void>;
+  onErro: (mensagem: string) => void;
+}) {
+  const [membro, setMembro] = useState<DiscordMembro | null>(null);
+  const [sincronizarNome, setSincronizarNome] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    if (!membro) return;
+    setSalvando(true);
+    try {
+      await api.atualizarMonitor(token, monitor.id, {
+        discordUserId: membro.discordUserId,
+        discordUsername: membro.username,
+        discordDisplayName: membro.displayName,
+        discordAvatarUrl: membro.avatarUrl ?? undefined,
+        ...(sincronizarNome && membro.displayName !== monitor.nome
+          ? { nome: membro.displayName }
+          : {}),
+      });
+      await onReload();
+      onClose();
+    } catch (error) {
+      onErro(error instanceof Error ? error.message : "Não foi possível vincular o Discord");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <h4>Vincular Discord de {monitor.nome}</h4>
+      <DiscordMemberPicker
+        token={token}
+        periodoId={monitor.periodoId}
+        value={membro?.discordUserId ?? monitor.discordUserId}
+        onChange={setMembro}
+        currentName={monitor.nome}
+      />
+      {membro && membro.displayName !== monitor.nome && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12.5 }}>
+          <input
+            type="checkbox"
+            checked={sincronizarNome}
+            onChange={(event) => setSincronizarNome(event.target.checked)}
+          />
+          Também renomear o monitor para "{membro.displayName}" (nome de exibição no Discord)
+        </label>
+      )}
+      <div className="modal-actions">
+        <button className="btn ghost" type="button" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="btn primary" type="button" disabled={!membro || salvando} onClick={() => void salvar()}>
+          {salvando ? "Vinculando…" : "Vincular"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function NomeCell({
   monitor,
   token,
   onReload,
@@ -22,68 +94,113 @@ function WhatsappCell({
   onErro: (mensagem: string) => void;
 }) {
   const [editando, setEditando] = useState(false);
-  const [valor, setValor] = useState(monitor.whatsappNumero);
+  const [valor, setValor] = useState(monitor.nome);
   const [salvando, setSalvando] = useState(false);
 
   if (!editando) {
     return (
-      <button
-        type="button"
-        className="whatsapp-cell-display"
-        title="Editar número de WhatsApp"
+      <div
+        className="person-cell"
+        role="button"
+        tabIndex={0}
+        title="Editar nome"
         onClick={(event) => {
           event.stopPropagation();
-          setValor(monitor.whatsappNumero);
+          setValor(monitor.nome);
           setEditando(true);
         }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.stopPropagation();
+            setValor(monitor.nome);
+            setEditando(true);
+          }
+        }}
       >
-        {monitor.whatsappNumero}
-      </button>
+        <Avatar nome={monitor.nome} />
+        <span className="person-name">{monitor.nome}</span>
+      </div>
     );
   }
 
   async function salvar() {
-    const numero = valor.trim();
-    if (!numero || numero === monitor.whatsappNumero) {
-      setEditando(false);
-      return;
-    }
-    const erroWhats = validarWhatsapp(numero);
-    if (erroWhats) {
-      onErro(erroWhats);
+    const nome = valor.trim();
+    if (!nome || nome === monitor.nome) {
       setEditando(false);
       return;
     }
     setSalvando(true);
     try {
-      await api.atualizarMonitor(token, monitor.id, { whatsappNumero: numero });
+      await api.atualizarMonitor(token, monitor.id, { nome });
       await onReload();
       setEditando(false);
     } catch (error) {
-      onErro(error instanceof Error ? error.message : "Não foi possível atualizar o WhatsApp");
+      onErro(error instanceof Error ? error.message : "Não foi possível atualizar o nome");
     } finally {
       setSalvando(false);
     }
   }
 
   return (
-    <input
-      autoFocus
-      className="whatsapp-cell-input"
-      value={valor}
-      disabled={salvando}
-      onClick={(event) => event.stopPropagation()}
-      onChange={(event) => setValor(event.target.value)}
-      onBlur={() => void salvar()}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        } else if (event.key === "Escape") {
-          setValor(monitor.whatsappNumero);
-          setEditando(false);
-        }
-      }}
-    />
+    <div className="person-cell">
+      <Avatar nome={monitor.nome} />
+      <input
+        autoFocus
+        className="discord-cell-display"
+        style={{ width: "100%" }}
+        value={valor}
+        disabled={salvando}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => setValor(event.target.value)}
+        onBlur={() => void salvar()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          } else if (event.key === "Escape") {
+            setValor(monitor.nome);
+            setEditando(false);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function DiscordCell({
+  monitor,
+  token,
+  onReload,
+  onErro,
+}: {
+  monitor: Monitor;
+  token: string;
+  onReload: () => Promise<void>;
+  onErro: (mensagem: string) => void;
+}) {
+  const [abrindo, setAbrindo] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="discord-cell-display"
+        title="Vincular conta do Discord"
+        onClick={(event) => {
+          event.stopPropagation();
+          setAbrindo(true);
+        }}
+      >
+        {monitor.discordUsername ? `@${monitor.discordUsername}` : "vincular"}
+      </button>
+      {abrindo && (
+        <VincularDiscordModal
+          monitor={monitor}
+          token={token}
+          onClose={() => setAbrindo(false)}
+          onReload={onReload}
+          onErro={onErro}
+        />
+      )}
+    </>
   );
 }
 
@@ -121,7 +238,6 @@ export function DiretorioMonitores({
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const q = normalizarBusca(busca.trim());
-  const qDigitos = busca.replace(/\D/g, "");
   const grupoDaDupla = new Map(duplas.map((d) => [d.id, d.grupoRevisaoId]));
   const duplaPorId = new Map(duplas.map((d) => [d.id, d]));
   const atrasosVisiveis = atrasos.filter((atraso) => !listaId || atraso.listaId === listaId);
@@ -133,7 +249,8 @@ export function DiretorioMonitores({
         pertenceAoGrupo &&
         (!q ||
           normalizarBusca(m.nome).includes(q) ||
-          (qDigitos && m.whatsappNumero.replace(/\D/g, "").includes(qDigitos))) &&
+          normalizarBusca(m.discordUsername ?? "").includes(q) ||
+          normalizarBusca(m.discordDisplayName ?? "").includes(q)) &&
         ((!listaId && !somenteAtrasados) || monitoresAtrasados.has(m.id))
       );
     })
@@ -211,19 +328,14 @@ export function DiretorioMonitores({
       key: "nome",
       header: "Monitor",
       sortValue: (m) => m.nome,
-      render: (m) => (
-        <div className="person-cell">
-          <Avatar nome={m.nome} />
-          <span className="person-name">{m.nome}</span>
-        </div>
-      ),
+      render: (m) => <NomeCell monitor={m} token={token} onReload={onReload} onErro={setErro} />,
     },
     {
-      key: "whatsapp",
-      header: "WhatsApp",
-      sortValue: (m) => m.whatsappNumero,
+      key: "discord",
+      header: "Discord",
+      sortValue: (m) => m.discordUsername ?? "",
       render: (m) => (
-        <WhatsappCell monitor={m} token={token} onReload={onReload} onErro={setErro} />
+        <DiscordCell monitor={m} token={token} onReload={onReload} onErro={setErro} />
       ),
     },
     {
@@ -376,7 +488,7 @@ export function DiretorioMonitores({
           <div className="search-box">
             <IconSearch />
             <input
-              placeholder="Buscar por nome ou WhatsApp"
+              placeholder="Buscar por nome ou Discord"
               autoComplete="off"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}

@@ -35,12 +35,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://feedbot:${POSTGRES_PASSWORD:-feedbot}@db:5432/feedbot?schema=public
-      BAILEYS_AUTH_DIR: /var/lib/feedbot/baileys-auth
     ports:
       - "127.0.0.1:3333:3333"
-    volumes:
-      # O pareamento multi-device sobrevive à recriação e ao reinício do container.
-      - feedbot-baileys-auth:/var/lib/feedbot/baileys-auth
     healthcheck:
       test:
         [
@@ -56,4 +52,3 @@ services:
 
 volumes:
   feedbot-db-data:
-  feedbot-baileys-auth:

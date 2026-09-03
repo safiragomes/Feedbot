@@ -303,8 +303,8 @@ function App() {
     },
     bot: {
       eyebrow: "Comunicação automatizada",
-      title: "Bot do WhatsApp",
-      subtitle: "Controle sessão, número ativo e estado de atendimento do bot.",
+      title: "Bot do Discord",
+      subtitle: "Acompanhe a conexão e o canal de registro de feedback do bot.",
     },
   }[page];
   const heroActions: HeroAction[] =
@@ -469,13 +469,7 @@ function App() {
                   />
                 )}
                 {page === "bot" && periodoAtual && (
-                  <BotPage
-                    token={token}
-                    bot={bot}
-                    periodo={periodoAtual}
-                    onReload={load}
-                    onRequestConfirm={setConfirm}
-                  />
+                  <BotPage token={token} bot={bot} periodo={periodoAtual} onReload={load} />
                 )}
                 {page === "planilha" && periodoAtual && (
                   <PlanilhaPage

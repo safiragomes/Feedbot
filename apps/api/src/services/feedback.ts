@@ -7,6 +7,10 @@ export interface NovoFeedback {
   monitorId: string;
   listaId: string;
   qtdQuestoesPontuadas: number;
+  // Aluno não entregou/respondeu a lista — distinto de ter respondido e acertado 0.
+  // Quando true, zera pontuação e ocorrências independente do que for passado, e a
+  // planilha grava "F" em vez de um número (ver GoogleSheetsSync.sincronizarFeedback).
+  faltou?: boolean;
   questoesIa?: number[];
   questoesPlagio?: Array<{ numeroQuestao: number; alunoEnvolvidoId: string }>;
   questoesProibicao?: number[];
@@ -90,9 +94,11 @@ export async function resolverMonitorResponsavel(
 }
 
 export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback) {
-  const questoesIa = [...new Set(entrada.questoesIa ?? [])];
-  const questoesProibicao = [...new Set(entrada.questoesProibicao ?? [])];
-  const questoesPlagio = entrada.questoesPlagio ?? [];
+  const faltou = entrada.faltou ?? false;
+  const questoesIa = faltou ? [] : [...new Set(entrada.questoesIa ?? [])];
+  const questoesProibicao = faltou ? [] : [...new Set(entrada.questoesProibicao ?? [])];
+  const questoesPlagio = faltou ? [] : (entrada.questoesPlagio ?? []);
+  const qtdQuestoesPontuadas = faltou ? 0 : entrada.qtdQuestoesPontuadas;
   const [aluno, monitor, lista] = await Promise.all([
     prisma.aluno.findUnique({ where: { id: entrada.alunoId }, include: { turma: true } }),
     prisma.monitor.findUnique({ where: { id: entrada.monitorId } }),
@@ -105,9 +111,9 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
     throw new Error("Lista e monitor devem pertencer ao mesmo período");
   if (monitor.status !== "ATIVO") throw new Error("Monitor inativo não pode registrar feedback");
   if (
-    !Number.isInteger(entrada.qtdQuestoesPontuadas) ||
-    entrada.qtdQuestoesPontuadas < 0 ||
-    entrada.qtdQuestoesPontuadas > lista.qtdQuestoesTotal
+    !Number.isInteger(qtdQuestoesPontuadas) ||
+    qtdQuestoesPontuadas < 0 ||
+    qtdQuestoesPontuadas > lista.qtdQuestoesTotal
   ) {
     throw new Error("Quantidade de questões corretas inválida");
   }
@@ -163,7 +169,8 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
       listaId: lista.id,
       duplaId: aluno.duplaId,
       semana,
-      qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,
+      qtdQuestoesPontuadas,
+      faltou,
       usouIa: questoesIa.length > 0,
       plagiou: questoesPlagio.length > 0,
       usouProibicao: questoesProibicao.length > 0,
@@ -183,7 +190,8 @@ export async function criarFeedback(prisma: PrismaClient, entrada: NovoFeedback)
       monitorNome: monitor.nome,
       duplaId: aluno.duplaId,
       semana,
-      qtdQuestoesPontuadas: entrada.qtdQuestoesPontuadas,
+      qtdQuestoesPontuadas,
+      faltou,
       usouIa: questoesIa.length > 0,
       plagiou: questoesPlagio.length > 0,
       usouProibicao: questoesProibicao.length > 0,

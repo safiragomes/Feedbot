@@ -20,3 +20,8 @@ No fluxo deste projeto (spec-driven + test-driven, ver `README.md` na raiz), um 
 
 - [2026-08-17 — Preparação do repositório e do ambiente](2026-08-17-preparacao-repositorio-e-ambiente.md)
 - [2026-08-17 — Fase 0: schema Prisma completo, primeira migration e seed](2026-08-17-fase-0-fundacao-schema-e-seed.md)
+- [2026-09-02 — Migração do bot de WhatsApp para Discord](2026-09-02-migracao-bot-discord.md)
+- [2026-09-03 — Ajustes no bot do Discord após a migração](2026-09-03-ajustes-bot-discord.md)
+- [2026-09-03 — Servidor, cargo e canal do Discord por período](2026-09-03-servidor-discord-por-periodo.md)
+- [2026-09-03 — Nome do monitor editável e cache do seletor de membros do Discord](2026-09-03-nome-editavel-e-cache-membros.md)
+- [2026-09-03 — Auditoria: revalidação de selects, bug de configuração do servidor e cobertura de testes](2026-09-03-auditoria-revalidacao-e-cobertura-de-testes.md)

@@ -2000,7 +2000,7 @@ tbody tr.clickable {
   color: var(--text-2);
   font-weight: 700;
 }
-.whatsapp-cell-display {
+.discord-cell-display {
   background: none;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
@@ -2013,16 +2013,10 @@ tbody tr.clickable {
   cursor: pointer;
   text-align: left;
 }
-.whatsapp-cell-display:hover {
+.discord-cell-display:hover {
   border-color: var(--border);
   background: var(--control-bg);
   color: var(--text);
-}
-.whatsapp-cell-input {
-  width: 100%;
-  min-width: 150px;
-  font-size: 12.5px;
-  padding: 5px 8px;
 }
 .sheet-link-status {
   display: flex;
@@ -2545,6 +2539,35 @@ tbody tr.clickable {
 .student-link-meta {
   text-align: right;
 }
+.student-link-row.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.student-link-row.disabled:hover {
+  background: none;
+}
+.field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.field-row input {
+  flex: 1;
+}
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--sky);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-button:hover {
+  color: var(--text);
+}
 @media (max-width: 560px) {
   .btn {
     white-space: normal;
@@ -3015,16 +3038,6 @@ tbody tr.clickable {
 .info-row .l {
   color: var(--text-2);
   font-weight: 700;
-}
-.qr-box {
-  background: #fff;
-  border-radius: var(--r-md);
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 14px;
-  overflow: hidden;
 }
 /* LOGIN */
 .login {

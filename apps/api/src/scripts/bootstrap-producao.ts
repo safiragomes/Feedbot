@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { BootstrapErro, criarPrimeiraContaChefe } from "../application/auth/bootstrap-service.js";
 import { prisma } from "../db/client.js";
-import { normalizarWhatsapp } from "../domain/telefone.js";
 
 function obrigatoria(nome: string) {
   const valor = process.env[nome]?.trim();
@@ -20,8 +19,6 @@ async function main() {
   const nome = obrigatoria("BOOTSTRAP_CHIEF_NAME");
   const email = obrigatoria("BOOTSTRAP_CHIEF_EMAIL").toLowerCase();
   const senha = obrigatoria("BOOTSTRAP_CHIEF_PASSWORD");
-  const whatsappNumero = normalizarWhatsapp(obrigatoria("BOOTSTRAP_CHIEF_WHATSAPP"));
-  if (!whatsappNumero) throw new Error("BOOTSTRAP_CHIEF_WHATSAPP deve ser um número válido");
 
   const { conta, resultado } = await criarPrimeiraContaChefe(prisma, {
     email,
@@ -41,7 +38,7 @@ async function main() {
           });
       if (!periodo) throw new Error("BOOTSTRAP_PERIOD_ID não corresponde a um período existente");
       const monitor = await tx.monitor.create({
-        data: { nome, whatsappNumero, isChefe: true, periodoId: periodo.id },
+        data: { nome, isChefe: true, periodoId: periodo.id },
       });
       return { id: monitor.id, resultado: { periodo: periodo.nome, chefe: nome } };
     },
