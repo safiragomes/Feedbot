@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./index.css";
 import { api } from "./lib/api";
 import type {
@@ -14,7 +15,8 @@ import type {
   Periodo,
   Turma,
 } from "./lib/types";
-import { Sidebar, type PageId } from "./components/Sidebar";
+import { LOGIN_PATH, ROUTE_PATH, pageIdFromPath } from "./lib/routes";
+import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { AlunoDrawer, MonitorDrawer } from "./components/Drawers";
 import { ConfirmModal } from "./components/ui";
@@ -26,6 +28,7 @@ import { AlunosDashboard } from "./pages/AlunosDashboard";
 import { MonitoresDashboard } from "./pages/MonitoresDashboard";
 import { DiretorioAlunos } from "./pages/DiretorioAlunos";
 import { DiretorioMonitores } from "./pages/DiretorioMonitores";
+import { AtrasadosOverview } from "./pages/AtrasadosOverview";
 import { Gestao } from "./pages/Gestao";
 import { BotPage } from "./pages/Bot";
 import { PlanilhaPage } from "./pages/Planilha";
@@ -54,28 +57,16 @@ function loadTheme(): ThemeMode {
   return saved === "light" ? "light" : "dark";
 }
 
-const PAGE_IDS: PageId[] = [
-  "dashboard",
-  "diretorio-alunos",
-  "diretorio-monitores",
-  "gestao",
-  "planilha",
-  "bot",
-];
-
-function loadPage(): PageId {
-  const saved = sessionStorage.getItem("feedbot-page");
-  return PAGE_IDS.includes(saved as PageId) ? (saved as PageId) : "dashboard";
-}
-
-function App() {
+function AppInner() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [token, setToken] = useState(() => {
     localStorage.removeItem("feedbot-token");
     localStorage.removeItem("feedbot-chefe");
     return loadChefe() ? "cookie-session" : "";
   });
   const [chefe, setChefe] = useState<Chefe | null>(() => loadChefe());
-  const [page, setPage] = useState<PageId>(() => loadPage());
+  const page = pageIdFromPath(location.pathname);
   const [dashboardView, setDashboardView] = useState<"alunos" | "monitores">("alunos");
   const [periodoId, setPeriodoId] = useState("");
   const [erro, setErro] = useState("");
@@ -221,19 +212,18 @@ function App() {
       setToken("");
       setChefe(null);
       setPeriodoId("");
+      navigate(LOGIN_PATH, { replace: true });
     };
     window.addEventListener("feedbot:unauthorized", encerrarSessaoInvalida);
     return () => window.removeEventListener("feedbot:unauthorized", encerrarSessaoInvalida);
+    // navigate() do react-router é estável entre renders; não precisa recriar o listener.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("feedbot-theme", theme);
   }, [theme]);
-
-  useEffect(() => {
-    sessionStorage.setItem("feedbot-page", page);
-  }, [page]);
 
   function handleLogin(newChefe: Chefe) {
     sessionStorage.setItem("feedbot-chefe", JSON.stringify(newChefe));
@@ -248,11 +238,10 @@ function App() {
     void api.logout(token).catch(() => undefined);
     localStorage.removeItem("feedbot-token");
     sessionStorage.removeItem("feedbot-chefe");
-    sessionStorage.removeItem("feedbot-page");
     setToken("");
     setChefe(null);
     setPeriodoId("");
-    setPage("dashboard");
+    navigate(LOGIN_PATH, { replace: true });
   }
   function handleChangePeriodo(id: string) {
     setDrawer(null);
@@ -291,6 +280,11 @@ function App() {
       title: "Base de monitores",
       subtitle: "Veja alocação, alunos vinculados, atrasos e desempenho da equipe.",
     },
+    atrasados: {
+      eyebrow: "Acompanhamento de prazos",
+      title: "Feedbacks atrasados",
+      subtitle: "Veja pendências vencidas por turma, grupo, aluno e monitor responsável.",
+    },
     gestao: {
       eyebrow: "Configuração do período",
       title: "Grupos, duplas e turmas",
@@ -323,27 +317,32 @@ function App() {
         ]
       : page === "diretorio-alunos"
         ? [
-            { label: "Ir para gestão", onClick: () => setPage("gestao") },
-            { label: "Abrir planilha", onClick: () => setPage("planilha") },
+            { label: "Ir para gestão", onClick: () => navigate(ROUTE_PATH["gestao"]) },
+            { label: "Abrir planilha", onClick: () => navigate(ROUTE_PATH["planilha"]) },
           ]
         : page === "diretorio-monitores"
           ? [
-              { label: "Ver dashboard", onClick: () => setPage("dashboard") },
-              { label: "Abrir bot", onClick: () => setPage("bot") },
+              { label: "Ver dashboard", onClick: () => navigate(ROUTE_PATH["dashboard"]) },
+              { label: "Abrir bot", onClick: () => navigate(ROUTE_PATH["bot"]) },
             ]
-          : page === "gestao"
+          : page === "atrasados"
             ? [
-                { label: "Diretório monitores", onClick: () => setPage("diretorio-monitores") },
-                { label: "Abrir planilha", onClick: () => setPage("planilha") },
+                { label: "Diretório alunos", onClick: () => navigate(ROUTE_PATH["diretorio-alunos"]) },
+                { label: "Diretório monitores", onClick: () => navigate(ROUTE_PATH["diretorio-monitores"]) },
+              ]
+            : page === "gestao"
+            ? [
+                { label: "Diretório monitores", onClick: () => navigate(ROUTE_PATH["diretorio-monitores"]) },
+                { label: "Abrir planilha", onClick: () => navigate(ROUTE_PATH["planilha"]) },
               ]
             : page === "planilha"
               ? [
-                  { label: "Voltar para gestão", onClick: () => setPage("gestao") },
-                  { label: "Ver dashboard", onClick: () => setPage("dashboard") },
+                  { label: "Voltar para gestão", onClick: () => navigate(ROUTE_PATH["gestao"]) },
+                  { label: "Ver dashboard", onClick: () => navigate(ROUTE_PATH["dashboard"]) },
                 ]
               : [
-                  { label: "Ver dashboard", onClick: () => setPage("dashboard") },
-                  { label: "Diretório monitores", onClick: () => setPage("diretorio-monitores") },
+                  { label: "Ver dashboard", onClick: () => navigate(ROUTE_PATH["dashboard"]) },
+                  { label: "Diretório monitores", onClick: () => navigate(ROUTE_PATH["diretorio-monitores"]) },
                 ];
   const heroStats = [
     { label: "Período ativo", value: periodoAtual?.nome ?? "Sem período" },
@@ -355,8 +354,6 @@ function App() {
   return (
     <div className="app">
       <Sidebar
-        page={page}
-        onNavigate={setPage}
         chefe={chefe}
         token={token}
         onLogout={handleLogout}
@@ -407,10 +404,12 @@ function App() {
             {carregando ? (
               <PageSkeleton />
             ) : (
-              <>
-                {page === "dashboard" && (
-                  <>
-                    {dashboardView === "alunos" ? (
+              <Routes>
+                <Route path="/" element={<Navigate to={ROUTE_PATH.dashboard} replace />} />
+                <Route
+                  path={ROUTE_PATH.dashboard}
+                  element={
+                    dashboardView === "alunos" ? (
                       <AlunosDashboard
                         alunos={alunos}
                         grupos={grupos}
@@ -425,64 +424,99 @@ function App() {
                         feedbacks={feedbacks}
                         atrasos={atrasos}
                       />
-                    )}
-                  </>
-                )}
-                {page === "diretorio-alunos" && (
-                  <DiretorioAlunos
-                    token={token}
-                    alunos={alunos}
-                    grupos={grupos}
-                    listas={listas}
-                    feedbacks={feedbacks}
-                    onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
-                    onReload={load}
-                    onRequestConfirm={setConfirm}
-                  />
-                )}
-                {page === "diretorio-monitores" && (
-                  <DiretorioMonitores
-                    token={token}
-                    periodoId={periodoId}
-                    monitores={monitores}
-                    grupos={grupos}
-                    duplas={duplas}
-                    alunos={alunos}
-                    listas={listas}
-                    atrasos={atrasos}
-                    onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
-                    onReload={load}
-                    onRequestConfirm={setConfirm}
-                  />
-                )}
-                {page === "gestao" && (
-                  <Gestao
-                    token={token}
-                    periodoId={periodoId}
-                    grupos={grupos}
-                    duplas={duplas}
-                    monitores={monitores}
-                    alunos={alunos}
-                    turmas={turmas}
-                    onReload={load}
-                    onRequestConfirm={setConfirm}
-                  />
-                )}
-                {page === "bot" && periodoAtual && (
-                  <BotPage token={token} bot={bot} periodo={periodoAtual} onReload={load} />
-                )}
-                {page === "planilha" && periodoAtual && (
-                  <PlanilhaPage
-                    key={periodoId}
-                    token={token}
-                    periodo={periodoAtual}
-                    turmas={turmas}
-                    listas={listas}
-                    onReload={load}
-                    onRequestConfirm={setConfirm}
-                  />
-                )}
-              </>
+                    )
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH["diretorio-alunos"]}
+                  element={
+                    <DiretorioAlunos
+                      token={token}
+                      alunos={alunos}
+                      grupos={grupos}
+                      listas={listas}
+                      feedbacks={feedbacks}
+                      atrasos={atrasos}
+                      onOpenAluno={(id) => setDrawer({ type: "aluno", id })}
+                      onReload={load}
+                      onRequestConfirm={setConfirm}
+                    />
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH["diretorio-monitores"]}
+                  element={
+                    <DiretorioMonitores
+                      token={token}
+                      periodoId={periodoId}
+                      monitores={monitores}
+                      grupos={grupos}
+                      duplas={duplas}
+                      alunos={alunos}
+                      listas={listas}
+                      atrasos={atrasos}
+                      onOpenMonitor={(id) => setDrawer({ type: "monitor", id })}
+                      onReload={load}
+                      onRequestConfirm={setConfirm}
+                    />
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH.atrasados}
+                  element={
+                    <AtrasadosOverview
+                      turmas={turmas}
+                      grupos={grupos}
+                      duplas={duplas}
+                      alunos={alunos}
+                      listas={listas}
+                      monitores={monitores}
+                      atrasos={atrasos}
+                    />
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH.gestao}
+                  element={
+                    <Gestao
+                      token={token}
+                      periodoId={periodoId}
+                      grupos={grupos}
+                      duplas={duplas}
+                      monitores={monitores}
+                      alunos={alunos}
+                      turmas={turmas}
+                      onReload={load}
+                      onRequestConfirm={setConfirm}
+                    />
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH.bot}
+                  element={
+                    periodoAtual ? (
+                      <BotPage token={token} bot={bot} periodo={periodoAtual} onReload={load} />
+                    ) : null
+                  }
+                />
+                <Route
+                  path={ROUTE_PATH.planilha}
+                  element={
+                    periodoAtual ? (
+                      <PlanilhaPage
+                        key={periodoId}
+                        token={token}
+                        periodo={periodoAtual}
+                        turmas={turmas}
+                        listas={listas}
+                        onReload={load}
+                        onRequestConfirm={setConfirm}
+                      />
+                    ) : null
+                  }
+                />
+                <Route path="*" element={<Navigate to={ROUTE_PATH.dashboard} replace />} />
+              </Routes>
             )}
           </div>
         </div>
@@ -496,6 +530,7 @@ function App() {
           duplas={duplas}
           feedbacks={feedbacks}
           listas={listas}
+          atrasos={atrasos}
           token={token}
           onReload={load}
           onClose={() => setDrawer(null)}
@@ -530,6 +565,14 @@ function App() {
       {confirm && <ConfirmModal request={confirm} onClose={() => setConfirm(null)} />}
       <Toaster theme={theme} />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppInner />
+    </BrowserRouter>
   );
 }
 

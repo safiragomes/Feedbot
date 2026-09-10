@@ -131,6 +131,99 @@ describe("buscarPendenciasAtrasadas", () => {
     ]);
   });
 
+  it("não atribui a semana B ao primeiro monitor da dupla quando o aluno não tem monitorSemanaAId definido", async () => {
+    // Regressão: a lógica anterior fazia dupla.monitores.find(m => m.id !== monitorSemanaAId),
+    // que com monitorSemanaAId=null sempre casava com o primeiro monitor da dupla —
+    // atribuindo o atraso a um monitor sem nenhum aluno de fato vinculado a ele (ver
+    // domain/monitorSemana.ts, a fonte única da regra: sem monitor A, não há monitor B).
+    const agora = new Date("2026-09-10T12:00:00Z");
+    const monitorA = { id: "a", nome: "Monitor A", whatsappNumero: "+5581999999991" };
+    const monitorB = { id: "b", nome: "Monitor B", whatsappNumero: "+5581999999992" };
+    const prisma = {
+      aluno: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "aluno",
+            nome: "Aluno sem monitor A",
+            turmaId: "turma",
+            duplaId: "dupla",
+            monitorSemanaAId: null,
+            turma: { periodoId: "periodo" },
+            dupla: { monitores: [monitorA, monitorB] },
+            prazosIndividuais: [],
+            feedbacks: [],
+          },
+        ]),
+      },
+      lista: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lista-1",
+            nome: "Lista 1",
+            periodoId: "periodo",
+            ordem: 1,
+            semanaOverride: null,
+            prazos: [{ turmaId: "turma", prazoEntregaFeedback: new Date("2026-09-08T12:00:00Z") }],
+          },
+          {
+            id: "lista-2",
+            nome: "Lista 2",
+            periodoId: "periodo",
+            ordem: 2,
+            semanaOverride: null,
+            prazos: [{ turmaId: "turma", prazoEntregaFeedback: new Date("2026-09-08T12:00:00Z") }],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    expect(await buscarPendenciasAtrasadas(prisma, agora)).toEqual([]);
+  });
+
+  it("um prazo salvo como 'fim do dia local' só vira atraso depois da meia-noite local, não assim que o dia vira", async () => {
+    // O frontend salva o prazo com fimDoDiaIso("2026-09-10") = "2026-09-10T23:59:59.999"
+    // interpretado no fuso local de quem definiu, virando um instante em UTC (aqui,
+    // fuso -03:00, fica "2026-09-11T02:59:59.999Z"). Confirma que o dia inteiro de
+    // 10/09 no horário local ainda conta como dentro do prazo.
+    const prazoFimDoDia10DeSetembroLocal = new Date("2026-09-10T23:59:59.999-03:00");
+    const monitorA = { id: "a", nome: "Monitor A", whatsappNumero: "+5581999999991" };
+    const prisma = {
+      aluno: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "aluno",
+            nome: "Aluno Teste",
+            turmaId: "turma",
+            duplaId: "dupla",
+            monitorSemanaAId: "a",
+            turma: { periodoId: "periodo" },
+            dupla: { monitores: [monitorA] },
+            prazosIndividuais: [],
+            feedbacks: [],
+          },
+        ]),
+      },
+      lista: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lista-1",
+            nome: "Lista 1",
+            periodoId: "periodo",
+            ordem: 1,
+            semanaOverride: null,
+            prazos: [{ turmaId: "turma", prazoEntregaFeedback: prazoFimDoDia10DeSetembroLocal }],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    const aindaNoDia10 = new Date("2026-09-10T23:58:00-03:00");
+    const jaVirouODia11 = new Date("2026-09-11T00:01:00-03:00");
+
+    expect(await buscarPendenciasAtrasadas(prisma, aindaNoDia10)).toEqual([]);
+    expect(await buscarPendenciasAtrasadas(prisma, jaVirouODia11)).toHaveLength(1);
+  });
+
   it("ignora listas sem prazo, prazo futuro e aluno sem responsável definido", async () => {
     const prisma = {
       aluno: {

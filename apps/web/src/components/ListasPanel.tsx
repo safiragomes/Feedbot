@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fimDoDiaIso } from "../lib/format";
+import { fimDoDiaIso, paraInputDate } from "../lib/format";
 import { api } from "../lib/api";
 import type { Lista, Turma } from "../lib/types";
 import { Modal, Panel } from "./ui";
@@ -78,7 +78,10 @@ function EditarListaModal({
     new Map(
       turmas.map((turma) => [
         turma.id,
-        lista.prazos.find((p) => p.turmaId === turma.id)?.prazoEntregaFeedback.slice(0, 10) ?? "",
+        (() => {
+          const prazo = lista.prazos.find((p) => p.turmaId === turma.id)?.prazoEntregaFeedback;
+          return prazo ? paraInputDate(prazo) : "";
+        })(),
       ]),
     ),
   );

@@ -71,8 +71,9 @@ export function Topbar({
             className="btn sm"
             onClick={() => setConfirmarExclusao(true)}
             title="Excluir período"
+            aria-label="Excluir período"
           >
-            <IconTrash />
+            <IconTrash aria-hidden="true" />
           </button>
         )}
       </div>

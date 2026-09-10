@@ -116,8 +116,8 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
 
 export function DrawerCloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <button className="drawer-close" onClick={onClose}>
-      <IconX />
+    <button className="drawer-close" onClick={onClose} aria-label="Fechar">
+      <IconX aria-hidden="true" />
     </button>
   );
 }

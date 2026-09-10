@@ -47,3 +47,24 @@ export function noPrazo(criadoEm: string, prazoEntregaFeedback: string | null): 
 export function fimDoDiaIso(data: string) {
   return new Date(`${data}T23:59:59.999`).toISOString();
 }
+
+/**
+ * Inverso de fimDoDiaIso, pra reabrir um prazo salvo num `<input type="date">`.
+ * Precisa ler ano/mês/dia locais (getFullYear/getMonth/getDate) em vez de
+ * `.slice(0, 10)` no ISO: o ISO está em UTC, e um prazo salvo como "fim do dia
+ * local" já virou o dia seguinte em UTC pra qualquer fuso atrás de UTC (ex.:
+ * Brasil) — `.slice(0, 10)` reabriria o seletor um dia à frente do definido.
+ */
+export function paraInputDate(iso: string): string {
+  const data = new Date(iso);
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+const formatadorData = new Intl.DateTimeFormat("pt-BR");
+
+export function formatarData(iso: string | null | undefined): string | null {
+  return iso ? formatadorData.format(new Date(iso)) : null;
+}

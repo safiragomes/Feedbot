@@ -674,6 +674,7 @@ svg.icon {
   background: none;
   width: 100%;
   text-align: left;
+  text-decoration: none;
   transition:
     border-color 0.16s ease,
     background-color 0.16s ease,

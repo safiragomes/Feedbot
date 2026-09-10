@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Aluno, Feedback, GrupoRevisao, Lista } from "../lib/types";
+import type { Aluno, Atraso, Feedback, GrupoRevisao, Lista } from "../lib/types";
 import { IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
@@ -15,6 +15,7 @@ export function DiretorioAlunos({
   grupos,
   listas,
   feedbacks,
+  atrasos,
   onOpenAluno,
   onReload,
   onRequestConfirm,
@@ -24,6 +25,7 @@ export function DiretorioAlunos({
   grupos: GrupoRevisao[];
   listas: Lista[];
   feedbacks: Feedback[];
+  atrasos: Atraso[];
   onOpenAluno: (id: string) => void;
   onReload: () => Promise<void>;
   onRequestConfirm: (request: ConfirmRequest) => void;
@@ -31,6 +33,7 @@ export function DiretorioAlunos({
   const [turma, setTurma] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
+  const [somenteAtrasados, setSomenteAtrasados] = useState(false);
   const [ocorrencias, setOcorrencias] = useState<TipoOcorrencia[]>([]);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
@@ -68,12 +71,16 @@ export function DiretorioAlunos({
     );
   }
 
+  const atrasosVisiveis = atrasos.filter((a) => !listaId || a.listaId === listaId);
+  const alunosAtrasados = new Set(atrasosVisiveis.map((a) => a.alunoId));
+
   const filtrados = alunos
     .filter(
       (a) =>
         (!turma || a.turma.nome === turma) &&
         (!grupoId || a.dupla?.grupoRevisaoId === grupoId) &&
         (!ocorrencias.length || alunoAtendeOcorrencias(a.id)) &&
+        (!somenteAtrasados || alunosAtrasados.has(a.id)) &&
         (!q || normalizarBusca(a.nome).includes(q) || a.matricula.toLowerCase().includes(q)),
     )
     .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -90,15 +97,21 @@ export function DiretorioAlunos({
   // filtro mudava depois da seleção (ex.: mostrava "3 selecionados" mas a exclusão
   // de fato afetava 0, porque nenhum dos 3 seguia visível).
   const selecionadosVisiveis = filtrados.filter((a) => selecionados.has(a.id));
-  const filtrosAtivos = [turma, grupoId, listaId, busca.trim(), ocorrencias.join(",")].filter(
-    Boolean,
-  ).length;
+  const filtrosAtivos = [
+    turma,
+    grupoId,
+    listaId,
+    busca.trim(),
+    ocorrencias.join(","),
+    somenteAtrasados ? "atrasado" : "",
+  ].filter(Boolean).length;
 
   function limparFiltros() {
     setTurma("");
     setGrupoId("");
     setListaId("");
     setOcorrencias([]);
+    setSomenteAtrasados(false);
     setBusca("");
   }
 
@@ -191,6 +204,15 @@ export function DiretorioAlunos({
       ),
     },
     {
+      key: "atrasos",
+      header: "Atrasos abertos",
+      sortValue: (a) => atrasosVisiveis.filter((atraso) => atraso.alunoId === a.id).length,
+      render: (a) => {
+        const total = atrasosVisiveis.filter((atraso) => atraso.alunoId === a.id).length;
+        return total ? <Chip tone="danger">{total}</Chip> : <span className="mono-cell">—</span>;
+      },
+    },
+    {
       key: "acoes",
       header: "",
       align: "right",
@@ -198,9 +220,10 @@ export function DiretorioAlunos({
         <button
           className="x-btn"
           title="Remover aluno"
+          aria-label="Remover aluno"
           onClick={(event) => confirmarExclusao(a, event)}
         >
-          <IconTrash />
+          <IconTrash aria-hidden="true" />
         </button>
       ),
     },
@@ -245,6 +268,11 @@ export function DiretorioAlunos({
           <strong>{alunosSemDupla}</strong>
           <p>Cadastro ativo ainda sem alocação.</p>
         </div>
+        <div className="context-card">
+          <span>Atrasos abertos</span>
+          <strong>{alunosAtrasados.size}</strong>
+          <p>Alunos com feedback não entregue após o prazo.</p>
+        </div>
         <div className="context-card compact">
           <span>Filtros ativos</span>
           <strong>{filtrosAtivos}</strong>
@@ -269,6 +297,14 @@ export function DiretorioAlunos({
           onChange={setListaId}
           options={listas.map((lista) => ({ value: lista.id, label: lista.nome }))}
         />
+        <label style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <input
+            type="checkbox"
+            checked={somenteAtrasados}
+            onChange={(e) => setSomenteAtrasados(e.target.checked)}
+          />
+          <span className="flag">somente com atrasos</span>
+        </label>
         <span className="flag">Ocorrências</span>
         <div className="occurrence-options">
           {(

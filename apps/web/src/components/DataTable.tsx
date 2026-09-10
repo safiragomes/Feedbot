@@ -136,6 +136,23 @@ export function DataTable<T>({
                 key={key}
                 className={onRowClick ? "clickable" : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? "button" : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        // Keydown borbulha de qualquer botão/input focável dentro da linha
+                        // (diferente de click, que cada ação já interrompe com
+                        // stopPropagation) — sem esse filtro, apertar Enter/Espaço num botão
+                        // da linha (excluir, tornar chefe, checkbox de seleção) também abriria
+                        // o drawer, e o preventDefault ainda bloquearia a ação nativa do botão.
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    : undefined
+                }
               >
                 {selection && (
                   <td onClick={(event) => event.stopPropagation()}>

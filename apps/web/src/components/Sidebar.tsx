@@ -1,13 +1,12 @@
 import { useState } from "react";
+import { NavLink } from "react-router-dom";
 import type { Chefe } from "../lib/types";
 import { api } from "../lib/api";
 import { initials } from "../lib/format";
-import { IconAluno, IconBot, IconGrid, IconLogout, IconSearch } from "./icons";
+import { ROUTE_PATH, type PageId } from "../lib/routes";
+import { IconAluno, IconBot, IconClock, IconGrid, IconLogout, IconSearch } from "./icons";
 import { LogoMark } from "./Logo";
 import { Modal } from "./ui";
-
-export type PageId =
-  "dashboard" | "diretorio-alunos" | "diretorio-monitores" | "gestao" | "planilha" | "bot";
 
 const NAV: { group: string; items: { id: PageId; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -19,6 +18,7 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
     items: [
       { id: "diretorio-alunos", label: "Alunos", icon: <IconSearch /> },
       { id: "diretorio-monitores", label: "Monitores", icon: <IconSearch /> },
+      { id: "atrasados", label: "Atrasados", icon: <IconClock /> },
     ],
   },
   {
@@ -35,16 +35,12 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
 ];
 
 export function Sidebar({
-  page,
-  onNavigate,
   chefe,
   token,
   onLogout,
   mobileOpen = false,
   onCloseMobile,
 }: {
-  page: PageId;
-  onNavigate: (page: PageId) => void;
   chefe: Chefe | null;
   token: string;
   onLogout: () => void;
@@ -52,11 +48,6 @@ export function Sidebar({
   onCloseMobile?: () => void;
 }) {
   const [alterandoSenha, setAlterandoSenha] = useState(false);
-
-  function navegar(id: PageId) {
-    onNavigate(id);
-    onCloseMobile?.();
-  }
 
   return (
     <>
@@ -80,14 +71,15 @@ export function Sidebar({
           <div key={section.group || index}>
             {section.group && <div className="nav-group-label">{section.group}</div>}
             {section.items.map((item) => (
-              <button
+              <NavLink
                 key={item.id}
-                className={`nav-item${page === item.id ? " active" : ""}`}
-                onClick={() => navegar(item.id)}
+                to={ROUTE_PATH[item.id]}
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={onCloseMobile}
               >
                 {item.icon}
                 {item.label}
-              </button>
+              </NavLink>
             ))}
           </div>
         ))}
@@ -100,8 +92,8 @@ export function Sidebar({
               Alterar senha
             </button>
           </div>
-          <button className="exit" onClick={onLogout} title="Sair">
-            <IconLogout />
+          <button className="exit" onClick={onLogout} title="Sair" aria-label="Sair">
+            <IconLogout aria-hidden="true" />
           </button>
         </div>
         {alterandoSenha && (

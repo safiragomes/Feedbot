@@ -1,5 +1,6 @@
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { calcularSemana } from "../domain/semana.js";
+import { monitorDaSemana } from "../domain/monitorSemana.js";
 
 export type PendenciaAtrasada = {
   alunoId: string;
@@ -48,12 +49,20 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
         posicaoLista: indice + 1,
         semanaOverride: lista.semanaOverride,
       });
-      const monitor =
-        semana === "A"
-          ? (aluno.dupla.monitores.find((m) => m.id === aluno.monitorSemanaAId) ??
-            (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined))
-          : (aluno.dupla.monitores.find((m) => m.id !== aluno.monitorSemanaAId) ??
-            (aluno.dupla.monitores.length === 1 ? aluno.dupla.monitores[0] : undefined));
+      // Mesma regra de domain/monitorSemana.ts usada em services/feedback.ts: o
+      // "outro monitor" é sempre relativo ao monitorSemanaAId do aluno, nunca "o
+      // primeiro da dupla" — senão um aluno sem monitorSemanaAId definido acaba
+      // atribuindo o atraso a um monitor que não tem nenhum aluno vinculado a ele.
+      const outroMonitorId = aluno.monitorSemanaAId
+        ? (aluno.dupla.monitores.find((m) => m.id !== aluno.monitorSemanaAId)?.id ?? null)
+        : null;
+      const monitorId = monitorDaSemana(
+        { monitorSemanaAId: aluno.monitorSemanaAId, outroMonitorId },
+        semana,
+      );
+      const monitor = monitorId
+        ? aluno.dupla.monitores.find((m) => m.id === monitorId)
+        : undefined;
       if (!monitor) continue;
       pendencias.push({
         alunoId: aluno.id,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Aluno, Atraso, DiscordMembro, Dupla, GrupoRevisao, Lista, Monitor } from "../lib/types";
 import { IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, Modal, type ConfirmRequest } from "../components/ui";
@@ -87,15 +87,21 @@ function NomeCell({
   token,
   onReload,
   onErro,
+  onAbrir,
 }: {
   monitor: Monitor;
   token: string;
   onReload: () => Promise<void>;
   onErro: (mensagem: string) => void;
+  onAbrir: () => void;
 }) {
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState(monitor.nome);
   const [salvando, setSalvando] = useState(false);
+  // Um duplo clique dispara dois "click" nativos antes do "dblclick" — sem esse
+  // atraso, o primeiro clique já abriria o drawer (um overlay full-screen) no meio
+  // do gesto de editar. Espera um instante pra ver se vira duplo clique antes de agir.
+  const cliqueUnicoPendente = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (!editando) {
     return (
@@ -103,9 +109,25 @@ function NomeCell({
         className="person-cell"
         role="button"
         tabIndex={0}
-        title="Editar nome"
+        title="Clique para abrir · duplo clique para editar o nome"
         onClick={(event) => {
           event.stopPropagation();
+          if (cliqueUnicoPendente.current) return;
+          // 300ms (não os ~200ms de um "clique rápido" comum) porque o intervalo de
+          // duplo clique do sistema operacional do usuário pode ser mais lento que isso —
+          // um valor curto demais abre o drawer antes do segundo clique chegar, mesmo
+          // quando o usuário genuinamente deu um duplo clique.
+          cliqueUnicoPendente.current = setTimeout(() => {
+            cliqueUnicoPendente.current = null;
+            onAbrir();
+          }, 300);
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          if (cliqueUnicoPendente.current) {
+            clearTimeout(cliqueUnicoPendente.current);
+            cliqueUnicoPendente.current = null;
+          }
           setValor(monitor.nome);
           setEditando(true);
         }}
@@ -183,10 +205,18 @@ function DiscordCell({
       <button
         type="button"
         className="discord-cell-display"
-        title="Vincular conta do Discord"
-        onClick={(event) => {
+        title="Duplo clique para vincular a conta do Discord"
+        onClick={(event) => event.stopPropagation()}
+        onDoubleClick={(event) => {
           event.stopPropagation();
           setAbrindo(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            setAbrindo(true);
+          }
         }}
       >
         {monitor.discordUsername ? `@${monitor.discordUsername}` : "vincular"}
@@ -251,7 +281,7 @@ export function DiretorioMonitores({
           normalizarBusca(m.nome).includes(q) ||
           normalizarBusca(m.discordUsername ?? "").includes(q) ||
           normalizarBusca(m.discordDisplayName ?? "").includes(q)) &&
-        ((!listaId && !somenteAtrasados) || monitoresAtrasados.has(m.id))
+        (!somenteAtrasados || monitoresAtrasados.has(m.id))
       );
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -328,7 +358,15 @@ export function DiretorioMonitores({
       key: "nome",
       header: "Monitor",
       sortValue: (m) => m.nome,
-      render: (m) => <NomeCell monitor={m} token={token} onReload={onReload} onErro={setErro} />,
+      render: (m) => (
+        <NomeCell
+          monitor={m}
+          token={token}
+          onReload={onReload}
+          onErro={setErro}
+          onAbrir={() => onOpenMonitor(m.id)}
+        />
+      ),
     },
     {
       key: "discord",
@@ -401,9 +439,10 @@ export function DiretorioMonitores({
         <button
           className="x-btn"
           title="Excluir monitor"
+          aria-label="Excluir monitor"
           onClick={(event) => confirmarExclusao(m, event)}
         >
-          <IconTrash />
+          <IconTrash aria-hidden="true" />
         </button>
       ),
     },
@@ -468,7 +507,7 @@ export function DiretorioMonitores({
           onChange={setGrupoId}
           options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
         />
-        <span className="flag">Lista em atraso</span>
+        <span className="flag">Lista</span>
         <FilterSelect
           label="lista"
           placeholder="todas as listas"

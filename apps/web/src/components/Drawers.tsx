@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
-import { fimDoDiaIso, noPrazo } from "../lib/format";
+import { fimDoDiaIso, formatarData, noPrazo, paraInputDate } from "../lib/format";
 import { api } from "../lib/api";
 import { monitorSemanaB } from "../lib/dupla";
 import { Avatar, Chip, Drawer, DrawerCloseButton, MiniRow } from "./ui";
@@ -22,6 +22,7 @@ export function AlunoDrawer({
   duplas,
   feedbacks,
   listas,
+  atrasos,
   token,
   onReload,
   onClose,
@@ -33,6 +34,7 @@ export function AlunoDrawer({
   duplas: Dupla[];
   feedbacks: Feedback[];
   listas: Lista[];
+  atrasos: Atraso[];
   token: string;
   onReload: () => Promise<void>;
   onClose: () => void;
@@ -135,13 +137,13 @@ export function AlunoDrawer({
           const turma = lista.prazos?.find(
             (p) => p.turmaId === aluno.turmaId,
           )?.prazoEntregaFeedback;
-          const valor = prazosEditados.get(lista.id) ?? individual?.slice(0, 10) ?? "";
+          const valor = prazosEditados.get(lista.id) ?? (individual ? paraInputDate(individual) : "");
           return (
             <div className="mini-row" key={lista.id} style={{ gap: 8 }}>
               <span className="l">
                 {lista.nome}
                 <small style={{ display: "block" }}>
-                  Turma: {turma?.slice(0, 10) ?? "sem prazo"}
+                  Turma: {formatarData(turma) ?? "sem prazo"}
                 </small>
               </span>
               <input
@@ -184,15 +186,28 @@ export function AlunoDrawer({
               editar
             </button>
           );
-          if (!f)
+          if (!f) {
+            const atraso = atrasos.find((a) => a.alunoId === aluno.id && a.listaId === lista.id);
+            let statusChip: ReactNode;
+            if (atraso) {
+              statusChip = <Chip tone="danger">atrasado · resp. {atraso.monitorNome}</Chip>;
+            } else {
+              const prazo = prazoEfetivo(aluno, lista);
+              statusChip = prazo ? (
+                <Chip tone="caution">pendente</Chip>
+              ) : (
+                <Chip tone="off">sem prazo definido</Chip>
+              );
+            }
             return (
               <MiniRow key={lista.id} label={lista.nome}>
                 <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="mono-cell">não entregue</span>
+                  {statusChip}
                   {editarBtn}
                 </span>
               </MiniRow>
             );
+          }
           if (!f.usouIa && !f.plagiou && !f.usouProibicao)
             return (
               <MiniRow key={lista.id} label={lista.nome}>
@@ -365,9 +380,10 @@ export function MonitorDrawer({
               <button
                 className="x-btn"
                 title="Desatribuir semana A"
+                aria-label={`Desatribuir ${a.nome} da semana A`}
                 onClick={() => desatribuir(a.id)}
               >
-                <IconX />
+                <IconX aria-hidden="true" />
               </button>
             </div>
           ))
@@ -384,9 +400,10 @@ export function MonitorDrawer({
               <button
                 className="x-btn"
                 title="Desatribuir semana B"
+                aria-label={`Desatribuir ${a.nome} da semana B`}
                 onClick={() => desatribuir(a.id)}
               >
-                <IconX />
+                <IconX aria-hidden="true" />
               </button>
             </div>
           ))

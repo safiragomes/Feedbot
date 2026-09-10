@@ -177,7 +177,22 @@ export function Gestao({
           const aberto = abertos.has(grupo.id);
           return (
             <div key={grupo.id} className={`grupo-card${aberto ? " open" : ""}`}>
-              <div className="grupo-head" onClick={() => toggleGrupo(grupo.id)}>
+              <div
+                className="grupo-head"
+                role="button"
+                tabIndex={0}
+                aria-expanded={aberto}
+                onClick={() => toggleGrupo(grupo.id)}
+                onKeyDown={(event) => {
+                  // Keydown borbulha do botão "Excluir grupo" aninhado (diferente de click,
+                  // que ele já interrompe com stopPropagation) — sem esse filtro, apertar
+                  // Enter/Espaço no botão de excluir também expandiria/recolheria o card.
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  toggleGrupo(grupo.id);
+                }}
+              >
                 <div className="left">
                   <div className="av">{initials(grupo.chefe?.nome ?? "?")}</div>
                   <div>
@@ -196,12 +211,14 @@ export function Gestao({
                 <div className="right">
                   <button
                     className="btn sm"
+                    title="Excluir grupo"
+                    aria-label={`Excluir grupo ${grupo.nome}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       confirmarExclusaoGrupo(grupo);
                     }}
                   >
-                    <IconTrash />
+                    <IconTrash aria-hidden="true" />
                   </button>
                   <IconChevronDown className="icon chevron" />
                 </div>
@@ -245,9 +262,10 @@ export function Gestao({
                           <button
                             className="x-btn"
                             title="Excluir dupla"
+                            aria-label={`Excluir ${dupla.label}`}
                             onClick={() => confirmarExclusaoDupla(dupla)}
                           >
-                            <IconX />
+                            <IconX aria-hidden="true" />
                           </button>
                         </div>
                         <div className={`aluno-list-wrap${alunosOpen ? " open" : ""}`}>
@@ -294,9 +312,10 @@ export function Gestao({
                                     <button
                                       className="x-btn"
                                       title="Tirar aluno da dupla"
+                                      aria-label={`Tirar ${aluno.nome} da dupla`}
                                       onClick={() => confirmarDesvinculoAluno(aluno)}
                                     >
-                                      <IconX />
+                                      <IconX aria-hidden="true" />
                                     </button>
                                   </span>
                                 );
@@ -399,8 +418,13 @@ function MembroSlot({
         {initials(monitor.nome)}
       </span>
       {monitor.nome}
-      <button className="x-btn" title="Remover monitor da dupla" onClick={onRemove}>
-        <IconX />
+      <button
+        className="x-btn"
+        title="Remover monitor da dupla"
+        aria-label={`Remover ${monitor.nome} da dupla`}
+        onClick={onRemove}
+      >
+        <IconX aria-hidden="true" />
       </button>
     </div>
   );
