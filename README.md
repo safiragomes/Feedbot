@@ -132,6 +132,9 @@ compiladas localmente e publicadas no GitHub Container Registry — o servidor s
 pronta, nunca compila:
 
 ```bash
+# no seu computador, uma vez (gera o token em github.com/settings/tokens, escopo write:packages):
+docker login ghcr.io -u SEU_USUARIO_GITHUB
+
 # no seu computador, após alterar o código:
 docker build -f apps/api/Dockerfile -t ghcr.io/safiragomes/feedbot-api:latest .
 docker build -f apps/web/Dockerfile -t ghcr.io/safiragomes/feedbot-web:latest --build-arg VITE_API_URL=/api .
@@ -148,6 +151,40 @@ docker compose --env-file .env.production -f docker-compose.production.yml up -d
 
 Antes de atualizar, crie um backup. Confira a instalação com `docker compose ... ps` e com
 `https://SEU_DOMINIO/api/health`.
+
+### Acesso SSH ao servidor
+
+```bash
+ssh -i ~/Downloads/"NOME-DA-CHAVE.key" ubuntu@IP_DO_SERVIDOR
+```
+
+Na primeira vez com uma chave recém-baixada, rode antes (o SSH recusa chaves com permissão
+aberta):
+
+```bash
+chmod 600 ~/Downloads/"NOME-DA-CHAVE.key"
+```
+
+**Se a conexão travar em "Connection timed out"** (mas o site continua no ar normalmente): não é a
+VM que está fora do ar nem a Security List da Oracle bloqueando — é mais provável que a rede/ISP de
+quem está tentando conectar bloqueie a porta 22 de saída (comum em ISPs residenciais no Brasil).
+Pra confirmar o diagnóstico sem depender de outra rede:
+
+```bash
+# a mesma porta 443/80 do site responde do lugar de onde a 22 trava?
+timeout 8 bash -c 'echo > /dev/tcp/IP_DO_SERVIDOR/443' && echo "443 abre" || echo "443 também não conecta"
+```
+
+Se só a 22 travar, o console web da VM (que não passa pela rede local de quem conecta) continua
+funcionando, e o **Oracle Cloud Shell** ([cloud.oracle.com](https://cloud.oracle.com) → ícone de
+terminal no topo) serve de ponte, já que roda dentro da rede da própria Oracle:
+
+1. No Cloud Shell, use o botão de **upload** (ícone de seta pra cima na barra de ações) pra subir o
+   arquivo `.key` do seu computador — o Cloud Shell tem um storage próprio, separado da sua máquina.
+2. `chmod 600 ~/"NOME-DA-CHAVE.key"`
+3. `ssh -i ~/"NOME-DA-CHAVE.key" ubuntu@IP_DO_SERVIDOR`
+
+Dali dá pra rodar os comandos de atualização normalmente (seção anterior).
 
 ## Scripts (raiz)
 

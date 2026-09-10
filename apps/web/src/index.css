@@ -2079,6 +2079,28 @@ tbody tr.clickable {
   gap: 6px;
   flex-wrap: wrap;
 }
+.atrasos-grupo-toggle {
+  margin-bottom: 12px;
+}
+.atrasos-monitor-bloco {
+  margin-bottom: 18px;
+}
+.atrasos-monitor-bloco:last-child {
+  margin-bottom: 0;
+}
+.atrasos-monitor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.atrasos-monitor-head strong {
+  font-size: 13px;
+  color: var(--text);
+}
 .empty {
   padding: 46px 20px;
   text-align: center;
