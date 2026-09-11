@@ -239,7 +239,7 @@ export function MonitoresDashboard({
   };
 
   return (
-    <>
+    <div className="page-flow">
       <div className="page-head">
         <div>
           <h1>Monitores</h1>
@@ -372,6 +372,6 @@ export function MonitoresDashboard({
           </div>
         </Panel>
       </div>
-    </>
+    </div>
   );
 }

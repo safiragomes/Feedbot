@@ -100,6 +100,22 @@ export function DataTable<T>({
 
   return (
     <div className={`table-wrap${className ? ` ${className}` : ""}`}>
+      {selection && (
+        // Substitui o checkbox "selecionar todos" do <thead> no mobile — o cabeçalho
+        // inteiro some quando a tabela vira lista de cartões (ver index.css), então sem
+        // isso não haveria como selecionar tudo de uma vez no celular.
+        <label className="table-select-all-mobile">
+          <input
+            type="checkbox"
+            checked={todasSelecionadas}
+            ref={(el) => {
+              if (el) el.indeterminate = algumasSelecionadas;
+            }}
+            onChange={() => selection.onToggleAll(todasSelecionadas ? [] : todasChaves)}
+          />
+          Selecionar todos
+        </label>
+      )}
       <table>
         <thead>
           <tr>

@@ -277,38 +277,42 @@ export function Gestao({
                                   monitorSemanaB(monitoresDupla, monitorAId)?.id ?? "";
                                 return (
                                   <span className="aluno-tag" key={aluno.id}>
-                                    {aluno.nome}
-                                    <span className="papel-tag">A</span>
-                                    <select
-                                      className={`select-papel${monitorAId ? "" : " vago"}`}
-                                      value={monitorAId ?? ""}
-                                      onChange={(e) =>
-                                        escolherPapel(aluno, monitoresDupla, "A", e.target.value)
-                                      }
-                                    >
-                                      <option value="">vago</option>
-                                      {monitoresDupla.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                          {m.nome}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <span className="papel-tag">B</span>
-                                    <select
-                                      className={`select-papel${monitorBId ? "" : " vago"}`}
-                                      value={monitorBId}
-                                      disabled={monitoresDupla.length < 2}
-                                      onChange={(e) =>
-                                        escolherPapel(aluno, monitoresDupla, "B", e.target.value)
-                                      }
-                                    >
-                                      <option value="">vago</option>
-                                      {monitoresDupla.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                          {m.nome}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    <span className="aluno-tag-nome">{aluno.nome}</span>
+                                    <span className="papel-par">
+                                      <span className="papel-tag">A</span>
+                                      <select
+                                        className={`select-papel${monitorAId ? "" : " vago"}`}
+                                        value={monitorAId ?? ""}
+                                        onChange={(e) =>
+                                          escolherPapel(aluno, monitoresDupla, "A", e.target.value)
+                                        }
+                                      >
+                                        <option value="">vago</option>
+                                        {monitoresDupla.map((m) => (
+                                          <option key={m.id} value={m.id}>
+                                            {m.nome}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </span>
+                                    <span className="papel-par">
+                                      <span className="papel-tag">B</span>
+                                      <select
+                                        className={`select-papel${monitorBId ? "" : " vago"}`}
+                                        value={monitorBId}
+                                        disabled={monitoresDupla.length < 2}
+                                        onChange={(e) =>
+                                          escolherPapel(aluno, monitoresDupla, "B", e.target.value)
+                                        }
+                                      >
+                                        <option value="">vago</option>
+                                        {monitoresDupla.map((m) => (
+                                          <option key={m.id} value={m.id}>
+                                            {m.nome}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </span>
                                     <button
                                       className="x-btn"
                                       title="Tirar aluno da dupla"

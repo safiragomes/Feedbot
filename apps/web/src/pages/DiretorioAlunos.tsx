@@ -253,7 +253,7 @@ export function DiretorioAlunos({
   ];
 
   return (
-    <>
+    <div className="page-flow">
       <div className="page-head">
         <div>
           <h1>Alunos</h1>
@@ -391,6 +391,6 @@ export function DiretorioAlunos({
           onToggleAll: (keys) => setSelecionados(new Set(keys)),
         }}
       />
-    </>
+    </div>
   );
 }

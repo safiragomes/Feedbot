@@ -1079,7 +1079,8 @@ select.periodo {
 [data-theme="light"] .ranking-item,
 [data-theme="light"] .settings-card,
 [data-theme="light"] .aluno-tag,
-[data-theme="light"] .aluno-count {
+[data-theme="light"] .aluno-count,
+[data-theme="light"] .filterbar-mobile-toggle {
   background: rgba(232, 238, 247, 0.82);
   color: var(--text);
 }
@@ -1130,6 +1131,14 @@ select.periodo {
   flex: 1;
   min-width: 0;
   overflow: visible;
+}
+/* Flex column em vez de fluxo normal só pra permitir reordenar as seções no
+   mobile via `order` (ver @media max-width:720px) sem duplicar JSX — como
+   nenhum filho usa margin-top, o espaçamento fica idêntico ao block normal
+   e o desktop não muda. */
+.page-flow {
+  display: flex;
+  flex-direction: column;
 }
 .page-head {
   display: flex;
@@ -1220,6 +1229,9 @@ h1 {
 
 /* FILTER BAR */
 .filterbar-mobile-toggle {
+  display: none;
+}
+.table-select-all-mobile {
   display: none;
 }
 .filterbar-modal-head {
@@ -2003,6 +2015,12 @@ thead th {
   border-top: 1px solid var(--border);
   position: sticky;
   left: 0;
+  /* Também gruda embaixo do scroll de .table-wrap — sem isso a paginação
+     rolava junto com a lista e sumia de vista em listas longas. Precisa de
+     fundo opaco porque, ao grudar, o conteúdo rolado passa por baixo dela. */
+  bottom: 0;
+  background: var(--surface);
+  z-index: 1;
 }
 .table-pagination-actions {
   display: flex;
@@ -2427,6 +2445,11 @@ tbody tr.clickable {
   border-radius: var(--r-pill);
   font-size: 12px;
   font-weight: 700;
+}
+.papel-par {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .papel-tag {
   font-size: 9px;
@@ -3409,6 +3432,12 @@ tbody tr.clickable {
   }
 }
 @media (max-width: 720px) {
+  /* Métricas primeiro, depois título+busca+filtros, só no mobile — no
+     desktop a ordem do JSX continua a mesma (título antes das métricas). */
+  .page-flow > .context-band,
+  .page-flow > .stats {
+    order: -1;
+  }
   .topbar,
   .content-shell {
     padding-left: 18px;
@@ -3491,6 +3520,24 @@ tbody tr.clickable {
   }
   .theme-toggle-label {
     display: none;
+  }
+
+  /* Substitui o checkbox "selecionar todos" que some junto com o <thead> logo
+     abaixo — sem isso não haveria como selecionar tudo de uma vez no celular.
+     Gruda no topo do scroll de .table-wrap, como a paginação gruda embaixo. */
+  .table-select-all-mobile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
   }
 
   /* Tabela de dados vira lista de cartões — cada <tr> um cartão, cada <td>
@@ -3599,10 +3646,26 @@ tbody tr.clickable {
   }
 
   /* Cada tag de aluno carrega nome + 2 selects de monitor + botão de remover
-     numa linha só (`.aluno-tag`, ver Gestao.tsx) — sem quebra interna isso
-     ultrapassa a largura da tela em vez de só quebrar entre tags. */
+     numa linha só (`.aluno-tag`, ver Gestao.tsx) — no formato pílula original
+     isso vazava da tela. Vira um cartão: nome numa linha, os pares A/select e
+     B/select lado a lado (como no desktop) na linha de baixo. */
   .aluno-tag {
+    display: flex;
     flex-wrap: wrap;
+    width: 100%;
+    border-radius: var(--r-sm);
+    padding: 8px 10px;
+  }
+  .aluno-tag-nome {
+    flex: 1 1 100%;
+  }
+  .papel-par {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .papel-par .select-papel {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
 

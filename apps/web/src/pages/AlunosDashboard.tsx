@@ -294,7 +294,7 @@ export function AlunosDashboard({
   };
 
   return (
-    <>
+    <div className="page-flow">
       <div className="page-head">
         <div>
           <h1>Alunos</h1>
@@ -511,6 +511,6 @@ export function AlunosDashboard({
           </Panel>
         </div>
       </div>
-    </>
+    </div>
   );
 }

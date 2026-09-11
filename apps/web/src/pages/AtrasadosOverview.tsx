@@ -91,7 +91,7 @@ export function AtrasadosOverview({
   }
 
   return (
-    <>
+    <div className="page-flow">
       <div className="page-head">
         <div>
           <h1>Atrasados</h1>
@@ -242,7 +242,6 @@ export function AtrasadosOverview({
                             <thead>
                               <tr>
                                 <th>Aluno</th>
-                                <th>Dupla</th>
                                 <th>Listas pendentes</th>
                               </tr>
                             </thead>
@@ -250,9 +249,6 @@ export function AtrasadosOverview({
                               {monitor.alunos.map((aluno) => (
                                 <tr key={aluno.alunoId}>
                                   <td data-label="Aluno">{aluno.alunoNome}</td>
-                                  <td data-label="Dupla">
-                                    <span className="mono-cell">{aluno.duplaLabel}</span>
-                                  </td>
                                   <td data-label="Listas pendentes">
                                     <span className="flags-cell">
                                       {aluno.listas.map((item) => {
@@ -284,6 +280,6 @@ export function AtrasadosOverview({
           </Panel>
         ))
       )}
-    </>
+    </div>
   );
 }
