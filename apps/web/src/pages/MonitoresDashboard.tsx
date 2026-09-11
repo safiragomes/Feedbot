@@ -5,6 +5,7 @@ import type { Atraso, Dupla, Feedback, GrupoRevisao, Lista } from "../lib/types"
 import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconCheckCircle, IconClock, IconGrid, IconMonitor } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
+import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { noPrazo } from "../lib/format";
 import { classificarMonitoresComAtraso } from "../lib/monitor-risco";
@@ -24,6 +25,7 @@ export function MonitoresDashboard({
 }) {
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const palette = chartPalette();
 
   const duplaGrupo = useMemo(() => new Map(duplas.map((d) => [d.id, d.grupoRevisaoId])), [duplas]);
@@ -245,9 +247,12 @@ export function MonitoresDashboard({
             Entregas de feedback, prazos e volume por grupo de revisão e lista.
           </div>
         </div>
+        <div className="head-actions">
+          <FilterBarToggle onClick={() => setFiltrosAbertos(true)} />
+        </div>
       </div>
 
-      <div className="filterbar">
+      <FilterBar open={filtrosAbertos} onClose={() => setFiltrosAbertos(false)}>
         <span className="flag">Grupo</span>
         <FilterSelect
           label="grupo"
@@ -264,7 +269,7 @@ export function MonitoresDashboard({
           onChange={setListaId}
           options={listas.map((l) => ({ value: l.id, label: l.nome }))}
         />
-      </div>
+      </FilterBar>
 
       <div className="stats">
         <StatCard

@@ -5,6 +5,7 @@ import type { Aluno, Feedback, GrupoRevisao, Lista } from "../lib/types";
 import { chartGradient, chartPalette, ChartCanvas } from "../components/ChartCanvas";
 import { IconAluno, IconIa, IconPlagio, IconProibicao } from "../components/icons";
 import { Panel, StatCard } from "../components/ui";
+import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { pct, turmasUnicas } from "../lib/format";
 
@@ -25,6 +26,7 @@ export function AlunosDashboard({
   const [grupoId, setGrupoId] = useState("");
   const [duplaId, setDuplaId] = useState("");
   const [listaId, setListaId] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const palette = chartPalette();
   const turmas = useMemo(() => turmasUnicas(alunos), [alunos]);
 
@@ -300,9 +302,12 @@ export function AlunosDashboard({
             Desempenho, ocorrências e acompanhamento por turma, grupo e lista.
           </div>
         </div>
+        <div className="head-actions">
+          <FilterBarToggle onClick={() => setFiltrosAbertos(true)} />
+        </div>
       </div>
 
-      <div className="filterbar">
+      <FilterBar open={filtrosAbertos} onClose={() => setFiltrosAbertos(false)}>
         <span className="flag">Turma</span>
         <FilterSelect
           label="turma"
@@ -338,7 +343,7 @@ export function AlunosDashboard({
           onChange={setListaId}
           options={listas.map((l) => ({ value: l.id, label: l.nome }))}
         />
-      </div>
+      </FilterBar>
 
       <div className="stats">
         <StatCard
@@ -403,7 +408,7 @@ export function AlunosDashboard({
       <div className="panel-grid">
         <div className="panel-stack">
           <Panel title="Questões mais afetadas" tag="lista × questão" fit>
-            <div style={{ overflowX: "auto" }}>
+            <div className="heatmap-scroll" style={{ overflowX: "auto" }}>
               <table className="heatmap">
                 <thead>
                   <tr>

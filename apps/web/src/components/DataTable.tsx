@@ -8,6 +8,23 @@ export type DataTableColumn<T> = {
   sortValue?: (row: T) => string | number;
   align?: "left" | "right" | "center";
   headStyle?: CSSProperties;
+  // Rótulo mostrado antes da célula quando a tabela vira lista de cartões em
+  // mobile (ver index.css, @media max-width:720px). Só precisa ser definido
+  // quando `header` não é uma string simples (ex.: cabeçalho ordenável).
+  mobileLabel?: string;
+  // Some da lista de cartões em mobile (ver index.css) — pra colunas
+  // secundárias que deixariam cada cartão comprido demais numa tela de
+  // celular. Continua na tabela normal em telas largas.
+  hideOnMobile?: boolean;
+  // Fixa a célula no canto direito do cartão em mobile, centralizada
+  // verticalmente (ver index.css) — pra ações como excluir, que ficam junto
+  // do checkbox de seleção em vez de virarem mais uma linha empilhada.
+  // Atributo próprio (não reaproveita data-label="") pra não colidir com
+  // colunas que só têm mobileLabel="" pra suprimir a legenda.
+  mobilePin?: boolean;
+  // Fica lado a lado com outras colunas `mobileInline` (mesma linha, sem
+  // quebrar) em vez de virar mais uma linha empilhada no cartão em mobile.
+  mobileInline?: boolean;
 };
 
 export type DataTableSelection = {
@@ -165,7 +182,14 @@ export function DataTable<T>({
                   </td>
                 )}
                 {columns.map((col) => (
-                  <td key={col.key} style={{ textAlign: col.align }}>
+                  <td
+                    key={col.key}
+                    style={{ textAlign: col.align }}
+                    data-label={col.mobileLabel ?? (typeof col.header === "string" ? col.header : "")}
+                    data-mobile-hide={col.hideOnMobile ? "true" : undefined}
+                    data-mobile-pin={col.mobilePin ? "true" : undefined}
+                    data-mobile-inline={col.mobileInline ? "true" : undefined}
+                  >
                     {col.render(row)}
                   </td>
                 ))}

@@ -112,7 +112,7 @@ export function Login({
         aria-label={theme === "dark" ? "Ativar modo diurno" : "Ativar modo noturno"}
       >
         {theme === "dark" ? <IconSun /> : <IconMoon />}
-        {theme === "dark" ? "Modo diurno" : "Modo noturno"}
+        <span className="theme-toggle-label">{theme === "dark" ? "Modo diurno" : "Modo noturno"}</span>
       </button>
       <div className="login-showcase">
         <div className="mark">

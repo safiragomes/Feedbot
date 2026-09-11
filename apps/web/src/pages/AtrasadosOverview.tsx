@@ -6,6 +6,7 @@ import {
   type OrdenacaoAtrasos,
 } from "../lib/atrasos-agrupados";
 import { Chip, EmptyState, Panel } from "../components/ui";
+import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { IconChevronDown } from "../components/icons";
 
@@ -44,6 +45,7 @@ export function AtrasadosOverview({
   // Vazio = todos os grupos fechados por padrão — a tela normalmente tem muitos grupos
   // e a chefe quer ver o panorama (contagens) antes de abrir um em específico.
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   const alunoPorId = useMemo(() => new Map(alunos.map((a) => [a.id, a])), [alunos]);
   const duplaPorId = useMemo(() => new Map(duplas.map((d) => [d.id, d])), [duplas]);
@@ -99,6 +101,7 @@ export function AtrasadosOverview({
           </div>
         </div>
         <div className="head-actions">
+          <FilterBarToggle filtrosAtivos={filtrosAtivos} onClick={() => setFiltrosAbertos(true)} />
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
@@ -128,7 +131,7 @@ export function AtrasadosOverview({
         </div>
       </div>
 
-      <div className="filterbar">
+      <FilterBar open={filtrosAbertos} onClose={() => setFiltrosAbertos(false)}>
         <span className="flag">Turma</span>
         <FilterSelect
           label="turma"
@@ -169,7 +172,7 @@ export function AtrasadosOverview({
           <option value="pendencias">Mais pendências</option>
           <option value="dias">Mais atrasado (dias)</option>
         </select>
-      </div>
+      </FilterBar>
 
       {monitoresEmRisco.length > 0 && (
         <Panel title="Monitores mais atrasados" tag="quem cobrar primeiro">
@@ -246,11 +249,11 @@ export function AtrasadosOverview({
                             <tbody>
                               {monitor.alunos.map((aluno) => (
                                 <tr key={aluno.alunoId}>
-                                  <td>{aluno.alunoNome}</td>
-                                  <td>
+                                  <td data-label="Aluno">{aluno.alunoNome}</td>
+                                  <td data-label="Dupla">
                                     <span className="mono-cell">{aluno.duplaLabel}</span>
                                   </td>
-                                  <td>
+                                  <td data-label="Listas pendentes">
                                     <span className="flags-cell">
                                       {aluno.listas.map((item) => {
                                         const dias = Math.max(

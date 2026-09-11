@@ -1219,6 +1219,38 @@ h1 {
 }
 
 /* FILTER BAR */
+.filterbar-mobile-toggle {
+  display: none;
+}
+.filterbar-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.filterbar-modal-fields {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  margin: 14px 0 18px;
+}
+.filterbar-modal-fields .flag {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: -8px;
+}
+.filterbar-modal-fields select,
+.filterbar-modal-fields .filter-select,
+.filterbar-modal-fields .search-wrap {
+  width: 100%;
+}
+.filterbar-modal-fields .search-wrap {
+  margin-left: 0;
+}
 .filterbar {
   display: flex;
   flex-wrap: wrap;
@@ -1353,6 +1385,10 @@ h1 {
   overflow: hidden;
   animation: feedbot-login-step-in 0.15s ease;
 }
+.filter-select-panel.align-right {
+  left: auto;
+  right: 0;
+}
 .filter-select-search {
   display: flex;
   align-items: center;
@@ -1376,6 +1412,7 @@ h1 {
 .filter-select-options {
   max-height: 240px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
 }
 .filter-select-option {
@@ -1644,8 +1681,15 @@ h1 {
 }
 .panel-grid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  /* minmax(0, ...) em vez de fr puro: sem isso, um painel com conteúdo
+     largo (ex.: heatmap de questões em AlunosDashboard) força a coluna a
+     crescer além do espaço disponível em vez de rolar por dentro — mesmo
+     bug de "grid blowout" corrigido em .sheet-import. */
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 18px;
+}
+.panel-grid-bot {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 }
 .insight-grid {
   display: grid;
@@ -1783,11 +1827,14 @@ h1 {
 @media (max-width: 980px) {
   .insight-grid,
   .panel-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* HEATMAP */
+.heatmap-scroll {
+  position: relative;
+}
 .heatmap {
   width: 100%;
   border-collapse: separate;
@@ -1881,6 +1928,14 @@ h1 {
 .search-wrap {
   position: relative;
   margin-left: auto;
+}
+/* Cópia do campo de busca que só aparece no mobile, ao lado dos botões
+   Filtros/Limpar filtros em .head-actions — busca é diferente de filtro,
+   por isso fica sempre à mão em vez de escondida atrás do modal de filtros
+   (ver DiretorioAlunos.tsx/DiretorioMonitores.tsx). No desktop a barra de
+   busca de sempre (dentro de .filterbar) continua exatamente igual. */
+.search-wrap-mobile {
+  display: none;
 }
 .search-wrap .search-box {
   margin-left: 0;
@@ -1990,6 +2045,16 @@ tbody tr.clickable {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.person-cell-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* Só no cartão mobile (ver @media max-width:720px) — no desktop essas
+   informações (turma, atrasos, papel...) já têm coluna própria na tabela. */
+.person-meta-mobile {
+  display: none;
 }
 .nd-icon {
   color: var(--sky);
@@ -2399,6 +2464,26 @@ tbody tr.clickable {
   color: var(--rose);
   background: var(--rose-dim);
 }
+/* Ícone de editar — só aparece em toque (ver @media pointer:coarse), onde não
+   existe duplo clique. No mouse, fica escondido: duplo clique continua sendo
+   o único jeito de editar, exatamente como já era antes.
+   Cor neutra própria: herdar o hover vermelho do .x-btn (pensado pra excluir)
+   passaria a ideia errada de que editar é uma ação destrutiva. */
+.cell-edit-btn {
+  display: none;
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+.cell-edit-btn:hover {
+  color: var(--gold);
+  background: var(--gold-dim);
+  opacity: 1;
+}
+.discord-cell-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .dupla-body-actions {
   margin-top: 14px;
   display: flex;
@@ -2469,6 +2554,7 @@ tbody tr.clickable {
   justify-content: center;
   z-index: 100;
   padding: 20px;
+  overflow-y: auto;
 }
 .modal {
   background: linear-gradient(180deg, rgba(16, 27, 45, 0.98), rgba(12, 21, 36, 0.96));
@@ -2478,6 +2564,7 @@ tbody tr.clickable {
   max-width: 420px;
   padding: 24px;
   box-shadow: var(--shadow);
+  overscroll-behavior: contain;
 }
 .modal.modal-wide {
   max-width: 680px;
@@ -2682,6 +2769,7 @@ tbody tr.clickable {
   z-index: 95;
   padding: 26px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: var(--shadow);
 }
 .drawer-head {
@@ -2800,6 +2888,11 @@ tbody tr.clickable {
 }
 .sheet-import {
   grid-column: 1 / -1;
+  /* Sem isso o item de grid cresce pra caber a tabela de prévia (que rola
+     por dentro, ver .sheet-import-table), em vez de ficar preso à largura
+     da coluna — o que empurrava a página inteira pra rolar na horizontal
+     em telas estreitas. */
+  min-width: 0;
 }
 .sheet-import-help {
   color: var(--text-2);
@@ -3315,7 +3408,6 @@ tbody tr.clickable {
     transition: none;
   }
 }
-
 @media (max-width: 720px) {
   .topbar,
   .content-shell {
@@ -3343,7 +3435,7 @@ tbody tr.clickable {
   .hero-stats,
   .context-band,
   .stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .login-form-side {
     padding: 18px;
@@ -3366,5 +3458,208 @@ tbody tr.clickable {
   }
   .settings-list {
     grid-template-columns: 1fr;
+  }
+
+  /* Barra de filtros some e vira um botão "Filtros" que abre um Modal com os
+     mesmos controles (ver components/FilterBar.tsx) — mais rápido de abrir/
+     fechar que um painel lateral, e reaproveita o mesmo Modal usado no resto
+     do app em vez de inventar mais um padrão de popup. */
+  .filterbar {
+    display: none;
+  }
+  .filterbar-mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: var(--r-pill);
+    border: 1px solid rgba(55, 73, 122, 0.44);
+    background: rgba(16, 27, 45, 0.84);
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .search-wrap-mobile {
+    display: block;
+    margin-left: 0;
+  }
+  /* Botão de tema fica só com o ícone no celular — "Modo diurno"/"Modo
+     noturno" por extenso ocupa espaço à toa numa topbar já apertada. */
+  .theme-toggle {
+    padding: 8px;
+  }
+  .theme-toggle-label {
+    display: none;
+  }
+
+  /* Tabela de dados vira lista de cartões — cada <tr> um cartão, cada <td>
+     empilha o rótulo (data-label setado em DataTable.tsx) acima do conteúdo.
+     Empilhado em vez de "rótulo: valor" lado a lado porque o conteúdo varia
+     muito (avatar+nome, nuvem de chips, botões) e side-by-side quebra feio
+     com conteúdo largo. Não aplica a `.heatmap` (matriz numérica ampla, ver
+     AlunosDashboard) nem a `.sheet-import-table` (prévia de importação da
+     Planilha — tabela de verdade, densa, faz mais sentido rolar na
+     horizontal do que virar cartão) — ambas mantêm o scroll horizontal
+     normal. */
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) {
+    display: block;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) thead {
+    display: none;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody {
+    display: block;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody tr {
+    position: relative;
+    display: block;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+  }
+  /* Só reserva a margem do canto quando existe checkbox de seleção e/ou coluna
+     fixada (mobilePin) — em tabelas sem nenhum dos dois (ex.: Planilha,
+     Atrasados) o cartão fica sem sobra vazia nos cantos. */
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody tr:has(td:not([data-label])) {
+    padding-left: 38px;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody tr:has(td[data-mobile-pin="true"]) {
+    padding-right: 42px;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody tr:first-child {
+    border-top: none;
+  }
+  /* Checkbox de seleção (td sem data-label — é a única renderizada fora de
+     `columns`, ver DataTable.tsx) e o botão de excluir (data-label vazio, a
+     coluna "Ações") ficam fixos nos cantos, centralizados verticalmente, em
+     vez de virarem mais duas linhas empilhadas no cartão. */
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td:not([data-label]) {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td[data-mobile-pin="true"] {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td {
+    display: block;
+    padding: 6px 0;
+    border-top: none;
+    text-align: left !important;
+  }
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-3);
+    margin-bottom: 3px;
+  }
+  /* Discord e Acesso (diretório de monitores) ficam lado a lado na mesma
+     linha em vez de empilhados um abaixo do outro — mesma densidade do
+     cartão de aluno. */
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td[data-mobile-inline="true"] {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    margin-right: 14px;
+  }
+  .table-wrap tbody tr.clickable:hover td:first-child {
+    box-shadow: none;
+  }
+  /* Colunas marcadas com hideOnMobile (DataTable.tsx) somem do cartão —
+     cada linha listava campos demais e ficava comprida demais pra tela de
+     celular; o essencial continua visível, o resto só abrindo o registro. */
+  .table-wrap:not(.sheet-import-table) table:not(.heatmap) tbody td[data-mobile-hide="true"] {
+    display: none;
+  }
+  /* Linha compacta (turma · atrasos, ou papel · acesso) abaixo do nome —
+     junta o que ainda é relevante depois de esconder as colunas secundárias,
+     em vez de cada informação virar mais uma linha empilhada no cartão. */
+  .person-meta-mobile {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  /* Painel lateral de aluno/monitor ocupa a tela toda — sem tira de overlay
+     desperdiçada num celular. */
+  .drawer {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Cada tag de aluno carrega nome + 2 selects de monitor + botão de remover
+     numa linha só (`.aluno-tag`, ver Gestao.tsx) — sem quebra interna isso
+     ultrapassa a largura da tela em vez de só quebrar entre tags. */
+  .aluno-tag {
+    flex-wrap: wrap;
+  }
+}
+
+/* Mira dispositivos de toque de verdade (não só telas estreitas — um notebook
+   com tela touch também se beneficia, e não infla a UI de quem usa mouse
+   numa janela redimensionada). Alvo mínimo recomendado de 44px. */
+@media (pointer: coarse) {
+  /* Em touch a barra de rolagem do sistema não serve pra nada além de poluir
+     visualmente — o gesto de arrastar já indica que dá pra rolar. */
+  .table-wrap,
+  .drawer,
+  .filter-select-options,
+  .overlay,
+  .content-shell,
+  .heatmap-scroll {
+    scrollbar-width: none;
+  }
+  .table-wrap::-webkit-scrollbar,
+  .drawer::-webkit-scrollbar,
+  .filter-select-options::-webkit-scrollbar,
+  .overlay::-webkit-scrollbar,
+  .content-shell::-webkit-scrollbar,
+  .heatmap-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-item {
+    min-height: 44px;
+  }
+  .sidebar-foot .exit {
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .filter-select-option {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .cell-edit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    opacity: 1;
+  }
+  /* Sem scrollbar visível em touch — indica que o heatmap tem mais colunas à
+     direita pra rolar. Só em toque: no mouse já existe a scrollbar normal. */
+  .heatmap-scroll::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    background: linear-gradient(90deg, transparent, var(--surface) 92%);
+    pointer-events: none;
   }
 }

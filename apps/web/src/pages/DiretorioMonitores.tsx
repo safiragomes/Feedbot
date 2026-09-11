@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import type { Aluno, Atraso, DiscordMembro, Dupla, GrupoRevisao, Lista, Monitor } from "../lib/types";
-import { IconPlus, IconSearch, IconTrash } from "../components/icons";
+import { IconEdit, IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, Modal, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { DiscordMemberPicker } from "../components/DiscordMemberPicker";
+import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoMonitor, solicitarRemocaoVariosMonitores } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
@@ -140,7 +141,30 @@ function NomeCell({
         }}
       >
         <Avatar nome={monitor.nome} />
-        <span className="person-name">{monitor.nome}</span>
+        <div className="person-cell-text">
+          <span className="person-name">{monitor.nome}</span>
+          {/* Só aparece no cartão mobile (ver index.css) — no desktop "Papel" já
+              tem coluna própria. Discord/Acesso ficam de fora: são botões, não
+              cabem "grudados" numa linha sem virar alvo de toque confuso. */}
+          <span className="person-meta-mobile">{monitor.isChefe ? "chefe" : "monitor"}</span>
+        </div>
+        <button
+          type="button"
+          className="x-btn cell-edit-btn"
+          title="Editar nome"
+          aria-label={`Editar nome de ${monitor.nome}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (cliqueUnicoPendente.current) {
+              clearTimeout(cliqueUnicoPendente.current);
+              cliqueUnicoPendente.current = null;
+            }
+            setValor(monitor.nome);
+            setEditando(true);
+          }}
+        >
+          <IconEdit aria-hidden="true" />
+        </button>
       </div>
     );
   }
@@ -202,25 +226,39 @@ function DiscordCell({
   const [abrindo, setAbrindo] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        className="discord-cell-display"
-        title="Duplo clique para vincular a conta do Discord"
-        onClick={(event) => event.stopPropagation()}
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          setAbrindo(true);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
+      <span className="discord-cell-wrap">
+        <button
+          type="button"
+          className="discord-cell-display"
+          title="Duplo clique para vincular a conta do Discord"
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => {
             event.stopPropagation();
             setAbrindo(true);
-          }
-        }}
-      >
-        {monitor.discordUsername ? `@${monitor.discordUsername}` : "vincular"}
-      </button>
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              setAbrindo(true);
+            }
+          }}
+        >
+          {monitor.discordUsername ? `@${monitor.discordUsername}` : "vincular"}
+        </button>
+        <button
+          type="button"
+          className="x-btn cell-edit-btn"
+          title="Vincular conta do Discord"
+          aria-label={`Vincular conta do Discord de ${monitor.nome}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setAbrindo(true);
+          }}
+        >
+          <IconEdit aria-hidden="true" />
+        </button>
+      </span>
       {abrindo && (
         <VincularDiscordModal
           monitor={monitor}
@@ -262,6 +300,7 @@ export function DiretorioMonitores({
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
   const [somenteAtrasados, setSomenteAtrasados] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
   const [modal, setModal] = useState<"novo" | Monitor | null>(null);
@@ -357,6 +396,9 @@ export function DiretorioMonitores({
     {
       key: "nome",
       header: "Monitor",
+      // Sem legenda "MONITOR" repetida em cada cartão no mobile — mesmo padrão
+      // do diretório de alunos.
+      mobileLabel: "",
       sortValue: (m) => m.nome,
       render: (m) => (
         <NomeCell
@@ -371,34 +413,18 @@ export function DiretorioMonitores({
     {
       key: "discord",
       header: "Discord",
+      mobileLabel: "",
+      mobileInline: true,
       sortValue: (m) => m.discordUsername ?? "",
       render: (m) => (
         <DiscordCell monitor={m} token={token} onReload={onReload} onErro={setErro} />
       ),
     },
     {
-      key: "alunosA",
-      header: "Alunos · semana A",
-      sortValue: (m) => alunosSemana(m).alunosA,
-      render: (m) => <span className="mono-cell">{alunosSemana(m).alunosA}</span>,
-    },
-    {
-      key: "alunosB",
-      header: "Alunos · semana B",
-      sortValue: (m) => alunosSemana(m).alunosB,
-      render: (m) => <span className="mono-cell">{alunosSemana(m).alunosB}</span>,
-    },
-    {
-      key: "papel",
-      header: "Papel",
-      sortValue: (m) => (m.isChefe ? 1 : 0),
-      render: (m) => (
-        <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
-      ),
-    },
-    {
       key: "acesso",
       header: "Acesso",
+      mobileLabel: "",
+      mobileInline: true,
       render: (m) =>
         !m.isChefe ? (
           <button className="btn sm" onClick={(event) => void promoverChefe(m, event)}>
@@ -423,9 +449,33 @@ export function DiretorioMonitores({
         ),
     },
     {
+      key: "alunosA",
+      header: "Alunos · semana A",
+      sortValue: (m) => alunosSemana(m).alunosA,
+      render: (m) => <span className="mono-cell">{alunosSemana(m).alunosA}</span>,
+      hideOnMobile: true,
+    },
+    {
+      key: "alunosB",
+      header: "Alunos · semana B",
+      sortValue: (m) => alunosSemana(m).alunosB,
+      render: (m) => <span className="mono-cell">{alunosSemana(m).alunosB}</span>,
+      hideOnMobile: true,
+    },
+    {
+      key: "papel",
+      header: "Papel",
+      sortValue: (m) => (m.isChefe ? 1 : 0),
+      hideOnMobile: true,
+      render: (m) => (
+        <Chip tone={m.isChefe ? "warn" : "off"}>{m.isChefe ? "chefe" : "monitor"}</Chip>
+      ),
+    },
+    {
       key: "atrasos",
       header: "Atrasos abertos",
       sortValue: (m) => atrasosVisiveis.filter((atraso) => atraso.monitorId === m.id).length,
+      hideOnMobile: true,
       render: (m) => {
         const total = atrasosVisiveis.filter((atraso) => atraso.monitorId === m.id).length;
         return total ? <Chip tone="danger">{total}</Chip> : <span className="mono-cell">—</span>;
@@ -435,6 +485,7 @@ export function DiretorioMonitores({
       key: "acoes",
       header: "",
       align: "right",
+      mobilePin: true,
       render: (m) => (
         <button
           className="x-btn"
@@ -465,6 +516,18 @@ export function DiretorioMonitores({
               {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
+          <div className="search-wrap search-wrap-mobile">
+            <div className="search-box">
+              <IconSearch />
+              <input
+                placeholder="Buscar por nome ou Discord"
+                autoComplete="off"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+          </div>
+          <FilterBarToggle filtrosAtivos={filtrosAtivos} onClick={() => setFiltrosAbertos(true)} />
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
@@ -498,7 +561,7 @@ export function DiretorioMonitores({
         </div>
       </div>
 
-      <div className="filterbar">
+      <FilterBar open={filtrosAbertos} onClose={() => setFiltrosAbertos(false)}>
         <span className="flag">Grupo</span>
         <FilterSelect
           label="grupo"
@@ -534,7 +597,7 @@ export function DiretorioMonitores({
             />
           </div>
         </div>
-      </div>
+      </FilterBar>
 
       {erro && <div className="error-banner">{erro}</div>}
 

@@ -47,9 +47,14 @@ export function Topbar({
         </div>
       </div>
       <div className="topbar-right">
-        <button className="theme-toggle" onClick={onToggleTheme} title="Alternar tema">
+        <button
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          title="Alternar tema"
+          aria-label={theme === "dark" ? "Ativar modo diurno" : "Ativar modo noturno"}
+        >
           {theme === "dark" ? <IconSun /> : <IconMoon />}
-          {theme === "dark" ? "Modo diurno" : "Modo noturno"}
+          <span className="theme-toggle-label">{theme === "dark" ? "Modo diurno" : "Modo noturno"}</span>
         </button>
         <select
           className="periodo"

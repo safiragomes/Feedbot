@@ -3,6 +3,7 @@ import type { Aluno, Atraso, Feedback, GrupoRevisao, Lista } from "../lib/types"
 import { IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoAluno, solicitarRemocaoVariosAlunos } from "../lib/acoes";
 import { normalizarBusca, turmasUnicas } from "../lib/format";
@@ -34,6 +35,7 @@ export function DiretorioAlunos({
   const [grupoId, setGrupoId] = useState("");
   const [listaId, setListaId] = useState("");
   const [somenteAtrasados, setSomenteAtrasados] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [ocorrencias, setOcorrencias] = useState<TipoOcorrencia[]>([]);
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
@@ -144,48 +146,67 @@ export function DiretorioAlunos({
     {
       key: "nome",
       header: "Aluno",
+      // Sem legenda "ALUNO" repetida em cada cartão no mobile — o nome já é
+      // óbvio por si só, é a primeira coisa da lista.
+      mobileLabel: "",
       sortValue: (a) => a.nome,
-      render: (a) => (
-        <div className="person-cell">
-          <Avatar nome={a.nome} />
-          <span className="person-name">
-            {a.nome}
-            {a.isPcd && (
-              <span className="nd-icon" title="PCD ou neurodivergente">
-                ∞
+      render: (a) => {
+        const totalAtrasos = atrasosVisiveis.filter((atraso) => atraso.alunoId === a.id).length;
+        return (
+          <div className="person-cell">
+            <Avatar nome={a.nome} />
+            <div className="person-cell-text">
+              <span className="person-name">
+                {a.nome}
+                {a.isPcd && (
+                  <span className="nd-icon" title="PCD ou neurodivergente">
+                    ∞
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-        </div>
-      ),
+              {/* Só aparece no cartão mobile (ver index.css) — no desktop essas
+                  informações já têm colunas próprias, mostrar aqui também duplicaria. */}
+              <span className="person-meta-mobile">
+                {a.turma.nome}
+                {totalAtrasos > 0 && ` · ${totalAtrasos} atraso(s)`}
+              </span>
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "matricula",
       header: "Matrícula",
       sortValue: (a) => a.matricula,
       render: (a) => <span className="mono-cell">{a.matricula}</span>,
+      hideOnMobile: true,
     },
     {
       key: "turma",
       header: "Turma",
       sortValue: (a) => a.turma.nome,
       render: (a) => a.turma.nome,
+      hideOnMobile: true,
     },
     {
       key: "grupo",
       header: "Grupo de revisão",
       sortValue: (a) => grupos.find((g) => g.id === a.dupla?.grupoRevisaoId)?.nome ?? "",
       render: (a) => grupos.find((g) => g.id === a.dupla?.grupoRevisaoId)?.nome ?? "—",
+      hideOnMobile: true,
     },
     {
       key: "dupla",
       header: "Dupla",
       sortValue: (a) => a.dupla?.label ?? "",
       render: (a) => <span className="mono-cell">{a.dupla?.label ?? "sem dupla"}</span>,
+      hideOnMobile: true,
     },
     {
       key: "ocorrencias",
       header: "Ocorrências",
+      hideOnMobile: true,
       render: (a) => (
         <span className="flags-cell">
           {feedbacksCompativeis.some((f) => f.alunoId === a.id && f.usouIa) && (
@@ -207,6 +228,7 @@ export function DiretorioAlunos({
       key: "atrasos",
       header: "Atrasos abertos",
       sortValue: (a) => atrasosVisiveis.filter((atraso) => atraso.alunoId === a.id).length,
+      hideOnMobile: true,
       render: (a) => {
         const total = atrasosVisiveis.filter((atraso) => atraso.alunoId === a.id).length;
         return total ? <Chip tone="danger">{total}</Chip> : <span className="mono-cell">—</span>;
@@ -216,6 +238,7 @@ export function DiretorioAlunos({
       key: "acoes",
       header: "",
       align: "right",
+      mobilePin: true,
       render: (a) => (
         <button
           className="x-btn"
@@ -246,6 +269,18 @@ export function DiretorioAlunos({
               {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
+          <div className="search-wrap search-wrap-mobile">
+            <div className="search-box">
+              <IconSearch />
+              <input
+                placeholder="Buscar por nome ou matrícula"
+                autoComplete="off"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+          </div>
+          <FilterBarToggle filtrosAtivos={filtrosAtivos} onClick={() => setFiltrosAbertos(true)} />
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
           </button>
@@ -273,14 +308,9 @@ export function DiretorioAlunos({
           <strong>{alunosAtrasados.size}</strong>
           <p>Alunos com feedback não entregue após o prazo.</p>
         </div>
-        <div className="context-card compact">
-          <span>Filtros ativos</span>
-          <strong>{filtrosAtivos}</strong>
-          <p>{filtrosAtivos ? "Há restrições em vigor." : "Visão aberta do diretório."}</p>
-        </div>
       </div>
 
-      <div className="filterbar">
+      <FilterBar open={filtrosAbertos} onClose={() => setFiltrosAbertos(false)}>
         <span className="flag">Turma</span>
         <FilterSelect
           label="turma"
@@ -343,7 +373,7 @@ export function DiretorioAlunos({
             />
           </div>
         </div>
-      </div>
+      </FilterBar>
 
       {erro && <div className="error-banner">{erro}</div>}
 

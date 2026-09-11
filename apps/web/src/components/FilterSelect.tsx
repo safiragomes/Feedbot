@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { IconChevronDown, IconSearch, IconX } from "./icons";
 import { normalizarBusca } from "../lib/format";
 
@@ -19,8 +19,19 @@ export function FilterSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [alignRight, setAlignRight] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return;
+    // Painel abre ancorado pela esquerda por padrão (max-width:320px, ver CSS);
+    // perto da borda direita da viewport isso vaza a página. Sem detecção de
+    // colisão de verdade (evita depender de posicionamento calculado em JS):
+    // só decide entre ancorar esquerda/direita uma vez, ao abrir.
+    const { left } = rootRef.current.getBoundingClientRect();
+    setAlignRight(window.innerWidth - left < 320);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +54,9 @@ export function FilterSelect({
     // Cada abertura começa com a lista completa; o foco é sincronizado no frame seguinte.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery("");
+    // Em toque, focar automaticamente abre o teclado virtual só porque o usuário
+    // tocou pra abrir a lista — a maioria só quer escolher uma opção, não digitar.
+    if (window.matchMedia("(pointer: coarse)").matches) return;
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(id);
   }, [open]);
@@ -83,7 +97,10 @@ export function FilterSelect({
         ) : null}
       </div>
       {open && (
-        <div className="filter-select-panel" role="listbox">
+        <div
+          className={`filter-select-panel${alignRight ? " align-right" : ""}`}
+          role="listbox"
+        >
           <div className="filter-select-search">
             <IconSearch />
             <input

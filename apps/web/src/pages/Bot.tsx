@@ -31,7 +31,7 @@ export function BotPage({
         </div>
       </div>
 
-      <div className="panel-grid" style={{ gridTemplateColumns: "0.9fr 1.1fr" }}>
+      <div className="panel-grid panel-grid-bot">
         <Panel title="Conexão">
           <div className="connect-status">
             <span
