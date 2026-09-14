@@ -86,11 +86,11 @@
 ## 8. Integração: indicadores de atraso e listagem de feedbacks (cenários de precedência fim a
    fim)
 
-- [ ] 8.1 Estender `apps/api/test/services/atrasos.test.ts` (mock de `PrismaClient`, sem
+- [x] 8.1 Estender `apps/api/test/services/atrasos.test.ts` (mock de `PrismaClient`, sem
       Postgres real) com os cenários de prazo de grupo prevalecendo sobre turma, exceção
       prevalecendo sobre grupo, e nenhum nível configurado não gerando atraso; criar um teste
       mínimo de rota para `GET /feedbacks` cobrindo o novo nível (hoje sem nenhum teste de
-      rota); confirmar que todos falham.
+      rota); confirmar falhas nos cenários novos de grupo e preservar as regressões existentes.
 - [ ] 8.2 Trocar o cálculo inline de prazo efetivo por `calcularPrazoEfetivo` em
       `apps/api/src/services/atrasos.ts` e `apps/api/src/routes/feedback.ts`, incluindo
       `prazosGrupo` nos includes de `lista` em ambos; verificar que os testes de 8.1 passam.

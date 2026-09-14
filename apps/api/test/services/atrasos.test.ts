@@ -266,3 +266,76 @@ describe("buscarPendenciasAtrasadas", () => {
     expect(await buscarPendenciasAtrasadas(prisma, new Date("2026-09-10T00:00:00Z"))).toEqual([]);
   });
 });
+
+describe("precedência do grupo nos indicadores de atraso", () => {
+  it.each([
+    {
+      cenario: "grupo prevalece sobre turma",
+      individual: null,
+      grupo: "2026-09-09T00:00:00Z",
+      turma: "2026-09-20T00:00:00Z",
+      esperado: "2026-09-09T00:00:00Z",
+    },
+    {
+      cenario: "exceção prevalece sobre grupo",
+      individual: "2026-09-08T00:00:00Z",
+      grupo: "2026-09-09T00:00:00Z",
+      turma: null,
+      esperado: "2026-09-08T00:00:00Z",
+    },
+    {
+      cenario: "nenhum nível configurado não gera atraso",
+      individual: null,
+      grupo: null,
+      turma: null,
+      esperado: null,
+    },
+    {
+      cenario: "grupo futuro afasta atraso da turma",
+      individual: null,
+      grupo: "2026-09-20T00:00:00Z",
+      turma: "2026-09-09T00:00:00Z",
+      esperado: null,
+    },
+  ])("$cenario", async ({ individual, grupo, turma, esperado }) => {
+    const prisma = {
+      aluno: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "aluno",
+            nome: "Aluno teste",
+            turmaId: "turma",
+            grupoPrazoId: "grupo",
+            duplaId: "dupla",
+            monitorSemanaAId: "monitor",
+            turma: { periodoId: "periodo" },
+            dupla: { monitores: [{ id: "monitor", nome: "Monitor teste", whatsappNumero: null }] },
+            feedbacks: [],
+            prazosIndividuais: individual
+              ? [{ listaId: "lista", prazoEntregaFeedback: new Date(individual) }]
+              : [],
+          },
+        ]),
+      },
+      lista: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lista",
+            nome: "Lista teste",
+            periodoId: "periodo",
+            ordem: 1,
+            semanaOverride: null,
+            prazos: turma ? [{ turmaId: "turma", prazoEntregaFeedback: new Date(turma) }] : [],
+            prazosGrupo: grupo
+              ? [{ grupoPrazoId: "grupo", prazoEntregaFeedback: new Date(grupo) }]
+              : [],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
+    const pendencias = await buscarPendenciasAtrasadas(prisma, new Date("2026-09-10T00:00:00Z"));
+    expect(pendencias.map((pendencia) => pendencia.prazoEntregaFeedback)).toEqual(
+      esperado ? [new Date(esperado)] : [],
+    );
+  });
+});
