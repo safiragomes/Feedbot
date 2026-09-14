@@ -44,7 +44,7 @@
       existência dos alunos; confirmar que falham.
 - [x] 4.2 Implementar `atribuirAlunosAGrupoPrazo` em `alunos-service.ts` (espelhando
       `atribuirAlunosADupla`) e verificar que os testes de 4.1 passam.
-- [ ] 4.3 Revisar simetria de validação entre os ramos "atribuir" e "desvincular" e confirmar
+- [x] 4.3 Revisar simetria de validação entre os ramos "atribuir" e "desvincular" e confirmar
       testes verdes.
 
 ## 5. Rotas: CRUD de grupo de prazo (cenários "Criação com nome único...", "Nome duplicado...",

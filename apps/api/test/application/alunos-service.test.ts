@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { parseCsvAlunos } from "../../src/application/alunos/alunos-service.js";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaClient } from "../../src/generated/prisma/client.js";
+import {
+  atribuirAlunosAGrupoPrazo,
+  parseCsvAlunos,
+} from "../../src/application/alunos/alunos-service.js";
 
 describe("parseCsvAlunos", () => {
   it("converte um CSV válido sem depender da camada HTTP ou do banco", () => {
@@ -29,9 +33,6 @@ describe("parseCsvAlunos", () => {
     ).toThrow("CSV possui aspas não fechadas");
   });
 });
-import type { PrismaClient } from "../../src/generated/prisma/client.js";
-import { vi } from "vitest";
-import { atribuirAlunosAGrupoPrazo } from "../../src/application/alunos/alunos-service.js";
 
 function prepararGrupoPrazo() {
   const banco = {
@@ -40,8 +41,8 @@ function prepararGrupoPrazo() {
     },
     aluno: {
       findMany: vi.fn().mockResolvedValue([
-        { id: "aluno-1", grupoPrazoId: null as string | null, turma: { periodoId: "periodo-1" } },
-        { id: "aluno-2", grupoPrazoId: null as string | null, turma: { periodoId: "periodo-1" } },
+        { id: "aluno-1", grupoPrazoId: null, turma: { periodoId: "periodo-1" } },
+        { id: "aluno-2", grupoPrazoId: null, turma: { periodoId: "periodo-1" } },
       ]),
       updateMany: vi.fn().mockResolvedValue({ count: 2 }),
     },
@@ -70,7 +71,7 @@ describe("atribuirAlunosAGrupoPrazo", () => {
   it("recusa o lote inteiro quando um aluno pertence a outro período", async () => {
     const { banco, prisma } = prepararGrupoPrazo();
     banco.aluno.findMany.mockResolvedValue([
-      { id: "aluno-1", grupoPrazoId: null as string | null, turma: { periodoId: "periodo-1" } },
+      { id: "aluno-1", grupoPrazoId: null, turma: { periodoId: "periodo-1" } },
       { id: "aluno-2", grupoPrazoId: null, turma: { periodoId: "periodo-2" } },
     ]);
 
@@ -118,7 +119,7 @@ describe("atribuirAlunosAGrupoPrazo", () => {
     async (grupoPrazoId) => {
       const { banco, prisma } = prepararGrupoPrazo();
       banco.aluno.findMany.mockResolvedValue([
-        { id: "aluno-1", grupoPrazoId: null as string | null, turma: { periodoId: "periodo-1" } },
+        { id: "aluno-1", grupoPrazoId: null, turma: { periodoId: "periodo-1" } },
       ]);
 
       await expect(
