@@ -32,7 +32,7 @@
 - [x] 3.2 Implementar `atualizarPrazosDoGrupo` em `gestao-service.ts` (espelhando
       `atualizarPrazosDaTurma`) e estender `excluirPeriodo` para contar `grupoPrazo`; verificar
       que os testes de 3.1 passam.
-- [ ] 3.3 Revisar consistência das mensagens de erro com os pares de turma e confirmar que os
+- [x] 3.3 Revisar consistência das mensagens de erro com os pares de turma e confirmar que os
       testes continuam verdes.
 
 ## 4. Application: atribuir/desvincular alunos em lote (cenários "Atribuição em lote...",
