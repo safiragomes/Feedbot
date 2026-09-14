@@ -67,7 +67,7 @@
       configurado" para combinação (grupo, lista) ainda não configurada, PUT grava e um
       segundo PUT na mesma combinação atualiza em vez de duplicar, PUT rejeita lista de outro
       período; confirmar que falham.
-- [ ] 6.2 Implementar `GET`/`PUT /grupos-prazo/:id/prazos-lista` usando
+- [x] 6.2 Implementar `GET`/`PUT /grupos-prazo/:id/prazos-lista` usando
       `atualizarPrazosDoGrupo`; verificar que os testes de 6.1 passam.
 - [ ] 6.3 Revisar consistência de formato de resposta com `GET`/`PUT /prazos-lista` (turma) e
       confirmar testes verdes.
