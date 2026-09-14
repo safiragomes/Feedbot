@@ -69,7 +69,7 @@
       período; confirmar que falham.
 - [x] 6.2 Implementar `GET`/`PUT /grupos-prazo/:id/prazos-lista` usando
       `atualizarPrazosDoGrupo`; verificar que os testes de 6.1 passam.
-- [ ] 6.3 Revisar consistência de formato de resposta com `GET`/`PUT /prazos-lista` (turma) e
+- [x] 6.3 Revisar consistência de formato de resposta com `GET`/`PUT /prazos-lista` (turma) e
       confirmar testes verdes.
 
 ## 7. Rotas: atribuição/desvinculação de alunos em lote + filtro em `GET /alunos` (cenários
