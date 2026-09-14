@@ -176,6 +176,36 @@ export async function atualizarPrazosDaTurma(
   return prazos.length;
 }
 
+export async function atualizarPrazosDoGrupo(
+  prisma: PrismaClient,
+  grupoPrazoId: string,
+  prazos: { listaId: string; prazoEntregaFeedback: Date }[],
+) {
+  const grupo = await prisma.grupoPrazo.findUnique({ where: { id: grupoPrazoId } });
+  if (!grupo) throw new GestaoErro("NAO_ENCONTRADO", "Grupo de prazo não encontrado");
+  const listaIds = [...new Set(prazos.map((prazo) => prazo.listaId))];
+  const listas = await prisma.lista.findMany({ where: { id: { in: listaIds } } });
+  if (
+    listas.length !== listaIds.length ||
+    listas.some((lista) => lista.periodoId !== grupo.periodoId)
+  ) {
+    throw new GestaoErro(
+      "DADOS_INVALIDOS",
+      "Todas as listas devem pertencer ao período do grupo de prazo",
+    );
+  }
+  await prisma.$transaction(
+    prazos.map((prazo) =>
+      prisma.prazoGrupoLista.upsert({
+        where: { listaId_grupoPrazoId: { listaId: prazo.listaId, grupoPrazoId } },
+        create: { ...prazo, grupoPrazoId },
+        update: { prazoEntregaFeedback: prazo.prazoEntregaFeedback },
+      }),
+    ),
+  );
+  return prazos.length;
+}
+
 // Feedback é vinculado ao monitor que registrou (Feedback.monitorId), não à dupla —
 // a dupla é só uma referência organizacional (quem atende quem). Por isso excluir
 // grupo/dupla não é bloqueado por feedback: Feedback.duplaId é onDelete: SetNull no
@@ -228,16 +258,18 @@ export async function excluirMonitores(prisma: PrismaClient, ids: string[]) {
 export async function excluirPeriodo(prisma: PrismaClient, id: string) {
   // Turmas e listas são criadas automaticamente para todo período (ver criarPeriodo)
   // e não representam trabalho real do chefe — não faz sentido bloquear a exclusão só
-  // por elas existirem. O que precisa impedir a exclusão é haver alunos, monitores ou
-  // grupos de revisão já organizados no período. O onDelete: Cascade de Turma/Lista
-  // no schema cuida de limpar esse scaffolding junto; Aluno.turma e Feedback.lista
-  // continuam Restrict como rede de segurança caso esta checagem tenha um buraco.
-  const [alunos, monitores, grupos] = await Promise.all([
+  // por elas existirem. O que precisa impedir a exclusão é haver alunos, monitores,
+  // grupos de revisão ou grupos de prazo já organizados no período. O onDelete: Cascade
+  // de Turma/Lista no schema cuida de limpar esse scaffolding junto; Aluno.turma e
+  // Feedback.lista continuam Restrict como rede de segurança caso esta checagem tenha
+  // um buraco.
+  const [alunos, monitores, grupos, gruposPrazo] = await Promise.all([
     prisma.aluno.count({ where: { turma: { periodoId: id } } }),
     prisma.monitor.count({ where: { periodoId: id } }),
     prisma.grupoRevisao.count({ where: { periodoId: id } }),
+    prisma.grupoPrazo.count({ where: { periodoId: id } }),
   ]);
-  if (alunos > 0 || monitores > 0 || grupos > 0) {
+  if (alunos > 0 || monitores > 0 || grupos > 0 || gruposPrazo > 0) {
     throw new GestaoErro(
       "CONFLITO",
       "Só é possível excluir um período sem alunos, monitores ou grupos vinculados.",

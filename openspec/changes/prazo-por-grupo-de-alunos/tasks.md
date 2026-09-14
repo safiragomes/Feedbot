@@ -25,11 +25,11 @@
    (cenários "Configuração inicial...", "Repetir a configuração...", "Configuração
    rejeitada...", "Consulta com listas...")
 
-- [ ] 3.1 Escrever em `apps/api/test/application/gestao-service.test.ts` os casos de
+- [x] 3.1 Escrever em `apps/api/test/application/gestao-service.test.ts` os casos de
       `atualizarPrazosDoGrupo` (upsert idempotente, grupo inexistente, lista de outro período)
       e de `excluirPeriodo` bloqueando quando há `GrupoPrazo` vinculado ao período; confirmar
       que falham.
-- [ ] 3.2 Implementar `atualizarPrazosDoGrupo` em `gestao-service.ts` (espelhando
+- [x] 3.2 Implementar `atualizarPrazosDoGrupo` em `gestao-service.ts` (espelhando
       `atualizarPrazosDaTurma`) e estender `excluirPeriodo` para contar `grupoPrazo`; verificar
       que os testes de 3.1 passam.
 - [ ] 3.3 Revisar consistência das mensagens de erro com os pares de turma e confirmar que os
