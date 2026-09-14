@@ -18,7 +18,7 @@
       da spec e confirmar que falha porque `calcularPrazoEfetivo` ainda não existe.
 - [x] 2.2 Implementar `calcularPrazoEfetivo` em `apps/api/src/domain/prazo.ts` e verificar que
       `pnpm --filter @feedbot/api test prazo.test.ts` passa.
-- [ ] 2.3 Revisar nome/comentário da função contra o padrão de estilo de
+- [x] 2.3 Revisar nome/comentário da função contra o padrão de estilo de
       `apps/api/src/domain/monitorSemana.ts` e confirmar que os testes continuam verdes.
 
 ## 3. Application: configurar prazo do grupo por lista + bloqueio de exclusão de período
