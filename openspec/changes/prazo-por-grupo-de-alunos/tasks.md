@@ -81,7 +81,7 @@
       `GET /alunos?grupoPrazoId=` retornando os alunos do grupo; confirmar que falham.
 - [x] 7.2 Implementar `PATCH /alunos/atribuir-grupo-prazo` e estender `GET /alunos` em
       `apps/api/src/routes/management/alunos.ts`; verificar que os testes de 7.1 passam.
-- [ ] 7.3 Revisar consistência com `PATCH /alunos/atribuir-dupla` e confirmar testes verdes.
+- [x] 7.3 Revisar consistência com `PATCH /alunos/atribuir-dupla` e confirmar testes verdes.
 
 ## 8. Integração: indicadores de atraso e listagem de feedbacks (cenários de precedência fim a
    fim)
