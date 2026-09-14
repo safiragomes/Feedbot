@@ -42,7 +42,7 @@
       `atribuirAlunosAGrupoPrazo`: sucesso em lote no mesmo período, rejeição por período
       diferente, mover aluno de um grupo para outro, e desvincular com `null` validando a
       existência dos alunos; confirmar que falham.
-- [ ] 4.2 Implementar `atribuirAlunosAGrupoPrazo` em `alunos-service.ts` (espelhando
+- [x] 4.2 Implementar `atribuirAlunosAGrupoPrazo` em `alunos-service.ts` (espelhando
       `atribuirAlunosADupla`) e verificar que os testes de 4.1 passam.
 - [ ] 4.3 Revisar simetria de validação entre os ramos "atribuir" e "desvincular" e confirmar
       testes verdes.

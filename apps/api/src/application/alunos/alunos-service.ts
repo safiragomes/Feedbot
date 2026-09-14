@@ -148,6 +148,35 @@ export async function atribuirAlunosADupla(
   return resultado.count;
 }
 
+export async function atribuirAlunosAGrupoPrazo(
+  prisma: PrismaClient,
+  alunoIds: string[],
+  grupoPrazoId: string | null,
+) {
+  const ids = [...new Set(alunoIds)];
+  const [grupo, alunos] = await Promise.all([
+    grupoPrazoId === null
+      ? null
+      : prisma.grupoPrazo.findUnique({ where: { id: grupoPrazoId } }),
+    prisma.aluno.findMany({
+      where: { id: { in: ids } },
+      include: { turma: true },
+    }),
+  ]);
+
+  if (grupoPrazoId !== null && !grupo) throw new Error("Grupo de prazo não encontrado");
+  if (alunos.length !== ids.length) throw new Error("Um ou mais alunos não foram encontrados");
+  if (grupo && alunos.some((aluno) => aluno.turma.periodoId !== grupo.periodoId)) {
+    throw new Error("Todos os alunos devem pertencer ao mesmo período do grupo de prazo");
+  }
+
+  const resultado = await prisma.aluno.updateMany({
+    where: { id: { in: ids } },
+    data: { grupoPrazoId },
+  });
+  return resultado.count;
+}
+
 export async function importarAlunos(prisma: PrismaClient, csv: string) {
   const alunos = parseCsvAlunos(csv);
   await Promise.all(
