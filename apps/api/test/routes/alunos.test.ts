@@ -64,6 +64,7 @@ describe("POST /alunos", () => {
   afterAll(async () => {
     await app.close();
     await prisma.aluno.deleteMany({ where: { turmaId } });
+    await prisma.grupoPrazo.deleteMany({ where: { periodoId } });
     await prisma.dupla.deleteMany({ where: { grupoRevisao: { periodoId } } });
     await prisma.grupoRevisao.deleteMany({ where: { periodoId } });
     await prisma.contaChefe.deleteMany({ where: { monitor: { periodoId } } });
@@ -72,6 +73,121 @@ describe("POST /alunos", () => {
     await prisma.periodo.delete({ where: { id: periodoId } });
   });
 
+  it("atribui alunos ao grupo de prazo em lote", async () => {
+    const grupo = await prisma.grupoPrazo.create({
+      data: { periodoId, nome: "Atribuição em lote" },
+    });
+    const alunos = await Promise.all(
+      [1, 2].map((numero) =>
+        prisma.aluno.create({
+          data: {
+            nome: `Aluno grupo ${numero}`,
+            matricula: `ATRIBUIR-${sufixo}-${numero}`,
+            turmaId,
+          },
+        }),
+      ),
+    );
+    const resposta = await app.inject({
+      method: "PATCH",
+      url: "/alunos/atribuir-grupo-prazo",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { alunoIds: alunos.map((aluno) => aluno.id), grupoPrazoId: grupo.id },
+    });
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual({ atualizados: 2 });
+    expect(
+      await prisma.aluno.count({
+        where: { id: { in: alunos.map((aluno) => aluno.id) }, grupoPrazoId: grupo.id },
+      }),
+    ).toBe(2);
+  });
+
+  it("recusa atribuição ao grupo de outro período sem atualizar os alunos", async () => {
+    const periodo = await prisma.periodo.create({
+      data: {
+        nome: `Outro período grupo ${sufixo}`,
+        dataInicio: new Date("2026-08-03T00:00:00Z"),
+        dataFim: new Date("2026-12-01T00:00:00Z"),
+        dataReferenciaRodizio: new Date("2026-08-03T00:00:00Z"),
+      },
+    });
+    try {
+      const grupo = await prisma.grupoPrazo.create({
+        data: { periodoId: periodo.id, nome: "Outro período" },
+      });
+      const aluno = await prisma.aluno.create({
+        data: { nome: "Aluno período diferente", matricula: `PERIODO-${sufixo}`, turmaId },
+      });
+      const resposta = await app.inject({
+        method: "PATCH",
+        url: "/alunos/atribuir-grupo-prazo",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { alunoIds: [aluno.id], grupoPrazoId: grupo.id },
+      });
+      expect(resposta.statusCode).toBe(400);
+      expect(
+        (await prisma.aluno.findUniqueOrThrow({ where: { id: aluno.id } })).grupoPrazoId,
+      ).toBeNull();
+    } finally {
+      await prisma.grupoPrazo.deleteMany({ where: { periodoId: periodo.id } });
+      await prisma.periodo.delete({ where: { id: periodo.id } });
+    }
+  });
+
+  it("desvincula alunos em lote com grupoPrazoId null preservando o grupo e os demais alunos", async () => {
+    const grupo = await prisma.grupoPrazo.create({
+      data: { periodoId, nome: "Desvinculação em lote" },
+    });
+    const alunos = await Promise.all(
+      [1, 2, 3].map((numero) =>
+        prisma.aluno.create({
+          data: {
+            nome: `Aluno desvincular ${numero}`,
+            matricula: `DESVINCULAR-${sufixo}-${numero}`,
+            turmaId,
+            grupoPrazoId: grupo.id,
+          },
+        }),
+      ),
+    );
+    const ids = alunos.slice(0, 2).map((aluno) => aluno.id);
+    const resposta = await app.inject({
+      method: "PATCH",
+      url: "/alunos/atribuir-grupo-prazo",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { alunoIds: ids, grupoPrazoId: null },
+    });
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual({ atualizados: 2 });
+    expect(await prisma.aluno.count({ where: { id: { in: ids }, grupoPrazoId: null } })).toBe(2);
+    expect(await prisma.aluno.count({ where: { grupoPrazoId: grupo.id } })).toBe(1);
+    expect(await prisma.grupoPrazo.findUnique({ where: { id: grupo.id } })).not.toBeNull();
+  });
+
+  it("GET /alunos filtra somente alunos do grupo de prazo solicitado", async () => {
+    const grupo = await prisma.grupoPrazo.create({ data: { periodoId, nome: "Filtro de grupo" } });
+    await prisma.aluno.create({
+      data: {
+        nome: "Aluno filtrado",
+        matricula: `FILTRO-${sufixo}`,
+        turmaId,
+        grupoPrazoId: grupo.id,
+      },
+    });
+    await prisma.aluno.create({
+      data: { nome: "Aluno fora do filtro", matricula: `FORA-FILTRO-${sufixo}`, turmaId },
+    });
+    const resposta = await app.inject({
+      method: "GET",
+      url: `/alunos?grupoPrazoId=${grupo.id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(resposta.statusCode).toBe(200);
+    const alunos = resposta.json() as { grupoPrazoId: string | null }[];
+    expect(alunos.length).toBe(1);
+    expect(alunos.every((aluno) => aluno.grupoPrazoId === grupo.id)).toBe(true);
+  });
   it("cria o aluno quando qtdQuestoesMeta é omitido (campo opcional)", async () => {
     const response = await app.inject({
       method: "POST",

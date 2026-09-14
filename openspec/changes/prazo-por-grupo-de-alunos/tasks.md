@@ -76,7 +76,7 @@
    "Atribuição em lote...", "Atribuição rejeitada...", "Atribuição move...", "Desvinculação em
    lote", em HTTP)
 
-- [ ] 7.1 Estender `apps/api/test/routes/alunos.test.ts` com: atribuição em lote com sucesso,
+- [x] 7.1 Estender `apps/api/test/routes/alunos.test.ts` com: atribuição em lote com sucesso,
       rejeição por período diferente, desvinculação em lote via `grupoPrazoId: null`, e
       `GET /alunos?grupoPrazoId=` retornando os alunos do grupo; confirmar que falham.
 - [ ] 7.2 Implementar `PATCH /alunos/atribuir-grupo-prazo` e estender `GET /alunos` em
