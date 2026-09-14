@@ -88,9 +88,8 @@ completa de cada um.
 - Refactor: melhore a estrutura mantendo o comportamento e os testes verdes.
 - Nunca mocke o sistema sob teste; mocke uma dependência externa só quando necessário (ver as
   convenções de teste de `apps/api` acima).
-- Prefira commits pequenos e granulares por fatia concluída — um commit por fase (Red, Green,
-  Refactor, Docs), nunca duas fases agrupadas — em vez de um único commit final. É o que dá
-  rastreabilidade real ao ciclo e serve como evidência auditável do processo.
+- Prefira commits pequenos e granulares por fatia concluída (Red+Green juntos, Refactor
+  separado) em vez de um único commit final — é o que dá rastreabilidade real ao ciclo.
 
 ## Verificação
 
