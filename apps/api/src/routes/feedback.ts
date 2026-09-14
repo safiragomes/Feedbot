@@ -1,3 +1,4 @@
+import { calcularPrazoEfetivo } from "../domain/prazo.js";
 import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { requireChief } from "../auth/require-chief.js";
@@ -35,24 +36,27 @@ export function feedbackRoutes(
       include: {
         aluno: { include: { turma: true, prazosIndividuais: true } },
         monitor: true,
-        lista: { include: { prazos: true } },
+        lista: { include: { prazos: true, prazosGrupo: true } },
         questoesIa: true,
         questoesPlagio: { include: { alunoEnvolvido: true } },
         questoesProibicao: true,
       },
       orderBy: { criadoEm: "desc" },
     });
-    return feedbacks.map(({ lista: { prazos, ...lista }, ...feedback }) => ({
+    return feedbacks.map(({ lista: { prazos, prazosGrupo, ...lista }, ...feedback }) => ({
       ...feedback,
       lista,
       prazoEntregaFeedback:
-        feedback.aluno.prazosIndividuais
-          .find((p) => p.listaId === lista.id)
-          ?.prazoEntregaFeedback.toISOString() ??
-        prazos
-          .find((p) => p.turmaId === feedback.aluno.turmaId)
-          ?.prazoEntregaFeedback.toISOString() ??
-        null,
+        calcularPrazoEfetivo({
+          prazoIndividual: feedback.aluno.prazosIndividuais.find((p) => p.listaId === lista.id)
+            ?.prazoEntregaFeedback,
+          prazoGrupo: feedback.aluno.grupoPrazoId
+            ? prazosGrupo.find((p) => p.grupoPrazoId === feedback.aluno.grupoPrazoId)
+                ?.prazoEntregaFeedback
+            : null,
+          prazoTurma: prazos.find((p) => p.turmaId === feedback.aluno.turmaId)
+            ?.prazoEntregaFeedback,
+        })?.toISOString() ?? null,
     }));
   });
 

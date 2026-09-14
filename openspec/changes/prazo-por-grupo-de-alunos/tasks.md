@@ -91,7 +91,7 @@
       prevalecendo sobre grupo, e nenhum nível configurado não gerando atraso; criar um teste
       mínimo de rota para `GET /feedbacks` cobrindo o novo nível (hoje sem nenhum teste de
       rota); confirmar falhas nos cenários novos de grupo e preservar as regressões existentes.
-- [ ] 8.2 Trocar o cálculo inline de prazo efetivo por `calcularPrazoEfetivo` em
+- [x] 8.2 Trocar o cálculo inline de prazo efetivo por `calcularPrazoEfetivo` em
       `apps/api/src/services/atrasos.ts` e `apps/api/src/routes/feedback.ts`, incluindo
       `prazosGrupo` nos includes de `lista` em ambos; verificar que os testes de 8.1 passam.
 - [ ] 8.3 Revisar se sobrou algum resquício da lógica inline antiga e confirmar testes verdes.

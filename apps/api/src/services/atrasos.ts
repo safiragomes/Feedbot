@@ -1,3 +1,4 @@
+import { calcularPrazoEfetivo } from "../domain/prazo.js";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { calcularSemana } from "../domain/semana.js";
 import { monitorDaSemana } from "../domain/monitorSemana.js";
@@ -27,7 +28,7 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
   const periodos = [...new Set(alunos.map((a) => a.turma.periodoId))];
   const listas = await prisma.lista.findMany({
     where: { periodoId: { in: periodos } },
-    include: { prazos: true },
+    include: { prazos: true, prazosGrupo: true },
     orderBy: { ordem: "asc" },
   });
   const pendencias: PendenciaAtrasada[] = [];
@@ -37,9 +38,15 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
     const listasPeriodo = listas.filter((l) => l.periodoId === aluno.turma.periodoId);
     for (const [indice, lista] of listasPeriodo.entries()) {
       if (entregues.has(lista.id)) continue;
-      const prazo =
-        aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
-        lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback;
+      const prazo = calcularPrazoEfetivo({
+        prazoIndividual: aluno.prazosIndividuais.find((p) => p.listaId === lista.id)
+          ?.prazoEntregaFeedback,
+        prazoGrupo: aluno.grupoPrazoId
+          ? lista.prazosGrupo.find((p) => p.grupoPrazoId === aluno.grupoPrazoId)
+              ?.prazoEntregaFeedback
+          : null,
+        prazoTurma: lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback,
+      });
       if (!prazo) continue;
       // posicaoLista precisa ser a posição da lista entre as do período (1, 2, 3...),
       // não o valor bruto de `ordem` — que fica com buracos depois que uma lista é
@@ -60,9 +67,7 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
         { monitorSemanaAId: aluno.monitorSemanaAId, outroMonitorId },
         semana,
       );
-      const monitor = monitorId
-        ? aluno.dupla.monitores.find((m) => m.id === monitorId)
-        : undefined;
+      const monitor = monitorId ? aluno.dupla.monitores.find((m) => m.id === monitorId) : undefined;
       if (!monitor) continue;
       pendencias.push({
         alunoId: aluno.id,
@@ -80,7 +85,7 @@ export async function buscarFeedbacksPendentesComPrazo(prisma: PrismaClient) {
   return pendencias;
 }
 
-/** Feedbacks esperados cujo prazo efetivo (exceção individual ou turma) venceu. */
+/** Feedbacks esperados cujo prazo efetivo (exceção individual, grupo ou turma) venceu. */
 export async function buscarPendenciasAtrasadas(prisma: PrismaClient, agora = new Date()) {
   const pendencias = await buscarFeedbacksPendentesComPrazo(prisma);
   return pendencias.filter((pendencia) => pendencia.prazoEntregaFeedback < agora);
