@@ -94,7 +94,7 @@
 - [x] 8.2 Trocar o cálculo inline de prazo efetivo por `calcularPrazoEfetivo` em
       `apps/api/src/services/atrasos.ts` e `apps/api/src/routes/feedback.ts`, incluindo
       `prazosGrupo` nos includes de `lista` em ambos; verificar que os testes de 8.1 passam.
-- [ ] 8.3 Revisar se sobrou algum resquício da lógica inline antiga e confirmar testes verdes.
+- [x] 8.3 Revisar se sobrou algum resquício da lógica inline antiga e confirmar testes verdes.
 
 ## 9. Fechamento
 
