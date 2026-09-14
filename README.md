@@ -87,6 +87,10 @@ Ver `docs/arquitetura.md` para uma explicação mais detalhada de como o reposit
 
 ## Como este projeto é desenvolvido
 
+Toda regra desta seção (idioma, camadas, OpenSpec, SDD, TDD, gates de verificação) está também em
+`AGENTS.md` (importado por `CLAUDE.md`), carregado automaticamente por sessões de IA neste
+repositório — não é preciso reexplicar isso a cada sessão nova.
+
 ### SDD — Spec-Driven Development
 
 Nenhuma feature é implementada sem spec. A spec mestra é `monitoria-especificacao.md`; specs de feature (comportamento, regras de negócio, casos de borda) vivem em `docs/specs/`. Ver `docs/specs/README.md` para o fluxo completo.
