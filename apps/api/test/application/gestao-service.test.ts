@@ -5,6 +5,7 @@ import { prisma } from "../../src/db/client.js";
 import { criarFeedback } from "../../src/services/feedback.js";
 import {
   atualizarMonitor,
+  atualizarPrazosDoGrupo,
   excluirDupla,
   excluirGrupoRevisao,
   excluirMonitor,
@@ -145,26 +146,36 @@ describe("exclusões seguras da gestão", () => {
 });
 
 describe("exclusão de período", () => {
-  it("bloqueia quando há alunos, monitores ou grupos vinculados", async () => {
+  it("bloqueia quando há alunos, monitores, grupos de revisão ou grupos de prazo vinculados", async () => {
     const comAluno = {
       aluno: { count: vi.fn().mockResolvedValue(1) },
       monitor: { count: vi.fn().mockResolvedValue(0) },
       grupoRevisao: { count: vi.fn().mockResolvedValue(0) },
+      grupoPrazo: { count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaClient;
     const comMonitor = {
       aluno: { count: vi.fn().mockResolvedValue(0) },
       monitor: { count: vi.fn().mockResolvedValue(1) },
       grupoRevisao: { count: vi.fn().mockResolvedValue(0) },
+      grupoPrazo: { count: vi.fn().mockResolvedValue(0) },
     } as unknown as PrismaClient;
     const comGrupo = {
       aluno: { count: vi.fn().mockResolvedValue(0) },
       monitor: { count: vi.fn().mockResolvedValue(0) },
       grupoRevisao: { count: vi.fn().mockResolvedValue(1) },
+      grupoPrazo: { count: vi.fn().mockResolvedValue(0) },
+    } as unknown as PrismaClient;
+    const comGrupoPrazo = {
+      aluno: { count: vi.fn().mockResolvedValue(0) },
+      monitor: { count: vi.fn().mockResolvedValue(0) },
+      grupoRevisao: { count: vi.fn().mockResolvedValue(0) },
+      grupoPrazo: { count: vi.fn().mockResolvedValue(1) },
     } as unknown as PrismaClient;
 
     await expect(excluirPeriodo(comAluno, "periodo")).rejects.toBeInstanceOf(GestaoErro);
     await expect(excluirPeriodo(comMonitor, "periodo")).rejects.toBeInstanceOf(GestaoErro);
     await expect(excluirPeriodo(comGrupo, "periodo")).rejects.toBeInstanceOf(GestaoErro);
+    await expect(excluirPeriodo(comGrupoPrazo, "periodo")).rejects.toBeInstanceOf(GestaoErro);
   });
 
   it("permite excluir um período só com o scaffolding automático (turmas/listas)", async () => {
@@ -172,11 +183,103 @@ describe("exclusão de período", () => {
       aluno: { count: vi.fn().mockResolvedValue(0) },
       monitor: { count: vi.fn().mockResolvedValue(0) },
       grupoRevisao: { count: vi.fn().mockResolvedValue(0) },
+      grupoPrazo: { count: vi.fn().mockResolvedValue(0) },
       periodo: { delete: vi.fn().mockResolvedValue(undefined) },
     } as unknown as PrismaClient;
 
     await expect(excluirPeriodo(prisma, "periodo")).resolves.toBeUndefined();
     expect(prisma.periodo.delete).toHaveBeenCalledWith({ where: { id: "periodo" } });
+  });
+});
+
+describe("atualizarPrazosDoGrupo", () => {
+  it("recusa quando o grupo de prazo não existe", async () => {
+    const prisma = {
+      grupoPrazo: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaClient;
+
+    await expect(
+      atualizarPrazosDoGrupo(prisma, "grupo-inexistente", [
+        { listaId: "lista-1", prazoEntregaFeedback: new Date("2026-09-20T23:59:00") },
+      ]),
+    ).rejects.toBeInstanceOf(GestaoErro);
+  });
+
+  it("recusa quando alguma lista pertence a um período diferente do grupo", async () => {
+    const prisma = {
+      grupoPrazo: {
+        findUnique: vi.fn().mockResolvedValue({ id: "grupo-1", periodoId: "periodo-1" }),
+      },
+      lista: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: "lista-1", periodoId: "periodo-2" }]),
+      },
+    } as unknown as PrismaClient;
+
+    await expect(
+      atualizarPrazosDoGrupo(prisma, "grupo-1", [
+        { listaId: "lista-1", prazoEntregaFeedback: new Date("2026-09-20T23:59:00") },
+      ]),
+    ).rejects.toBeInstanceOf(GestaoErro);
+  });
+
+  describe("configuração real do prazo do grupo por lista", () => {
+    const sufixo = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+    const dataReferenciaRodizio = new Date("2026-08-03T00:00:00Z");
+
+    let periodoId: string;
+    let grupoPrazoId: string;
+    let listaId: string;
+
+    beforeAll(async () => {
+      const periodo = await prisma.periodo.create({
+        data: {
+          nome: `Teste prazo do grupo ${sufixo}`,
+          dataInicio: dataReferenciaRodizio,
+          dataFim: new Date("2026-12-01T00:00:00Z"),
+          dataReferenciaRodizio,
+        },
+      });
+      periodoId = periodo.id;
+
+      const lista = await prisma.lista.create({
+        data: { periodoId, nome: "Lista teste", qtdQuestoesTotal: 6, ordem: 1 },
+      });
+      listaId = lista.id;
+
+      const grupoPrazo = await prisma.grupoPrazo.create({
+        data: { periodoId, nome: "Grupo teste" },
+      });
+      grupoPrazoId = grupoPrazo.id;
+    });
+
+    afterAll(async () => {
+      await prisma.prazoGrupoLista.deleteMany({ where: { grupoPrazoId } });
+      await prisma.grupoPrazo.deleteMany({ where: { periodoId } });
+      await prisma.lista.deleteMany({ where: { periodoId } });
+      await prisma.periodo.delete({ where: { id: periodoId } });
+    });
+
+    it("configura o prazo inicial e, ao repetir, atualiza em vez de duplicar", async () => {
+      const primeiraData = new Date("2026-09-20T23:59:00Z");
+      await atualizarPrazosDoGrupo(prisma, grupoPrazoId, [
+        { listaId, prazoEntregaFeedback: primeiraData },
+      ]);
+
+      const apósPrimeira = await prisma.prazoGrupoLista.findMany({ where: { grupoPrazoId } });
+      expect(apósPrimeira).toHaveLength(1);
+      expect(apósPrimeira[0]?.prazoEntregaFeedback).toEqual(primeiraData);
+
+      const segundaData = new Date("2026-09-25T23:59:00Z");
+      await atualizarPrazosDoGrupo(prisma, grupoPrazoId, [
+        { listaId, prazoEntregaFeedback: segundaData },
+      ]);
+
+      const apósSegunda = await prisma.prazoGrupoLista.findMany({ where: { grupoPrazoId } });
+      expect(apósSegunda).toHaveLength(1);
+      expect(apósSegunda[0]?.prazoEntregaFeedback).toEqual(segundaData);
+    });
   });
 });
 
