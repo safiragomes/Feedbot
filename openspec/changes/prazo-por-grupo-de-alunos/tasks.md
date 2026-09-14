@@ -110,6 +110,6 @@
       nova.
 - [x] 9.5 Rodar `pnpm exec openspec validate prazo-por-grupo-de-alunos --strict` e confirmar
       que passa sem erros.
-- [ ] 9.6 Pedir confirmação explícita da usuária antes de mover a Change para o arquivo.
+- [x] 9.6 Pedir confirmação explícita da usuária antes de mover a Change para o arquivo.
 
 - [x] 9.7 Realizar revisão assistida por IA e registrar ao menos um finding com decisão no registro de mudança; fixture de consulta isolada em c9cb1fb e verificada individualmente e pela suíte com cobertura.
