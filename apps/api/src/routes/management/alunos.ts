@@ -3,6 +3,7 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 import { requireChief } from "../../auth/require-chief.js";
 import {
   atribuirAlunosADupla,
+  atribuirAlunosAGrupoPrazo,
   excluirAluno,
   excluirAlunos,
   importarAlunos,
@@ -24,8 +25,15 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
     const query = request.query as Record<string, unknown>;
     const turmaId = parseText(query.turmaId);
     const duplaId = parseText(query.duplaId);
+    const grupoPrazoId = parseText(query.grupoPrazoId);
     return prisma.aluno.findMany({
-      where: turmaId ? { turmaId } : duplaId ? { duplaId } : undefined,
+      where: turmaId
+        ? { turmaId }
+        : duplaId
+          ? { duplaId }
+          : grupoPrazoId
+            ? { grupoPrazoId }
+            : undefined,
       include: { turma: true, dupla: true, monitorSemanaA: true, prazosIndividuais: true },
       orderBy: { nome: "asc" },
     });
@@ -80,6 +88,21 @@ export function alunoRoutes(app: FastifyInstance, prisma: PrismaClient) {
     }
   });
 
+  app.patch("/alunos/atribuir-grupo-prazo", protectedRoute, async (request, reply) => {
+    const corpo = request.body as Record<string, unknown>;
+    const grupoPrazoId = corpo.grupoPrazoId === null ? null : parseText(corpo.grupoPrazoId);
+    const alunoIds = Array.isArray(corpo.alunoIds)
+      ? corpo.alunoIds.map(parseText).filter((id): id is string => Boolean(id))
+      : [];
+    if (grupoPrazoId === undefined || alunoIds.length === 0 || alunoIds.length > 500) {
+      return reply.badRequest("Informe de 1 a 500 alunos e um grupo de prazo ou null");
+    }
+    try {
+      return { atualizados: await atribuirAlunosAGrupoPrazo(prisma, alunoIds, grupoPrazoId) };
+    } catch (erro) {
+      return reply.badRequest(erro instanceof Error ? erro.message : "Vínculos inválidos");
+    }
+  });
   app.patch("/alunos/:id", protectedRoute, async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const aluno = await prisma.aluno.findUnique({ where: request.params as IdParams });
