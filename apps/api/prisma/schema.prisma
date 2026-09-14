@@ -50,6 +50,7 @@ model Periodo {
 
   turmas        Turma[]
   gruposRevisao GrupoRevisao[]
+  gruposPrazo   GrupoPrazo[]
   monitores     Monitor[]
   listas        Lista[]
 
@@ -92,6 +93,23 @@ model GrupoRevisao {
 
   @@unique([whatsappGrupoId])
   @@unique([periodoId, chefeId])
+}
+
+/// Grupo de prazo: conceito de negócio independente de GrupoRevisao (não organiza
+/// duplas nem atendimento, só agrupa alunos que compartilham o mesmo prazo de
+/// entrega por lista). Um aluno pertence a no máximo um grupo de prazo por vez —
+/// expresso pela FK opcional única em Aluno.grupoPrazoId, mesmo padrão de
+/// Aluno.duplaId, sem precisar de tabela de associação.
+model GrupoPrazo {
+  id        String @id @default(cuid())
+  periodoId String
+  nome      String
+
+  periodo Periodo          @relation(fields: [periodoId], references: [id])
+  alunos  Aluno[]
+  prazos  PrazoGrupoLista[]
+
+  @@unique([periodoId, nome])
 }
 
 model Dupla {
@@ -202,12 +220,14 @@ model Aluno {
   matricula        String  @unique
   turmaId          String
   duplaId          String?
+  grupoPrazoId     String?
   isPcd            Boolean @default(false)
   qtdQuestoesMeta  Int?
   monitorSemanaAId String?
 
   turma                      Turma                   @relation(fields: [turmaId], references: [id])
   dupla                      Dupla?                  @relation(fields: [duplaId], references: [id], onDelete: SetNull)
+  grupoPrazo                 GrupoPrazo?             @relation(fields: [grupoPrazoId], references: [id], onDelete: SetNull)
   monitorSemanaA             Monitor?                @relation("AlunoMonitorSemanaA", fields: [monitorSemanaAId], references: [id], onDelete: SetNull)
   feedbacks                  Feedback[]
   ocorrenciasPlagioEnvolvido FeedbackQuestaoPlagio[]
@@ -226,6 +246,7 @@ model Lista {
   feedbacks                Feedback[]
   mapeamentosPlanilhaLista MapeamentoPlanilhaLista[]
   prazos                   PrazoLista[]
+  prazosGrupo              PrazoGrupoLista[]
   prazosIndividuais        PrazoAlunoLista[]
 
   @@unique([periodoId, nome])
@@ -247,6 +268,23 @@ model PrazoLista {
   turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
 
   @@unique([listaId, turmaId])
+}
+
+/// Prazo de entrega de feedback por lista × grupo de prazo — mesma forma de PrazoLista,
+/// um nível de precedência acima da turma (ver domain/prazo.ts para a precedência
+/// completa: exceção individual > grupo > turma). Uma linha só existe depois que um
+/// chefe define o prazo daquele grupo para aquela lista; até lá, o par (grupo, lista)
+/// fica sem prazo configurado (tratado como "sem prazo" pela aplicação, não como erro).
+model PrazoGrupoLista {
+  id                   String   @id @default(cuid())
+  listaId              String
+  grupoPrazoId         String
+  prazoEntregaFeedback DateTime
+
+  lista      Lista      @relation(fields: [listaId], references: [id], onDelete: Cascade)
+  grupoPrazo GrupoPrazo @relation(fields: [grupoPrazoId], references: [id], onDelete: Cascade)
+
+  @@unique([listaId, grupoPrazoId])
 }
 
 /// Exceção ao prazo da turma para um aluno específico. Quando existe, este é o

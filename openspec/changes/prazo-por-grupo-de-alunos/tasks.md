@@ -1,13 +1,13 @@
 ## 1. Schema Prisma
 
-- [ ] 1.1 Adicionar `GrupoPrazo`, `PrazoGrupoLista` e o campo opcional `Aluno.grupoPrazoId` ao
+- [x] 1.1 Adicionar `GrupoPrazo`, `PrazoGrupoLista` e o campo opcional `Aluno.grupoPrazoId` ao
       `schema.prisma` (com relações reversas em `Periodo` e `Lista`, comentários `///`
       explicando a independência de `GrupoRevisao` e a semântica de "sem prazo configurado") e
       verificar que `pnpm --filter @feedbot/api prisma:generate` roda sem erro.
-- [ ] 1.2 Gerar a migração (`prisma migrate dev --name adiciona_grupo_prazo` via
+- [x] 1.2 Gerar a migração (`prisma migrate dev --name adiciona_grupo_prazo` via
       `pnpm --filter @feedbot/api`) e verificar que aplica sem erro num banco de
       desenvolvimento local.
-- [ ] 1.3 Atualizar `docs/specs/modelo-dados.md` com as novas decisões de modelagem (unique
+- [x] 1.3 Atualizar `docs/specs/modelo-dados.md` com as novas decisões de modelagem (unique
       constraints, `onDelete` de cada FK) e verificar que o documento cobre `GrupoPrazo` e
       `PrazoGrupoLista` no mesmo nível de detalhe que já cobre `GrupoRevisao`/`PrazoLista`.
 
