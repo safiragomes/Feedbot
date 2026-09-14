@@ -16,7 +16,7 @@ Para cada fatia de trabalho (tipicamente um item de uma fase do `plano-desenvolv
 2. **Red** — escrever os testes (unitários/integração) derivados da spec, e confirmar que falham (nada foi implementado ainda).
 3. **Green** — implementar o mínimo necessário para os testes passarem.
 4. **Refactor** — limpar a implementação mantendo os testes verdes.
-5. **Change record** — registrar a entrega em `docs/change/`, referenciando a spec e, se aplicável, o ADR relacionado.
+5. **Change record** — registrar a entrega em `docs/changes/`, referenciando a spec e, se aplicável, o ADR relacionado.
 
 ## Template de spec de feature
 

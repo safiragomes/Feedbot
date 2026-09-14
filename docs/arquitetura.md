@@ -13,10 +13,14 @@ Gerenciado por pnpm workspaces (`pnpm-workspace.yaml`), dois pacotes:
 apps/
   api/    Fastify + TypeScript + Prisma (PostgreSQL) — backend e bot do Discord
   web/    React + TypeScript + Vite — painel administrativo (SPA)
+openspec/
+  specs/    especificações executáveis atuais, por capacidade de negócio
+  changes/  Changes do OpenSpec em andamento (archive/ guarda as concluídas)
 docs/
-  specs/  specs de feature (SDD) — comportamento e regras de negócio
-  adr/    Architecture Decision Records — decisões difíceis de reverter e por quê
-  change/ registro cronológico de mudanças entregues — o quê mudou e como foi verificado
+  specs/      specs leves de feature (SDD) — comportamento e regras de negócio
+  adr/        Architecture Decision Records — decisões difíceis de reverter e por quê
+  changes/    registro cronológico de mudanças entregues — o quê mudou e como foi verificado
+  templates/  modelos usados por docs/adr/ e docs/changes/
 scripts/
   backup-database.sh
 ```
@@ -100,15 +104,20 @@ lib/          api.ts (client HTTP), types.ts (tipos compartilhados com o backend
 API diretamente. Autenticação por cookie `HttpOnly` (ver `docs/seguranca.md`); o token nunca é
 acessível via JavaScript no navegador.
 
-## Como as três pastas de `docs/` se relacionam
+## Como `openspec/` e as pastas de `docs/` se relacionam
 
-Fluxo pretendido para qualquer mudança de comportamento (ver `docs/specs/README.md` para o
-detalhe): **spec** (`docs/specs/`, o que o sistema deve fazer) → testes (red) → implementação
-(green/refactor) → **registro de mudança** (`docs/change/`, o que de fato mudou e como foi
-verificado). **ADRs** (`docs/adr/`) são ortogonais a esse fluxo — registram uma decisão difícil
-de reverter (stack, integração externa, modelo de auth) independente de quando foi implementada.
+Para uma mudança de comportamento, o fluxo passa primeiro por uma **Change do OpenSpec**
+(`openspec/changes/<change-id>/`: proposal, spec delta em WHEN/THEN, design, tasks — ver
+`openspec/config.yaml`). Ao arquivar, ela sincroniza `openspec/specs/` e alimenta os dois
+documentos que o projeto já mantinha antes de adotar o OpenSpec (ver `docs/specs/README.md` para
+o detalhe): **spec leve de feature** (`docs/specs/`, o que o sistema deve fazer, no formato que o
+resto do projeto já consulta) → testes (red) → implementação (green/refactor) → **registro de
+mudança** (`docs/changes/`, o que de fato mudou e como foi verificado, a partir de
+`docs/templates/change.md`). **ADRs** (`docs/adr/`, a partir de `docs/templates/adr.md`) são
+ortogonais a esse fluxo — registram uma decisão difícil de reverter (stack, integração externa,
+modelo de auth) independente de quando foi implementada.
 
-Este documento (`docs/arquitetura.md`) é diferente dos três: não registra uma decisão nem uma
+Este documento (`docs/arquitetura.md`) é diferente desses: não registra uma decisão nem uma
 mudança pontual, é a fotografia atual de como o código está organizado — deve ser atualizado
 quando a estrutura em si mudar (uma camada nova, uma reorganização de pastas), não a cada
 feature.

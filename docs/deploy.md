@@ -88,7 +88,7 @@ dados reais — foi exatamente isso que aconteceu no primeiro deploy e exigiu li
 
 A partir do primeiro deploy bem-sucedido, os dois bancos são independentes: qualquer cadastro real
 (monitor, grupo, dupla) é feito **direto no painel em produção**. O banco local serve só para testar
-código antes de subir uma correção — o que viaja de local para produção é o *código* (via Git +
+código antes de subir uma correção — o que viaja de local para produção é o _código_ (via Git +
 imagem no GHCR), nunca o banco de dados.
 
 ## Atualizações

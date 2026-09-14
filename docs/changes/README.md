@@ -8,7 +8,7 @@ Ao concluir algo que altera o comportamento do sistema, do repositório ou do fl
 
 ## Como criar um registro
 
-1. Copie `template.md` para `AAAA-MM-DD-titulo-curto-em-kebab-case.md`, usando a data em que a mudança foi concluída.
+1. Copie `../templates/change.md` para `AAAA-MM-DD-titulo-curto-em-kebab-case.md`, usando a data em que a mudança foi concluída.
 2. Preencha o quê mudou, por quê (linkando spec em `docs/specs/` e/ou ADR em `docs/adr/` quando aplicável) e como foi verificado.
 3. Se a mudança tocou um spec ou proporcionou motivo para um ADR, crie/atualize esses documentos primeiro e referencie-os aqui.
 

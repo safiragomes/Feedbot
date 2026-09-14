@@ -37,7 +37,7 @@ modais) e sem risco de banimento pelo padrão de uso deste bot.
 - Não existe migração automática de `whatsappNumero` para `discordUserId`: não é possível descobrir
   a conta do Discord de alguém a partir do número de telefone. A chefe faz esse vínculo manualmente
   pelo painel, escolhendo entre os membros do servidor que têm o cargo "Monitores" (lista buscada
-  ao vivo via `GET /discord/membros-monitores`) — ver `docs/change/2026-09-02-migracao-bot-discord.md`
+  ao vivo via `GET /discord/membros-monitores`) — ver `docs/changes/2026-09-02-migracao-bot-discord.md`
   para o passo a passo da transição.
 - O bot do WhatsApp (`WhatsAppBot`, `@whiskeysockets/baileys`) foi removido, junto com o volume de
   sessão (`.baileys-auth` / `feedbot-baileys-auth`) e a UI de QR code no painel.

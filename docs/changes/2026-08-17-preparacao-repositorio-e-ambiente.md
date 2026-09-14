@@ -8,7 +8,7 @@ Data: 2026-08-17
 - `apps/api`: Fastify + TypeScript + Prisma (datasource inicial, sem modelos ainda) + Vitest, com uma rota `GET /health` construída em ciclo TDD (teste vermelho → implementação → teste verde).
 - `apps/web`: Vite + React + TypeScript + Vitest + React Testing Library, com o boilerplate padrão do Vite substituído por um placeholder mínimo do Feedbot, também via TDD.
 - `docs/adr/` criado com o processo de ADR e três decisões já registradas: ADR-0001 (processo), ADR-0002 (stack, espelhando a seção 8 da spec mestra) e ADR-0003 (bot via biblioteca não-oficial + QR code + grupos do WhatsApp, substituindo a decisão original da spec).
-- `docs/change/` criado com o processo de registro de mudanças (este arquivo é o primeiro registro).
+- `docs/changes/` criado com o processo de registro de mudanças (este arquivo é o primeiro registro).
 - `docs/specs/` criado com o fluxo de Spec-Driven Development e a hierarquia spec mestra → specs de feature → ADRs.
 - `README.md` na raiz documentando setup, scripts e o fluxo spec → red → green → refactor → change record.
 
@@ -21,7 +21,7 @@ Ref: `plano-desenvolvimento.md` (Fase 0, parcial — schema Prisma completo fica
 - `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `eslint.config.js`, `.prettierrc.json` (raiz)
 - `apps/api/{src,test,prisma,vitest.config.ts,tsconfig*.json}`
 - `apps/web/{src,test,vite.config.ts,tsconfig*.json}`
-- `docs/adr/`, `docs/change/`, `docs/specs/`
+- `docs/adr/`, `docs/changes/`, `docs/specs/`
 
 ## Como foi verificado
 

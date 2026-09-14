@@ -110,9 +110,9 @@ Consequência: cai a justificativa de "250 conversas/24h sem verificação" e "r
 
 ## 6. Registro de progresso
 
-Ver `docs/change/` para o detalhe de cada entrega:
+Ver `docs/changes/` para o detalhe de cada entrega:
 
-- [2026-08-17 — Preparação do repositório e do ambiente](docs/change/2026-08-17-preparacao-repositorio-e-ambiente.md)
-- [2026-08-17 — Fase 0: schema Prisma completo, primeira migration e seed](docs/change/2026-08-17-fase-0-fundacao-schema-e-seed.md)
-- [2026-08-19 — Fase 1: gestão e autenticação](docs/change/2026-08-19-fase-1-gestao-e-autenticacao.md)
-- [2026-08-20 — Fases 2, 3, 5 e 6: bot de feedback, Sheets, grupos e privacidade (retomada)](docs/change/2026-08-20-retomada-bot-sheets-privacidade.md)
+- [2026-08-17 — Preparação do repositório e do ambiente](docs/changes/2026-08-17-preparacao-repositorio-e-ambiente.md)
+- [2026-08-17 — Fase 0: schema Prisma completo, primeira migration e seed](docs/changes/2026-08-17-fase-0-fundacao-schema-e-seed.md)
+- [2026-08-19 — Fase 1: gestão e autenticação](docs/changes/2026-08-19-fase-1-gestao-e-autenticacao.md)
+- [2026-08-20 — Fases 2, 3, 5 e 6: bot de feedback, Sheets, grupos e privacidade (retomada)](docs/changes/2026-08-20-retomada-bot-sheets-privacidade.md)

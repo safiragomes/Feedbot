@@ -53,7 +53,7 @@
 - Google Sheets e a API do Discord dependem de serviços externos; falhas reais desses
   serviços não são reproduzidas integralmente pela suíte automatizada local.
 - Grandes trechos de `services/discord-bot.ts` (o fluxo conversacional do bot) só ganharam
-  cobertura de teste nesta auditoria — ver `docs/change/` para a entrada mais recente. Alguns
+  cobertura de teste nesta auditoria — ver `docs/changes/` para a entrada mais recente. Alguns
   métodos que só encapsulam chamadas diretas à API do Discord (registro de comandos, listagem
   de cargos/canais, publicação do painel) continuam sem teste dedicado; o risco é considerado
   baixo por terem pouca lógica de negócio própria, mas vale revisitar se crescerem.

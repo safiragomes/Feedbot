@@ -19,7 +19,7 @@ Data: 2026-09-14
 ## Por quê
 
 Preparação de repositório antes de uma nova mudança de comportamento (grupo de prazo especial,
-ver `docs/specs/` e `docs/change/` correspondentes). O README deve orientar quem chega ao projeto
+ver `docs/specs/` e `docs/changes/` correspondentes). O README deve orientar quem chega ao projeto
 pela primeira vez (o que é, como rodar localmente, para onde ir); runbooks operacionais extensos
 ali dentro dificultam achar as duas coisas. `monitoria-especificacao.md`, `politica-privacidade.md`,
 `plano-desenvolvimento.md` e `monitoria-prototipo.html` permaneceram na raiz — são referenciados

@@ -1,0 +1,59 @@
+schema: spec-driven
+
+context: |
+  API TypeScript ESM (apps/api) usando Node.js 22, Fastify 5, Prisma 7 e PostgreSQL, em um
+  monorepo pnpm (apps/api, apps/web). Camadas em fronteira unidirecional, garantida por teste
+  automatizado (test/architecture/layer-boundaries.test.ts): domain/ (regras puras, sem I/O) →
+  application/ (orquestra domain + Prisma, recebe PrismaClient injetado) → services/ e routes/
+  (integrações externas e adaptadores HTTP Fastify). Erros de domínio usam a classe GestaoErro
+  (application/gestao/gestao-service.ts), mapeados para HTTP pelas rotas; erros de constraint do
+  Prisma (P2002/P2003/P2025) são convertidos globalmente em app.ts para 409/404 — não duplique
+  esse mapeamento manualmente. Escreva código, specs e comentários em português, seguindo o
+  restante do repositório.
+
+  Este projeto já mantém um processo de SDD/TDD próprio, anterior à adoção desta ferramenta:
+  specs leves de feature em docs/specs/ (um arquivo por feature, formato Comportamento
+  esperado/Regras de negócio/Casos de borda/Fora de escopo) e registros de entrega em
+  docs/changes/ (um arquivo por mudança significativa, a partir de docs/templates/change.md).
+  Uma Change aqui não substitui esses documentos — ao arquivar, sincronize também
+  docs/specs/<feature>.md (o artefato que o resto do projeto já consulta) e crie
+  docs/changes/<data>-<slug>.md a partir de docs/templates/change.md, com o mesmo change-id.
+
+rules:
+  proposal:
+    - Diga o resultado real para a chefe de monitoria (o usuário do sistema) e os não-objetivos.
+    - Identifique impacto em schema/migração Prisma, contrato de endpoints e documentação.
+    - Declare o que entra e o que fica deliberadamente fora do escopo.
+  specs:
+    - Escreva cenários concretos no formato WHEN/THEN, prontos para virar teste automatizado.
+    - Descreva apenas comportamento observável via HTTP — não cite controllers, repositórios,
+      nomes de função ou tabelas.
+    - Inclua cenários de rejeição (dados inválidos, período/relacionamento incompatível) quando
+      relevantes.
+    - Todo requisito precisa de pelo menos um cenário testável.
+  design:
+    - Preserve a fronteira domain → application → services/routes.
+    - Registre decisões de modelagem, alternativas rejeitadas e trade-offs.
+    - Crie um ADR em docs/adr/ (a partir de docs/templates/adr.md) apenas quando a decisão for
+      difícil de reverter ou afetar múltiplas partes do sistema; decisões de modelagem locais
+      (por exemplo, a cardinalidade de uma FK nova) vão em docs/specs/modelo-dados.md, seguindo
+      o precedente já estabelecido no projeto.
+  tasks:
+    - Ordene o trabalho como teste falhando, implementação mínima, refactor e verificação.
+    - Inclua uma tarefa explícita para escrever os testes antes da implementação.
+    - Inclua tarefas de execução de teste, typecheck e openspec validate --strict.
+
+operations:
+  archive:
+    guidance:
+      - Antes de arquivar, sincronize docs/specs/<feature>.md com o spec desta Change.
+      - Crie ou atualize docs/changes/<data>-<slug>.md a partir de docs/templates/change.md, com
+        objetivo, mudança feita, comportamento resultante, validações executadas e links para a
+        Change.
+      - Avalie se houve decisão arquitetural relevante; se sim, crie um ADR em docs/adr/ a partir
+        de docs/templates/adr.md. Nunca crie ADR para mudança local e reversível sem trade-off
+        real — registre isso explicitamente no lugar do ADR.
+      - Só arquive depois que testes, typecheck e openspec validate --strict passarem.
+      - Peça confirmação explícita da usuária imediatamente antes de mover a Change para o
+        arquivo. Confirmações anteriores (de warnings de validação, por exemplo) não contam como
+        confirmação de arquivamento.

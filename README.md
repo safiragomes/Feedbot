@@ -68,14 +68,18 @@ justificativa explícita na revisão. O relatório HTML é gerado em `coverage/`
 apps/
   api/    Fastify + TypeScript + Prisma (PostgreSQL)
   web/    React + TypeScript + Vite + Chart.js
+openspec/
+  specs/    especificações executáveis atuais, por capacidade de negócio
+  changes/  Changes do OpenSpec em andamento (archive/ guarda as concluídas)
 docs/
   arquitetura.md  visão geral de como o código está organizado
   deploy.md       passo a passo de deploy de produção, backups e acesso ao servidor
   bot-discord.md  configuração da aplicação no Discord e operação contínua
   seguranca.md    controles de segurança e checklist de produção
-  specs/  specs de feature (SDD)
-  adr/    Architecture Decision Records
-  change/ registro de mudanças entregues
+  specs/      specs leves de feature (SDD), uma por capacidade
+  adr/        Architecture Decision Records
+  changes/    registro de mudanças entregues
+  templates/  modelos usados por docs/adr/ e docs/changes/
 ```
 
 Ver `docs/arquitetura.md` para uma explicação mais detalhada de como o repositório é organizado
@@ -87,6 +91,16 @@ Ver `docs/arquitetura.md` para uma explicação mais detalhada de como o reposit
 
 Nenhuma feature é implementada sem spec. A spec mestra é `monitoria-especificacao.md`; specs de feature (comportamento, regras de negócio, casos de borda) vivem em `docs/specs/`. Ver `docs/specs/README.md` para o fluxo completo.
 
+### openspec/ — Changes formais
+
+Para uma mudança de comportamento (não formatação/dependência), o fluxo passa primeiro por uma
+Change do OpenSpec em `openspec/changes/<change-id>/` (proposal, spec delta em WHEN/THEN, design e
+tasks — usar `pnpm exec openspec instructions` antes de cada artefato). Ao arquivar
+(`pnpm exec openspec archive`, só com confirmação explícita), a Change sincroniza
+`openspec/specs/` e também gera/atualiza `docs/specs/<feature>.md` e `docs/changes/<data>-<slug>.md`
+— o OpenSpec não substitui esses dois, é a etapa formal que antecede e alimenta os dois. Ver
+`openspec/config.yaml` para o contexto e as regras específicas do Feedbot.
+
 ### TDD — Test-Driven Development
 
 Para cada fatia de trabalho: escreva o teste a partir da spec (**red**), rode e confirme que falha, implemente o mínimo para passar (**green**), depois limpe mantendo os testes verdes (**refactor**). `apps/api` usa Vitest; `apps/web` usa Vitest + React Testing Library (`apps/web/test/setup.ts` carrega os matchers do `jest-dom`).
@@ -95,9 +109,9 @@ Para cada fatia de trabalho: escreva o teste a partir da spec (**red**), rode e 
 
 Toda decisão difícil de reverter (stack, integrações externas, modelo de auth) vira um ADR em `docs/adr/`, no formato Nygard (Contexto/Decisão/Consequências). Ver `docs/adr/README.md`.
 
-### docs/change — registro de mudanças
+### docs/changes — registro de mudanças
 
-Toda entrega significativa (uma fase do `plano-desenvolvimento.md`, uma migração, uma mudança de contrato de API) ganha um registro em `docs/change/`: o que mudou, por quê e como foi verificado. Ver `docs/change/README.md`.
+Toda entrega significativa (uma fase do `plano-desenvolvimento.md`, uma migração, uma mudança de contrato de API) ganha um registro em `docs/changes/`: o que mudou, por quê e como foi verificado. Ver `docs/changes/README.md`.
 
 Fluxo fechado, ponta a ponta: **spec → red → green → refactor → change record** (linkando a spec e, se houver, o ADR relacionado).
 

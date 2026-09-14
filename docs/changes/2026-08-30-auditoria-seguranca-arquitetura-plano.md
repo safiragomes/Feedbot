@@ -3,11 +3,11 @@
 Data: 2026-08-30
 
 Status: **executado em 2026-08-30**. O resultado está documentado em
-`docs/change/2026-08-30-auditoria-seguranca-arquitetura.md`. Este
+`docs/changes/2026-08-30-auditoria-seguranca-arquitetura.md`. Este
 documento existe para que outro executor (ex.: Codex) implemente as correções sem precisar
 refazer a investigação. Cada achado abaixo já foi verificado lendo o código real — não é
-especulação. Depois de aplicado, resuma o que foi feito num novo arquivo em `docs/change/`
-seguindo `docs/change/template.md` (este aqui não deve virar changelog retroativo).
+especulação. Depois de aplicado, resuma o que foi feito num novo arquivo em `docs/changes/`
+seguindo `docs/templates/change.md` (este aqui não deve virar changelog retroativo).
 
 ## Como usar este documento
 
@@ -21,7 +21,7 @@ seguindo `docs/change/template.md` (este aqui não deve virar changelog retroati
    que barra `domain/` dependendo de infraestrutura e `application/` dependendo de
    rotas/serviços. As extrações da Fase D devem manter esse teste passando.
 4. Este projeto já passou por uma auditoria anterior
-   (`docs/change/2026-08-29-auditoria-arquitetura-seguranca.md`) que já corrigiu: hash de
+   (`docs/changes/2026-08-29-auditoria-arquitetura-seguranca.md`) que já corrigiu: hash de
    sessão em SHA-256, CORS restrito, CSP/HSTS, timing de enumeração no **login** (via
    `DUMMY_PASSWORD_HASH`), logs redigidos em produção, e documentou como decisão consciente
    que chefes têm acesso global (não escopado por período). **Não reabra esses itens** — os

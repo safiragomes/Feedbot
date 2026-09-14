@@ -23,7 +23,7 @@ componentes de apresentação.
 ## Por quê
 
 Executa o plano verificado em
-`docs/change/2026-08-30-auditoria-seguranca-arquitetura-plano.md` e mantém a direção de
+`docs/changes/2026-08-30-auditoria-seguranca-arquitetura-plano.md` e mantém a direção de
 dependências definida em `docs/adr/0004-arquitetura-em-camadas-e-seguranca.md`.
 
 ## Escopo / arquivos principais

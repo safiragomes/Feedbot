@@ -31,7 +31,7 @@ Ref: [ADR-0005](../adr/0005-bot-discord-em-vez-de-whatsapp.md) (substitui [ADR-0
   bot).
 - Uma conta do Discord sem monitor ativo vinculado recebe a mensagem "não cadastrado, procure um
   chefe" e não consegue iniciar o fluxo — é assim que a janela de migração de monitores existentes
-  fica segura por construção (ver `docs/change/2026-09-02-migracao-bot-discord.md`).
+  fica segura por construção (ver `docs/changes/2026-09-02-migracao-bot-discord.md`).
 - Cada período usa um servidor do Discord próprio (`Periodo.discordGuildId`, `discordMonitoresRoleId`,
   `discordAvisosCanalId`), criado do zero a cada semestre — o bot fica presente em vários servidores
   simultaneamente (um por período, incluindo os de períodos antigos que não foram removidos) e

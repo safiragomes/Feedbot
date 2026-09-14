@@ -9,7 +9,7 @@ Uma sessão anterior já havia implementado boa parte das Fases 2, 3, 5 e 6
 `services/feedback.ts`, `routes/bot.ts`, `routes/feedback.ts`,
 `routes/privacy.ts`, além de um `apps/web/src/App.tsx` já consumindo a API
 real), mas isso nunca tinha sido registrado em `plano-desenvolvimento.md` /
-`docs/change/`, não havia testes cobrindo essa lógica nova, e nada disso
+`docs/changes/`, não havia testes cobrindo essa lógica nova, e nada disso
 estava commitado (repositório sem nenhum commit). Esta entrega retoma esse
 trabalho: revisa o que já existia, corrige um erro real encontrado, adiciona
 cobertura de teste que faltava e atualiza o plano para refletir o estado real
@@ -41,7 +41,7 @@ do código.
 ## Por quê
 
 Ref: `plano-desenvolvimento.md` (Fases 2, 3, 5, 6) ·
-[docs/change/2026-08-19-fase-1-gestao-e-autenticacao.md](2026-08-19-fase-1-gestao-e-autenticacao.md).
+[docs/changes/2026-08-19-fase-1-gestao-e-autenticacao.md](2026-08-19-fase-1-gestao-e-autenticacao.md).
 O objetivo desta sessão era continuar de onde uma execução anterior parou.
 Como o progresso não estava documentado nem commitado, a primeira etapa foi
 auditar o que já existia no código antes de escrever qualquer linha nova, e
