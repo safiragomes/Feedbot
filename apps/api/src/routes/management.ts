@@ -24,6 +24,7 @@ import {
   parseText as text,
 } from "../http/input.js";
 import { alunoRoutes } from "./management/alunos.js";
+import { grupoPrazoRoutes } from "./management/grupos-prazo.js";
 
 function responderErroGestao(reply: FastifyReply, error: unknown) {
   if (!(error instanceof GestaoErro)) throw error;
@@ -35,6 +36,7 @@ function responderErroGestao(reply: FastifyReply, error: unknown) {
 export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
   const protectedRoute = { preHandler: requireChief(prisma) };
   alunoRoutes(app, prisma);
+  grupoPrazoRoutes(app, prisma);
 
   app.get("/periodos", protectedRoute, async () =>
     // Dois períodos com o mesmo dataInicio (ex.: início de semestre em massa)

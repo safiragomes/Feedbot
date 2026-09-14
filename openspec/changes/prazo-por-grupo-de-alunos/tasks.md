@@ -54,7 +54,7 @@
       conflito de nome), renomear (sucesso e conflito de nome) e excluir com cascata (grupo e
       prazos somem, aluno fica sem grupo — estilo `test/routes/exclusao-cascata.test.ts`);
       confirmar que falham.
-- [ ] 5.2 Criar `apps/api/src/routes/management/grupos-prazo.ts` com
+- [x] 5.2 Criar `apps/api/src/routes/management/grupos-prazo.ts` com
       `GET/POST/PATCH/DELETE /grupos-prazo`, registrar a partir de `management.ts`; verificar
       que os testes de 5.1 passam.
 - [ ] 5.3 Revisar consistência com o padrão de `GrupoRevisao` (mensagens de erro, formato de
