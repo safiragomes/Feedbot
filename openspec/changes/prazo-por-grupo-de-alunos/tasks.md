@@ -38,7 +38,7 @@
 ## 4. Application: atribuir/desvincular alunos em lote (cenários "Atribuição em lote...",
    "Atribuição rejeitada...", "Atribuição move...", "Desvinculação em lote")
 
-- [ ] 4.1 Escrever em `apps/api/test/application/alunos-service.test.ts` os casos de
+- [x] 4.1 Escrever em `apps/api/test/application/alunos-service.test.ts` os casos de
       `atribuirAlunosAGrupoPrazo`: sucesso em lote no mesmo período, rejeição por período
       diferente, mover aluno de um grupo para outro, e desvincular com `null` validando a
       existência dos alunos; confirmar que falham.
