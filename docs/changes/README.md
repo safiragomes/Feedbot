@@ -26,3 +26,4 @@ No fluxo deste projeto (spec-driven + test-driven, ver `README.md` na raiz), um 
 - [2026-09-03 — Nome do monitor editável e cache do seletor de membros do Discord](2026-09-03-nome-editavel-e-cache-membros.md)
 - [2026-09-03 — Auditoria: revalidação de selects, bug de configuração do servidor e cobertura de testes](2026-09-03-auditoria-revalidacao-e-cobertura-de-testes.md)
 - [2026-09-14 — Organização do README e documentação operacional](2026-09-14-organizacao-readme-e-docs.md)
+- [2026-09-14 — Prazo de feedback por grupo de alunos](2026-09-14-prazo-por-grupo-de-alunos.md)

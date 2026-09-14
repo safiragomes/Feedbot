@@ -7,7 +7,7 @@ individual por aluno.
 ## ADDED Requirements
 
 ### Requirement: Criar grupo de prazo com nome único no período
-O sistema DEVE permitir criar um grupo de prazo informando período e nome, e DEVE rejeitar a
+O sistema DEVE (MUST) permitir criar um grupo de prazo informando período e nome, e DEVE (MUST) rejeitar a
 criação quando já existe um grupo de prazo com o mesmo nome no mesmo período.
 
 #### Scenario: Criação com nome único no período
@@ -21,7 +21,7 @@ criação quando já existe um grupo de prazo com o mesmo nome no mesmo período
 - **THEN** o sistema responde com um erro de conflito e não cria o grupo
 
 ### Requirement: Renomear grupo de prazo
-O sistema DEVE permitir renomear um grupo de prazo existente, e DEVE rejeitar a renomeação
+O sistema DEVE (MUST) permitir renomear um grupo de prazo existente, e DEVE (MUST) rejeitar a renomeação
 quando o novo nome já é usado por outro grupo de prazo no mesmo período.
 
 #### Scenario: Renomeação com sucesso
@@ -35,7 +35,7 @@ quando o novo nome já é usado por outro grupo de prazo no mesmo período.
 - **THEN** o sistema responde com um erro de conflito e o nome do grupo não muda
 
 ### Requirement: Excluir grupo de prazo preserva os alunos
-Excluir um grupo de prazo DEVE remover o grupo e qualquer prazo configurado nele, mas NÃO DEVE
+Excluir um grupo de prazo DEVE (MUST) remover o grupo e qualquer prazo configurado nele, mas NÃO DEVE
 excluir os alunos que pertenciam a ele — eles devem passar a não ter grupo de prazo.
 
 #### Scenario: Exclusão de grupo com alunos e prazos configurados
@@ -45,8 +45,8 @@ excluir os alunos que pertenciam a ele — eles devem passar a não ter grupo de
   de existir, e os alunos que pertenciam a ele continuam existindo, sem nenhum grupo de prazo
 
 ### Requirement: Atribuir alunos a um grupo de prazo em lote
-O sistema DEVE permitir atribuir uma lista de alunos a um grupo de prazo de uma vez, desde que
-todos os alunos pertençam ao mesmo período do grupo, e DEVE rejeitar a atribuição quando algum
+O sistema DEVE (MUST) permitir atribuir uma lista de alunos a um grupo de prazo de uma vez, desde que
+todos os alunos pertençam ao mesmo período do grupo, e DEVE (MUST) rejeitar a atribuição quando algum
 aluno é de um período diferente. Um aluno pertence a no máximo um grupo de prazo por vez —
 atribuí-lo a um novo grupo o remove do grupo anterior, se houver.
 
@@ -66,7 +66,7 @@ atribuí-lo a um novo grupo o remove do grupo anterior, se houver.
 - **THEN** o sistema responde com sucesso e o aluno passa a pertencer só ao novo grupo de prazo
 
 ### Requirement: Desvincular alunos de um grupo de prazo em lote
-O sistema DEVE permitir remover um lote de alunos do grupo de prazo ao qual pertencem, sem
+O sistema DEVE (MUST) permitir remover um lote de alunos do grupo de prazo ao qual pertencem, sem
 excluir o grupo de prazo e sem exigir que sejam movidos para outro grupo.
 
 #### Scenario: Desvinculação em lote
@@ -75,10 +75,10 @@ excluir o grupo de prazo e sem exigir que sejam movidos para outro grupo.
   prazo, e o grupo de prazo em si continua existindo com os demais alunos e prazos que tinha
 
 ### Requirement: Configurar o prazo do grupo por lista
-O sistema DEVE permitir configurar o prazo de entrega de feedback de um grupo de prazo para uma
+O sistema DEVE (MUST) permitir configurar o prazo de entrega de feedback de um grupo de prazo para uma
 ou mais listas, desde que as listas pertençam ao mesmo período do grupo; configurar de novo o
-prazo de uma combinação (grupo, lista) já configurada DEVE atualizar o valor em vez de criar uma
-segunda configuração; configurar para uma lista de outro período DEVE ser rejeitado.
+prazo de uma combinação (grupo, lista) já configurada DEVE (MUST) atualizar o valor em vez de criar uma
+segunda configuração; configurar para uma lista de outro período DEVE (MUST) ser rejeitado.
 
 #### Scenario: Configuração inicial do prazo do grupo para uma lista
 - **WHEN** a chefe configura o prazo de entrega de uma lista para um grupo de prazo do mesmo
@@ -98,7 +98,7 @@ segunda configuração; configurar para uma lista de outro período DEVE ser rej
 - **THEN** o sistema responde com um erro e nenhum prazo é configurado
 
 ### Requirement: Consultar o prazo configurado do grupo por lista
-O sistema DEVE permitir consultar, para cada lista do período de um grupo de prazo, se há um
+O sistema DEVE (MUST) permitir consultar, para cada lista do período de um grupo de prazo, se há um
 prazo configurado para aquele grupo — a ausência de configuração para uma combinação (grupo,
 lista) é reportada como "sem prazo configurado", nunca como um erro.
 
@@ -109,7 +109,7 @@ lista) é reportada como "sem prazo configurado", nunca como um erro.
   têm e "sem prazo configurado" (não um erro) para as demais
 
 ### Requirement: Precedência do prazo efetivo de entrega de feedback
-O prazo efetivo de entrega de feedback de um aluno para uma lista DEVE seguir a ordem de
+O prazo efetivo de entrega de feedback de um aluno para uma lista DEVE (MUST) seguir a ordem de
 precedência: exceção individual do aluno para aquela lista, senão o prazo do grupo de prazo do
 aluno para aquela lista (quando o aluno pertence a um grupo), senão o prazo da turma do aluno
 para aquela lista, senão nenhum prazo. Nenhum nível configurado significa que o aluno

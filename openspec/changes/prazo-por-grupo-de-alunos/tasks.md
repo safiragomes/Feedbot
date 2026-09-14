@@ -98,16 +98,18 @@
 
 ## 9. Fechamento
 
-- [ ] 9.1 Rodar `pnpm --filter @feedbot/api typecheck`, `pnpm --filter @feedbot/api test` e
+- [x] 9.1 Rodar `pnpm --filter @feedbot/api typecheck`, `pnpm --filter @feedbot/api test` e
       `pnpm --filter @feedbot/api test:coverage` (sem reduzir os pisos de
       `apps/api/vitest.config.ts`) e confirmar que todos passam.
-- [ ] 9.2 Rodar `pnpm lint` e `pnpm --filter @feedbot/api build` e confirmar que passam.
-- [ ] 9.3 Sincronizar `docs/specs/prazo-por-grupo-de-alunos.md` com o spec desta Change
+- [x] 9.2 Rodar `pnpm lint` e `pnpm --filter @feedbot/api build` e confirmar que passam.
+- [x] 9.3 Sincronizar `docs/specs/prazo-por-grupo-de-alunos.md` com o spec desta Change
       (formato Comportamento esperado/Regras de negócio/Casos de borda/Fora de escopo).
-- [ ] 9.4 Criar `docs/changes/<data>-prazo-por-grupo-de-alunos.md` a partir de
+- [x] 9.4 Criar `docs/changes/<data>-prazo-por-grupo-de-alunos.md` a partir de
       `docs/templates/change.md`, registrando "ADR: Not applicable" com o motivo (ver
       `design.md`), e atualizar `docs/adr/README.md`/`docs/changes/README.md` com a entrada
       nova.
-- [ ] 9.5 Rodar `pnpm exec openspec validate prazo-por-grupo-de-alunos --strict` e confirmar
+- [x] 9.5 Rodar `pnpm exec openspec validate prazo-por-grupo-de-alunos --strict` e confirmar
       que passa sem erros.
 - [ ] 9.6 Pedir confirmação explícita da usuária antes de mover a Change para o arquivo.
+
+- [x] 9.7 Realizar revisão assistida por IA e registrar ao menos um finding com decisão no registro de mudança; fixture de consulta isolada em c9cb1fb e verificada individualmente e pela suíte com cobertura.
