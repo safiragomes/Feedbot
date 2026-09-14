@@ -50,7 +50,7 @@
 ## 5. Rotas: CRUD de grupo de prazo (cenários "Criação com nome único...", "Nome duplicado...",
    "Renomeação...", "Exclusão de grupo com alunos e prazos...")
 
-- [ ] 5.1 Escrever `apps/api/test/routes/grupos-prazo.test.ts` cobrindo criar (sucesso e
+- [x] 5.1 Escrever `apps/api/test/routes/grupos-prazo.test.ts` cobrindo criar (sucesso e
       conflito de nome), renomear (sucesso e conflito de nome) e excluir com cascata (grupo e
       prazos somem, aluno fica sem grupo — estilo `test/routes/exclusao-cascata.test.ts`);
       confirmar que falham.
