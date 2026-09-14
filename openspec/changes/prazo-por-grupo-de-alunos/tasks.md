@@ -14,9 +14,9 @@
 ## 2. Domain: precedência do prazo efetivo (cenários "Sem grupo...", "Com grupo...", "Exceção
    individual...", "Nenhum nível...")
 
-- [ ] 2.1 Escrever `apps/api/test/domain/prazo.test.ts` cobrindo os 4 cenários de precedência
+- [x] 2.1 Escrever `apps/api/test/domain/prazo.test.ts` cobrindo os 4 cenários de precedência
       da spec e confirmar que falha porque `calcularPrazoEfetivo` ainda não existe.
-- [ ] 2.2 Implementar `calcularPrazoEfetivo` em `apps/api/src/domain/prazo.ts` e verificar que
+- [x] 2.2 Implementar `calcularPrazoEfetivo` em `apps/api/src/domain/prazo.ts` e verificar que
       `pnpm --filter @feedbot/api test prazo.test.ts` passa.
 - [ ] 2.3 Revisar nome/comentário da função contra o padrão de estilo de
       `apps/api/src/domain/monitorSemana.ts` e confirmar que os testes continuam verdes.
