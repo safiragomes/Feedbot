@@ -171,6 +171,9 @@ describe("Gestão de grupos de prazo", () => {
     const grupo = await prisma.grupoPrazo.create({
       data: { periodoId: periodoId!, nome: "Consulta de prazos" },
     });
+    const listaSemPrazo = await prisma.lista.create({
+      data: { periodoId: periodoId!, nome: "Lista sem prazo", qtdQuestoesTotal: 6, ordem: 4 },
+    });
     const lista = await prisma.lista.create({
       data: { periodoId: periodoId!, nome: "Lista com prazo", qtdQuestoesTotal: 6, ordem: 2 },
     });
@@ -187,6 +190,11 @@ describe("Gestão de grupos de prazo", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ listaId: listaSemPrazo.id, prazoEntregaFeedback: null }),
+      ]),
+    );
     const listas = await prisma.lista.findMany({ where: { periodoId }, orderBy: { ordem: "asc" } });
     expect(resposta.json()).toEqual(
       listas.map((item) => ({
