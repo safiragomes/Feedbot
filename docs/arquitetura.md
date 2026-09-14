@@ -119,5 +119,4 @@ feature.
 stack completa de produção: Postgres (sem porta pública), API (roda `prisma migrate deploy`
 antes de subir), frontend compilado servido por Nginx, e Caddy como proxy reverso com HTTPS
 automático. Imagens são compiladas localmente e publicadas no GHCR — o servidor de produção só
-baixa imagens prontas, nunca compila (ver seção "Deploy de produção" em `README.md` para o
-passo a passo completo).
+baixa imagens prontas, nunca compila (ver `docs/deploy.md` para o passo a passo completo).
