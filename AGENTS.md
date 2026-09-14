@@ -6,6 +6,11 @@
 - Use kebab-case para arquivos e pastas; importe arquivos concretos, sem barrel files (`index.ts`
   reexportando tudo).
 - Nunca logue corpo de requisição, credenciais, cookies, tokens ou dados pessoais.
+- Nunca exclua nem reescreva uma migração do Prisma já aplicada — o banco de produção já tem
+  dados reais; uma correção de schema sempre vira uma migração nova.
+- Durante o desenvolvimento, rode primeiro o teste mais estreito relacionado à mudança; só rode
+  todos os gates da seção Verificação depois. Não há CI configurado neste repositório — esses
+  gates são o crivo manual antes de qualquer entrega, não uma rede de segurança automática.
 
 ## Monorepo
 
@@ -28,6 +33,10 @@ completa de cada um.
 - Convenção de teste: rotas usam Postgres real via `buildApp({ prisma })` + `app.inject(...)`
   (ver `apps/api/test/routes/listas.test.ts`); `services/` mockam o `PrismaClient` inteiro (ver
   `apps/api/test/services/atrasos.test.ts`); `domain/` é testado como função pura, sem I/O.
+- Valide entrada HTTP com os helpers de `apps/api/src/http/input.ts` (`parseText`, `parseDate`,
+  `parseBoolean`, `parsePositiveInteger`, `parseOptionalPositiveInteger`) em vez de validação
+  manual ad-hoc espalhada pelas rotas — é o único padrão de validação usado hoje (o projeto não
+  usa Zod nem gera OpenAPI).
 
 ## OpenSpec e documentação
 
@@ -35,6 +44,8 @@ completa de cada um.
   `tasks.md`) para toda mudança de comportamento relevante. Rode
   `pnpm exec openspec instructions <artefato> --change <id>` antes de escrever cada artefato, e
   `pnpm exec openspec validate <id> --strict` antes de considerar a Change pronta.
+- Agrupe `openspec/specs/` e `openspec/changes/` estritamente por capacidade de negócio (ex.:
+  `prazo-por-grupo-de-alunos`), nunca por rota HTTP, controller ou tabela do banco.
 - `docs/specs/` guarda specs leves por feature (formato: Comportamento esperado/Regras de
   negócio/Casos de borda/Fora de escopo) — o artefato que o resto do projeto já consulta. Ao
   arquivar uma Change, sincronize `docs/specs/<feature>.md` com o que foi decidido nela.
@@ -48,6 +59,10 @@ completa de cada um.
   `openspec validate <id> --strict` sem erros. Peça confirmação explícita do usuário
   imediatamente antes de arquivar — confirmações anteriores (de warnings, por exemplo) não
   contam.
+- Não remova seção obrigatória de `docs/templates/change.md` ou `docs/templates/adr.md` ao usar
+  o template; preencha "Not applicable" com o motivo quando uma seção não se aplicar.
+- Mantenha `docs/adr/README.md` e `docs/changes/README.md` atualizados — toda entrada nova
+  (ADR ou registro de mudança) entra no índice do respectivo arquivo.
 
 ## SDD (Spec-Driven Development)
 
@@ -56,8 +71,9 @@ completa de cada um.
 - Código e testes devem mapear diretamente para os requisitos e cenários da spec — a spec é a
   fonte da verdade, o código é a implementação dela.
 - Se surgir uma ambiguidade, um caso de borda não previsto ou uma decisão que mude
-  comportamento/contrato/escopo durante o desenvolvimento, pare e pergunte ao usuário — não
-  invente uma decisão para preencher a lacuna.
+  comportamento/contrato/escopo durante o desenvolvimento, pare a implementação, pergunte ao
+  usuário e atualize os artefatos do OpenSpec com a resposta antes de continuar — não invente
+  uma decisão de contrato para preencher a lacuna.
 
 ## TDD (Test-Driven Development)
 
