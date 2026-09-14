@@ -63,7 +63,7 @@
 ## 6. Rotas: prazo do grupo por lista (cenários "Configuração inicial...", "Repetir a
    configuração...", "Configuração rejeitada...", "Consulta com listas...", em HTTP)
 
-- [ ] 6.1 Estender `apps/api/test/routes/grupos-prazo.test.ts` com: GET retorna "sem prazo
+- [x] 6.1 Estender `apps/api/test/routes/grupos-prazo.test.ts` com: GET retorna "sem prazo
       configurado" para combinação (grupo, lista) ainda não configurada, PUT grava e um
       segundo PUT na mesma combinação atualiza em vez de duplicar, PUT rejeita lista de outro
       período; confirmar que falham.

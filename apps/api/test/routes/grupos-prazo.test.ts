@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/db/client.js";
 import { buildApp } from "../../src/app.js";
@@ -120,7 +120,9 @@ describe("Gestão de grupos de prazo", () => {
 
     expect(resposta.statusCode).toBe(409);
     expect(await prisma.grupoPrazo.findUnique({ where: { id: grupo.id } })).toEqual(grupo);
-    expect(await prisma.grupoPrazo.findUnique({ where: { id: outroGrupo.id } })).toEqual(outroGrupo);
+    expect(await prisma.grupoPrazo.findUnique({ where: { id: outroGrupo.id } })).toEqual(
+      outroGrupo,
+    );
   });
 
   it("DELETE /grupos-prazo/:id remove o grupo e seus prazos, preservando o aluno sem vínculo", async () => {
@@ -164,5 +166,92 @@ describe("Gestão de grupos de prazo", () => {
       turmaId: turma.id,
       grupoPrazoId: null,
     });
+  });
+  it("GET de prazos lista configurações e ausência de prazo no período do grupo", async () => {
+    const grupo = await prisma.grupoPrazo.create({
+      data: { periodoId: periodoId!, nome: "Consulta de prazos" },
+    });
+    const lista = await prisma.lista.create({
+      data: { periodoId: periodoId!, nome: "Lista com prazo", qtdQuestoesTotal: 6, ordem: 2 },
+    });
+    await prisma.prazoGrupoLista.create({
+      data: {
+        grupoPrazoId: grupo.id,
+        listaId: lista.id,
+        prazoEntregaFeedback: new Date("2026-09-20T00:00:00Z"),
+      },
+    });
+    const resposta = await app.inject({
+      method: "GET",
+      url: `/grupos-prazo/${grupo.id}/prazos-lista`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(resposta.statusCode).toBe(200);
+    const listas = await prisma.lista.findMany({ where: { periodoId }, orderBy: { ordem: "asc" } });
+    expect(resposta.json()).toEqual(
+      listas.map((item) => ({
+        listaId: item.id,
+        listaNome: item.nome,
+        ordem: item.ordem,
+        qtdQuestoesTotal: item.qtdQuestoesTotal,
+        prazoEntregaFeedback: item.id === lista.id ? "2026-09-20T00:00:00.000Z" : null,
+      })),
+    );
+  });
+
+  it("PUT de prazos configura e atualiza o mesmo par sem duplicar", async () => {
+    const grupo = await prisma.grupoPrazo.create({
+      data: { periodoId: periodoId!, nome: "Atualização de prazos" },
+    });
+    const lista = await prisma.lista.create({
+      data: { periodoId: periodoId!, nome: "Lista para atualizar", qtdQuestoesTotal: 6, ordem: 3 },
+    });
+    for (const data of ["2026-09-20T00:00:00.000Z", "2026-09-25T00:00:00.000Z"]) {
+      const resposta = await app.inject({
+        method: "PUT",
+        url: `/grupos-prazo/${grupo.id}/prazos-lista`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { prazos: [{ listaId: lista.id, prazoEntregaFeedback: data }] },
+      });
+      expect(resposta.statusCode).toBe(200);
+      expect(resposta.json()).toEqual({ atualizados: 1 });
+      const prazos = await prisma.prazoGrupoLista.findMany({ where: { grupoPrazoId: grupo.id } });
+      expect(prazos).toHaveLength(1);
+      expect(prazos[0]?.prazoEntregaFeedback.toISOString()).toBe(data);
+    }
+  });
+
+  it("PUT de prazos rejeita lista de outro período sem configurar nenhum prazo", async () => {
+    const outroPeriodo = await prisma.periodo.create({
+      data: {
+        nome: `Outro período prazos ${sufixo}`,
+        dataInicio: new Date("2026-08-03T00:00:00Z"),
+        dataFim: new Date("2026-12-01T00:00:00Z"),
+        dataReferenciaRodizio: new Date("2026-08-03T00:00:00Z"),
+      },
+    });
+    try {
+      const grupo = await prisma.grupoPrazo.create({
+        data: { periodoId: periodoId!, nome: "Prazos rejeitados" },
+      });
+      const lista = await prisma.lista.create({
+        data: {
+          periodoId: outroPeriodo.id,
+          nome: "Lista de outro período",
+          qtdQuestoesTotal: 6,
+          ordem: 1,
+        },
+      });
+      const resposta = await app.inject({
+        method: "PUT",
+        url: `/grupos-prazo/${grupo.id}/prazos-lista`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { prazos: [{ listaId: lista.id, prazoEntregaFeedback: "2026-09-20T00:00:00Z" }] },
+      });
+      expect(resposta.statusCode).toBe(400);
+      expect(await prisma.prazoGrupoLista.count({ where: { grupoPrazoId: grupo.id } })).toBe(0);
+    } finally {
+      await prisma.periodo.delete({ where: { id: outroPeriodo.id } });
+    }
   });
 });
