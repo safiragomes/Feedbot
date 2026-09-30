@@ -228,4 +228,109 @@ describe("Listas fixas por período e prazos por turma", () => {
     });
     expect(response.statusCode).toBe(404);
   });
+
+  it("GET /listas retorna o prazo configurado por grupo de prazo", async () => {
+    const lista = await prisma.lista.findFirstOrThrow({ where: { periodoId, ordem: 3 } });
+    const grupo = await prisma.grupoPrazo.create({
+      data: { periodoId, nome: `Grupo de prazo ${sufixo}` },
+    });
+    await prisma.prazoGrupoLista.create({
+      data: {
+        listaId: lista.id,
+        grupoPrazoId: grupo.id,
+        prazoEntregaFeedback: new Date("2026-09-20T00:00:00Z"),
+      },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/listas?periodoId=${periodoId}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const listas = response.json() as {
+      id: string;
+      prazosGrupo: { grupoPrazoId: string; prazoEntregaFeedback: string }[];
+    }[];
+    const listaRetornada = listas.find((l) => l.id === lista.id);
+    expect(listaRetornada?.prazosGrupo).toHaveLength(1);
+    expect(listaRetornada?.prazosGrupo[0]).toMatchObject({
+      grupoPrazoId: grupo.id,
+      prazoEntregaFeedback: "2026-09-20T00:00:00.000Z",
+    });
+
+    await prisma.prazoGrupoLista.deleteMany({ where: { grupoPrazoId: grupo.id } });
+    await prisma.grupoPrazo.delete({ where: { id: grupo.id } });
+  });
+
+  it("GET /listas retorna prazosGrupo vazio quando nenhum grupo tem prazo configurado", async () => {
+    const lista = await prisma.lista.findFirstOrThrow({ where: { periodoId, ordem: 4 } });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/listas?periodoId=${periodoId}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const listas = response.json() as { id: string; prazosGrupo: unknown[] }[];
+    const listaRetornada = listas.find((l) => l.id === lista.id);
+    expect(listaRetornada?.prazosGrupo).toEqual([]);
+  });
+
+  it("GET /listas retorna o prazo de cada grupo separadamente quando mais de um grupo configura a mesma lista", async () => {
+    const lista = await prisma.lista.findFirstOrThrow({ where: { periodoId, ordem: 5 } });
+    const [grupoA, grupoB] = await Promise.all([
+      prisma.grupoPrazo.create({ data: { periodoId, nome: `Grupo A ${sufixo}` } }),
+      prisma.grupoPrazo.create({ data: { periodoId, nome: `Grupo B ${sufixo}` } }),
+    ]);
+    await Promise.all([
+      prisma.prazoGrupoLista.create({
+        data: {
+          listaId: lista.id,
+          grupoPrazoId: grupoA.id,
+          prazoEntregaFeedback: new Date("2026-09-21T00:00:00Z"),
+        },
+      }),
+      prisma.prazoGrupoLista.create({
+        data: {
+          listaId: lista.id,
+          grupoPrazoId: grupoB.id,
+          prazoEntregaFeedback: new Date("2026-09-22T00:00:00Z"),
+        },
+      }),
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/listas?periodoId=${periodoId}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const listas = response.json() as {
+      id: string;
+      prazosGrupo: { grupoPrazoId: string; prazoEntregaFeedback: string }[];
+    }[];
+    const listaRetornada = listas.find((l) => l.id === lista.id);
+    expect(listaRetornada?.prazosGrupo).toHaveLength(2);
+    expect(listaRetornada?.prazosGrupo).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          grupoPrazoId: grupoA.id,
+          prazoEntregaFeedback: "2026-09-21T00:00:00.000Z",
+        }),
+        expect.objectContaining({
+          grupoPrazoId: grupoB.id,
+          prazoEntregaFeedback: "2026-09-22T00:00:00.000Z",
+        }),
+      ]),
+    );
+
+    await prisma.prazoGrupoLista.deleteMany({
+      where: { grupoPrazoId: { in: [grupoA.id, grupoB.id] } },
+    });
+    await prisma.grupoPrazo.deleteMany({ where: { id: { in: [grupoA.id, grupoB.id] } } });
+  });
 });

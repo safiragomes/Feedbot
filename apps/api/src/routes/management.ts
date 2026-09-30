@@ -331,7 +331,7 @@ export function managementRoutes(app: FastifyInstance, prisma: PrismaClient) {
         ? { periodoId: text((request.query as Record<string, unknown>).periodoId) }
         : undefined,
       orderBy: { ordem: "asc" },
-      include: { prazos: true },
+      include: { prazos: true, prazosGrupo: true },
     }),
   );
   app.post("/listas", protectedRoute, async (request, reply) => {
