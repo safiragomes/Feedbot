@@ -4,6 +4,7 @@ export type PageId =
   | "diretorio-monitores"
   | "atrasados"
   | "gestao"
+  | "grupos-prazo"
   | "planilha"
   | "bot";
 
@@ -17,6 +18,7 @@ export const ROUTE_PATH: Record<PageId, string> = {
   "diretorio-monitores": "/monitores",
   atrasados: "/atrasados",
   gestao: "/gestao",
+  "grupos-prazo": "/grupos-prazo",
   planilha: "/planilha",
   bot: "/bot",
 };

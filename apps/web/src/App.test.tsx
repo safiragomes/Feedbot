@@ -11,7 +11,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 /**
- * Mock mínimo do backend cobrindo login + os 9 endpoints que App.tsx carrega em
+ * Mock mínimo do backend cobrindo login + os 10 endpoints que App.tsx carrega em
  * sequência ao entrar. Serve pra exercitar o fluxo login → load() → dashboard sem
  * depender de uma API real — inclusive os dois efeitos novos (token/periodoId) que
  * corrigiram o carregamento duplicado no boot.
@@ -47,6 +47,7 @@ function mockarBackend() {
       [
         "/turmas",
         "/grupos-revisao",
+        "/grupos-prazo",
         "/duplas",
         "/monitores",
         "/alunos",
@@ -112,12 +113,12 @@ describe("App", () => {
 
     // O efeito de token dispara load() uma vez; load() resolve o período padrão e
     // seta periodoResolvidoAoCarregar, que faz o efeito de periodoId ignorar a
-    // rodada extra — sem isso, cada uma dessas 10 chamadas (períodos + os 9 do
+    // rodada extra — sem isso, cada uma dessas 11 chamadas (períodos + os 10 do
     // Promise.all) aconteceria duas vezes.
     const chamadasDeDados = fetchMock.mock.calls.filter(([input]) => {
       const url = typeof input === "string" ? input : input.toString();
       return !url.includes("/auth/");
     });
-    expect(chamadasDeDados).toHaveLength(10);
+    expect(chamadasDeDados).toHaveLength(11);
   });
 });

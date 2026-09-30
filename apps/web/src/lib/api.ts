@@ -10,6 +10,7 @@ import type {
   DiscordServidor,
   Dupla,
   Feedback,
+  GrupoPrazo,
   GrupoRevisao,
   Lista,
   Monitor,
@@ -138,6 +139,27 @@ export const api = {
   criarGrupo: (token: string, data: { periodoId: string; chefeId: string; nome: string }) =>
     post<GrupoRevisao>("/grupos-revisao", token, data),
   excluirGrupo: (token: string, id: string) => del(`/grupos-revisao/${id}`, token),
+
+  gruposPrazo: (token: string, periodoId: string) =>
+    request<GrupoPrazo[]>(`/grupos-prazo?periodoId=${periodoId}`, token),
+  criarGrupoPrazo: (token: string, data: { periodoId: string; nome: string }) =>
+    post<GrupoPrazo>("/grupos-prazo", token, data),
+  renomearGrupoPrazo: (token: string, id: string, nome: string) =>
+    patch<GrupoPrazo>(`/grupos-prazo/${id}`, token, { nome }),
+  excluirGrupoPrazo: (token: string, id: string) => del(`/grupos-prazo/${id}`, token),
+  prazosGrupo: (token: string, grupoPrazoId: string) =>
+    request<PrazoListaItem[]>(`/grupos-prazo/${grupoPrazoId}/prazos-lista`, token),
+  salvarPrazosGrupo: (
+    token: string,
+    grupoPrazoId: string,
+    prazos: { listaId: string; prazoEntregaFeedback: string }[],
+  ) =>
+    put<{ atualizados: number }>(`/grupos-prazo/${grupoPrazoId}/prazos-lista`, token, { prazos }),
+  atribuirAlunosGrupoPrazo: (token: string, alunoIds: string[], grupoPrazoId: string | null) =>
+    patch<{ atualizados: number }>("/alunos/atribuir-grupo-prazo", token, {
+      alunoIds,
+      grupoPrazoId,
+    }),
 
   duplas: (token: string) => request<Dupla[]>("/duplas", token),
   criarDupla: (token: string, data: { grupoRevisaoId: string; label: string }) =>

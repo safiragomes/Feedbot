@@ -25,6 +25,7 @@ const NAV: { group: string; items: { id: PageId; label: string; icon: React.Reac
     group: "Gestão",
     items: [
       { id: "gestao", label: "Grupos & duplas", icon: <IconGrid /> },
+      { id: "grupos-prazo", label: "Prazos", icon: <IconClock /> },
       { id: "planilha", label: "Planilha", icon: <IconGrid /> },
     ],
   },

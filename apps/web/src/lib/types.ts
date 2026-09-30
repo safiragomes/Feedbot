@@ -71,6 +71,12 @@ export type Monitor = {
   dupla?: { id: string; label: string; grupoRevisaoId: string } | null;
 };
 
+export type GrupoPrazo = {
+  id: string;
+  periodoId: string;
+  nome: string;
+};
+
 export type GrupoRevisao = {
   id: string;
   periodoId: string;
@@ -97,6 +103,7 @@ export type Aluno = {
   matricula: string;
   turmaId: string;
   duplaId: string | null;
+  grupoPrazoId: string | null;
   isPcd: boolean;
   qtdQuestoesMeta: number | null;
   monitorSemanaAId: string | null;
@@ -114,6 +121,7 @@ export type Lista = {
   ordem: number;
   semanaOverride: "A" | "B" | null;
   prazos: { turmaId: string; prazoEntregaFeedback: string }[];
+  prazosGrupo: { grupoPrazoId: string; prazoEntregaFeedback: string }[];
 };
 
 export type PrazoListaItem = {

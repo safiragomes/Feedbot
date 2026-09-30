@@ -9,6 +9,7 @@ import type {
   Chefe,
   Dupla,
   Feedback,
+  GrupoPrazo,
   GrupoRevisao,
   Lista,
   Monitor,
@@ -30,6 +31,7 @@ import { DiretorioAlunos } from "./pages/DiretorioAlunos";
 import { DiretorioMonitores } from "./pages/DiretorioMonitores";
 import { AtrasadosOverview } from "./pages/AtrasadosOverview";
 import { Gestao } from "./pages/Gestao";
+import { GruposPrazo } from "./pages/GruposPrazo";
 import { BotPage } from "./pages/Bot";
 import { PlanilhaPage } from "./pages/Planilha";
 import { solicitarRemocaoAluno } from "./lib/acoes";
@@ -75,6 +77,7 @@ function AppInner() {
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [grupos, setGrupos] = useState<GrupoRevisao[]>([]);
+  const [gruposPrazo, setGruposPrazo] = useState<GrupoPrazo[]>([]);
   const [duplas, setDuplas] = useState<Dupla[]>([]);
   const [monitores, setMonitores] = useState<Monitor[]>([]);
   const [alunos, setAlunos] = useState<Aluno[]>([]);
@@ -123,6 +126,7 @@ function AppInner() {
       const [
         turmasResp,
         gruposResp,
+        gruposPrazoResp,
         duplasResp,
         monitoresResp,
         alunosResp,
@@ -133,6 +137,7 @@ function AppInner() {
       ] = await Promise.all([
         api.turmas(token, id),
         api.grupos(token, id),
+        api.gruposPrazo(token, id),
         api.duplas(token),
         api.monitores(token, id),
         api.alunos(token),
@@ -146,6 +151,7 @@ function AppInner() {
       setPeriodoId(id);
       setTurmas(turmasResp);
       setGrupos(gruposResp);
+      setGruposPrazo(gruposPrazoResp);
       setDuplas(duplasResp.filter((d) => d.grupoRevisao?.periodoId === id));
       setMonitores(monitoresResp);
       setAlunos(alunosResp.filter((a) => a.turma.periodoId === id));
@@ -290,6 +296,11 @@ function AppInner() {
       title: "Grupos, duplas e turmas",
       subtitle: "Ajuste a estrutura operacional do período sem perder contexto.",
     },
+    "grupos-prazo": {
+      eyebrow: "Configuração do período",
+      title: "Prazos",
+      subtitle: "Configure o prazo de entrega de feedback por turma ou por grupo de alunos.",
+    },
     planilha: {
       eyebrow: "Fluxo de importação",
       title: "Planilha e pontuação",
@@ -335,6 +346,11 @@ function AppInner() {
                 { label: "Diretório monitores", onClick: () => navigate(ROUTE_PATH["diretorio-monitores"]) },
                 { label: "Abrir planilha", onClick: () => navigate(ROUTE_PATH["planilha"]) },
               ]
+            : page === "grupos-prazo"
+              ? [
+                  { label: "Diretório alunos", onClick: () => navigate(ROUTE_PATH["diretorio-alunos"]) },
+                  { label: "Ir para gestão", onClick: () => navigate(ROUTE_PATH["gestao"]) },
+                ]
             : page === "planilha"
               ? [
                   { label: "Voltar para gestão", onClick: () => navigate(ROUTE_PATH["gestao"]) },
@@ -434,6 +450,7 @@ function AppInner() {
                       token={token}
                       alunos={alunos}
                       grupos={grupos}
+                      gruposPrazo={gruposPrazo}
                       listas={listas}
                       feedbacks={feedbacks}
                       atrasos={atrasos}
@@ -492,6 +509,21 @@ function AppInner() {
                   }
                 />
                 <Route
+                  path={ROUTE_PATH["grupos-prazo"]}
+                  element={
+                    <GruposPrazo
+                      token={token}
+                      periodoId={periodoId}
+                      gruposPrazo={gruposPrazo}
+                      alunos={alunos}
+                      listas={listas}
+                      turmas={turmas}
+                      onReload={load}
+                      onRequestConfirm={setConfirm}
+                    />
+                  }
+                />
+                <Route
                   path={ROUTE_PATH.bot}
                   element={
                     periodoAtual ? (
@@ -508,7 +540,6 @@ function AppInner() {
                         token={token}
                         periodo={periodoAtual}
                         turmas={turmas}
-                        listas={listas}
                         onReload={load}
                         onRequestConfirm={setConfirm}
                       />
@@ -528,6 +559,7 @@ function AppInner() {
           alunos={alunos}
           grupos={grupos}
           duplas={duplas}
+          gruposPrazo={gruposPrazo}
           feedbacks={feedbacks}
           listas={listas}
           atrasos={atrasos}

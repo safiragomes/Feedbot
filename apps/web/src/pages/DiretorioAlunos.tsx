@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Aluno, Atraso, Feedback, GrupoRevisao, Lista } from "../lib/types";
+import type { Aluno, Atraso, Feedback, GrupoPrazo, GrupoRevisao, Lista } from "../lib/types";
 import { IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
@@ -14,6 +14,7 @@ export function DiretorioAlunos({
   token,
   alunos,
   grupos,
+  gruposPrazo,
   listas,
   feedbacks,
   atrasos,
@@ -24,6 +25,7 @@ export function DiretorioAlunos({
   token: string;
   alunos: Aluno[];
   grupos: GrupoRevisao[];
+  gruposPrazo: GrupoPrazo[];
   listas: Lista[];
   feedbacks: Feedback[];
   atrasos: Atraso[];
@@ -33,6 +35,7 @@ export function DiretorioAlunos({
 }) {
   const [turma, setTurma] = useState("");
   const [grupoId, setGrupoId] = useState("");
+  const [grupoPrazoId, setGrupoPrazoId] = useState("");
   const [listaId, setListaId] = useState("");
   const [somenteAtrasados, setSomenteAtrasados] = useState(false);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
@@ -81,6 +84,7 @@ export function DiretorioAlunos({
       (a) =>
         (!turma || a.turma.nome === turma) &&
         (!grupoId || a.dupla?.grupoRevisaoId === grupoId) &&
+        (!grupoPrazoId || a.grupoPrazoId === grupoPrazoId) &&
         (!ocorrencias.length || alunoAtendeOcorrencias(a.id)) &&
         (!somenteAtrasados || alunosAtrasados.has(a.id)) &&
         (!q || normalizarBusca(a.nome).includes(q) || a.matricula.toLowerCase().includes(q)),
@@ -102,6 +106,7 @@ export function DiretorioAlunos({
   const filtrosAtivos = [
     turma,
     grupoId,
+    grupoPrazoId,
     listaId,
     busca.trim(),
     ocorrencias.join(","),
@@ -111,6 +116,7 @@ export function DiretorioAlunos({
   function limparFiltros() {
     setTurma("");
     setGrupoId("");
+    setGrupoPrazoId("");
     setListaId("");
     setOcorrencias([]);
     setSomenteAtrasados(false);
@@ -194,6 +200,13 @@ export function DiretorioAlunos({
       header: "Grupo de revisão",
       sortValue: (a) => grupos.find((g) => g.id === a.dupla?.grupoRevisaoId)?.nome ?? "",
       render: (a) => grupos.find((g) => g.id === a.dupla?.grupoRevisaoId)?.nome ?? "—",
+      hideOnMobile: true,
+    },
+    {
+      key: "grupoPrazo",
+      header: "Grupo de prazo",
+      sortValue: (a) => gruposPrazo.find((g) => g.id === a.grupoPrazoId)?.nome ?? "",
+      render: (a) => gruposPrazo.find((g) => g.id === a.grupoPrazoId)?.nome ?? "—",
       hideOnMobile: true,
     },
     {
@@ -361,6 +374,14 @@ export function DiretorioAlunos({
           value={grupoId}
           onChange={setGrupoId}
           options={grupos.map((g) => ({ value: g.id, label: g.nome }))}
+        />
+        <span className="flag">Grupo de prazo</span>
+        <FilterSelect
+          label="grupo de prazo"
+          placeholder="todos os grupos de prazo"
+          value={grupoPrazoId}
+          onChange={setGrupoPrazoId}
+          options={gruposPrazo.map((g) => ({ value: g.id, label: g.nome }))}
         />
         <div className="search-wrap">
           <div className="search-box">

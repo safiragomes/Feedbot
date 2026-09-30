@@ -13,6 +13,7 @@ function aluno(id: string, nome: string, turmaId: string, turmaNome: string): Al
     matricula: `mat-${id}`,
     turmaId,
     duplaId: "dupla-1",
+    grupoPrazoId: null,
     isPcd: false,
     qtdQuestoesMeta: null,
     monitorSemanaAId: null,

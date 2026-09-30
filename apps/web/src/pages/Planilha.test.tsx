@@ -35,7 +35,6 @@ describe("PlanilhaPage", () => {
         token="token"
         periodo={periodo}
         turmas={[]}
-        listas={[]}
         onReload={vi.fn()}
         onRequestConfirm={vi.fn()}
       />,

@@ -1,5 +1,14 @@
 import { useState, type ReactNode } from "react";
-import type { Aluno, Atraso, Dupla, Feedback, GrupoRevisao, Lista, Monitor } from "../lib/types";
+import type {
+  Aluno,
+  Atraso,
+  Dupla,
+  Feedback,
+  GrupoPrazo,
+  GrupoRevisao,
+  Lista,
+  Monitor,
+} from "../lib/types";
 import { fimDoDiaIso, formatarData, noPrazo, paraInputDate } from "../lib/format";
 import { api } from "../lib/api";
 import { monitorSemanaB } from "../lib/dupla";
@@ -10,6 +19,9 @@ import { IconChevronDown, IconX } from "./icons";
 function prazoEfetivo(aluno: Aluno, lista: Lista): string | null {
   return (
     aluno.prazosIndividuais.find((p) => p.listaId === lista.id)?.prazoEntregaFeedback ??
+    (aluno.grupoPrazoId
+      ? lista.prazosGrupo.find((p) => p.grupoPrazoId === aluno.grupoPrazoId)?.prazoEntregaFeedback
+      : undefined) ??
     lista.prazos.find((p) => p.turmaId === aluno.turmaId)?.prazoEntregaFeedback ??
     null
   );
@@ -20,6 +32,7 @@ export function AlunoDrawer({
   alunos,
   grupos,
   duplas,
+  gruposPrazo,
   feedbacks,
   listas,
   atrasos,
@@ -32,6 +45,7 @@ export function AlunoDrawer({
   alunos: Aluno[];
   grupos: GrupoRevisao[];
   duplas: Dupla[];
+  gruposPrazo: GrupoPrazo[];
   feedbacks: Feedback[];
   listas: Lista[];
   atrasos: Atraso[];
@@ -43,6 +57,7 @@ export function AlunoDrawer({
   const [salvandoPrazo, setSalvandoPrazo] = useState<string | null>(null);
   const [salvandoCondicao, setSalvandoCondicao] = useState(false);
   const [salvandoDupla, setSalvandoDupla] = useState(false);
+  const [salvandoGrupoPrazo, setSalvandoGrupoPrazo] = useState(false);
   const [prazosEditados, setPrazosEditados] = useState(new Map<string, string>());
   const [listaFeedbackAberta, setListaFeedbackAberta] = useState<Lista | null>(null);
   const afb = feedbacks.filter((f) => f.alunoId === aluno.id);
@@ -100,6 +115,32 @@ export function AlunoDrawer({
             ))}
           </select>
         </MiniRow>
+        <MiniRow label="Grupo de prazo">
+          <select
+            value={aluno.grupoPrazoId ?? ""}
+            disabled={salvandoGrupoPrazo}
+            onChange={async (event) => {
+              setSalvandoGrupoPrazo(true);
+              try {
+                await api.atribuirAlunosGrupoPrazo(
+                  token,
+                  [aluno.id],
+                  event.target.value || null,
+                );
+                await onReload();
+              } finally {
+                setSalvandoGrupoPrazo(false);
+              }
+            }}
+          >
+            <option value="">sem grupo de prazo</option>
+            {gruposPrazo.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nome}
+              </option>
+            ))}
+          </select>
+        </MiniRow>
         <MiniRow label="Condição especial">
           <label className="special-condition-toggle">
             <input
@@ -128,7 +169,8 @@ export function AlunoDrawer({
       <div className="drawer-section">
         <h5>Prazo individual</h5>
         <p className="mono-cell">
-          Use somente quando este aluno tiver uma prorrogação. Sem exceção, vale o prazo da turma.
+          Use somente quando este aluno tiver uma prorrogação. Sem exceção, vale o prazo do grupo
+          de prazo (se houver) ou, senão, o da turma.
         </p>
         {listas.map((lista) => {
           const individual = aluno.prazosIndividuais?.find(
@@ -137,13 +179,19 @@ export function AlunoDrawer({
           const turma = lista.prazos?.find(
             (p) => p.turmaId === aluno.turmaId,
           )?.prazoEntregaFeedback;
+          const grupo = aluno.grupoPrazoId
+            ? lista.prazosGrupo?.find((p) => p.grupoPrazoId === aluno.grupoPrazoId)
+                ?.prazoEntregaFeedback
+            : undefined;
           const valor = prazosEditados.get(lista.id) ?? (individual ? paraInputDate(individual) : "");
           return (
             <div className="mini-row" key={lista.id} style={{ gap: 8 }}>
               <span className="l">
                 {lista.nome}
                 <small style={{ display: "block" }}>
-                  Turma: {formatarData(turma) ?? "sem prazo"}
+                  {grupo
+                    ? `Grupo: ${formatarData(grupo)}`
+                    : `Turma: ${formatarData(turma) ?? "sem prazo"}`}
                 </small>
               </span>
               <input
@@ -171,7 +219,7 @@ export function AlunoDrawer({
                   }
                 }}
               >
-                {valor ? "Salvar" : individual ? "Usar turma" : "—"}
+                {valor ? "Salvar" : individual ? (grupo ? "Usar grupo" : "Usar turma") : "—"}
               </button>
             </div>
           );

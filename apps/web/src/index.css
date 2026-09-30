@@ -1157,6 +1157,12 @@ h1 {
   font-size: 14px;
   margin-top: 4px;
 }
+.section-title {
+  margin: 24px 0 12px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
 .head-actions {
   display: flex;
   flex-wrap: wrap;
