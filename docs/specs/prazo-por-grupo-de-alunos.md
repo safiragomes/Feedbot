@@ -18,6 +18,7 @@ Todas as operações de gestão exigem sessão de chefe autenticada.
 | `PUT /grupos-prazo/:id/prazos-lista` | Recebe `prazos: [{ listaId, prazoEntregaFeedback }]`; retorna `{ atualizados }`. |
 | `PATCH /alunos/atribuir-grupo-prazo` | Recebe `alunoIds` e `grupoPrazoId` (identificador ou `null`); retorna `{ atualizados }`. |
 | `GET /alunos?grupoPrazoId=<id>` | Retorna os alunos do grupo solicitado. |
+| `GET /listas` | Cada lista retornada já trazia `prazos` (por turma) e passa a trazer também `prazosGrupo: [{ grupoPrazoId, prazoEntregaFeedback }]`, um item por grupo de prazo com configuração para aquela lista. |
 
 ## Regras de negócio
 
@@ -42,11 +43,24 @@ Todas as operações de gestão exigem sessão de chefe autenticada.
 - A consulta de prazos inclui listas ainda não configuradas, com `null`.
 - Desvincular ou excluir o grupo faz o cálculo voltar aos níveis individual/turma.
 - A atribuição em lote segue o limite de 1 a 500 alunos usado na gestão existente.
+- Lista sem nenhum grupo de prazo configurado retorna `prazosGrupo: []` em `GET /listas`,
+  nunca `null` nem erro.
+
+## Interface (apps/web)
+
+A tela "Prazos" (menu Gestão) reúne a configuração de prazo por turma (painel "Listas e
+prazos", antes só na tela Planilha) e por grupo de alunos: criar, renomear e excluir grupos de
+prazo, atribuir/desvincular alunos em lote e configurar o prazo do grupo por lista —
+espelhando os padrões já usados em "Grupos & duplas". O diretório de alunos ganhou filtro e
+coluna de "Grupo de prazo", e o drawer do aluno permite trocar o grupo de prazo individualmente
+e mostra, na seção "Prazo individual", se o prazo de referência antes de uma exceção vem do
+grupo ou da turma.
 
 ## Fora de escopo
 
-- Alterações no painel `apps/web`, em `GrupoRevisao` ou no fluxo de revisão.
+- Alterações em `GrupoRevisao` ou no fluxo de revisão.
 - Remoção pontual de um prazo de grupo/lista: é possível sobrescrever a data ou excluir o grupo.
 - Correção de lacunas de testes nas funções antigas de atribuição de dupla e prazo de turma.
 
-Modelagem: [modelo de dados](modelo-dados.md). Change: `prazo-por-grupo-de-alunos`.
+Modelagem: [modelo de dados](modelo-dados.md). Changes: `prazo-por-grupo-de-alunos`,
+`expor-prazo-grupo-em-listas`.

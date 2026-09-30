@@ -27,3 +27,5 @@ No fluxo deste projeto (spec-driven + test-driven, ver `README.md` na raiz), um 
 - [2026-09-03 — Auditoria: revalidação de selects, bug de configuração do servidor e cobertura de testes](2026-09-03-auditoria-revalidacao-e-cobertura-de-testes.md)
 - [2026-09-14 — Organização do README e documentação operacional](2026-09-14-organizacao-readme-e-docs.md)
 - [2026-09-14 — Prazo de feedback por grupo de alunos](2026-09-14-prazo-por-grupo-de-alunos.md)
+- [2026-09-30 — Expor prazo por grupo em GET /listas](2026-09-30-expor-prazo-grupo-em-listas.md)
+- [2026-09-30 — Interface de prazo por grupo de alunos](2026-09-30-interface-grupo-prazo.md)
