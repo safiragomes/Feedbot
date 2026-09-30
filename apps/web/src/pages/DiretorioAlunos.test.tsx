@@ -1,7 +1,14 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Aluno, GrupoPrazo, Turma } from "../lib/types";
 import { DiretorioAlunos } from "./DiretorioAlunos";
+import * as exportarPlanilha from "../lib/exportar-planilha";
+
+vi.mock("../lib/exportar-planilha", () => ({
+  exportarXlsx: vi.fn().mockResolvedValue(undefined),
+  linhasExportacaoAlunos: vi.fn(() => []),
+}));
 
 const turma: Turma = { id: "turma-1", periodoId: "periodo-1", nome: "Turma A", nomeAbaPlanilha: "Turma A" };
 const grupoPrazo: GrupoPrazo = { id: "grupo-prazo-1", periodoId: "periodo-1", nome: "Rematrícula" };
@@ -65,5 +72,58 @@ describe("DiretorioAlunos — coluna e filtro de grupo de prazo", () => {
     );
 
     expect(screen.getByText("Grupo de prazo", { selector: "span.flag" })).toBeInTheDocument();
+  });
+});
+
+describe("DiretorioAlunos — exportação", () => {
+  it("exporta todos os alunos filtrados quando nada está selecionado", async () => {
+    const user = userEvent.setup();
+    const alunos = [aluno({ id: "a1", nome: "Ana" }), aluno({ id: "a2", nome: "Bia" })];
+
+    render(
+      <DiretorioAlunos
+        token="token"
+        alunos={alunos}
+        grupos={[]}
+        gruposPrazo={[]}
+        listas={[]}
+        feedbacks={[]}
+        atrasos={[]}
+        onOpenAluno={vi.fn()}
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onRequestConfirm={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Exportar" }));
+
+    expect(exportarPlanilha.linhasExportacaoAlunos).toHaveBeenCalledWith(alunos, [], []);
+    expect(exportarPlanilha.exportarXlsx).toHaveBeenCalledWith("alunos.xlsx", []);
+  });
+
+  it("exporta só os alunos selecionados quando há seleção", async () => {
+    const user = userEvent.setup();
+    const alunos = [aluno({ id: "a1", nome: "Ana" }), aluno({ id: "a2", nome: "Bia" })];
+
+    render(
+      <DiretorioAlunos
+        token="token"
+        alunos={alunos}
+        grupos={[]}
+        gruposPrazo={[]}
+        listas={[]}
+        feedbacks={[]}
+        atrasos={[]}
+        onOpenAluno={vi.fn()}
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onRequestConfirm={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("checkbox", { name: "Selecionar linha" })[0]!);
+
+    await user.click(screen.getByRole("button", { name: "Exportar" }));
+
+    expect(exportarPlanilha.linhasExportacaoAlunos).toHaveBeenCalledWith([alunos[0]], [], []);
   });
 });

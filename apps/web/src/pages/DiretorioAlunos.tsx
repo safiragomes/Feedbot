@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import type { Aluno, Atraso, Feedback, GrupoPrazo, GrupoRevisao, Lista } from "../lib/types";
-import { IconSearch, IconTrash } from "../components/icons";
+import { IconDownload, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoAluno, solicitarRemocaoVariosAlunos } from "../lib/acoes";
 import { normalizarBusca, turmasUnicas } from "../lib/format";
+import { exportarXlsx, linhasExportacaoAlunos } from "../lib/exportar-planilha";
+import { toast } from "../lib/toast";
 
 type TipoOcorrencia = "ia" | "plagio" | "proibicao";
 
@@ -126,6 +128,14 @@ export function DiretorioAlunos({
   function confirmarExclusao(aluno: Aluno, event: React.MouseEvent) {
     event.stopPropagation();
     solicitarRemocaoAluno({ aluno, token, onRequestConfirm, onReload, onErro: setErro });
+  }
+
+  function exportar() {
+    const alunosParaExportar = selecionadosVisiveis.length ? selecionadosVisiveis : filtrados;
+    void exportarXlsx(
+      "alunos.xlsx",
+      linhasExportacaoAlunos(alunosParaExportar, grupos, gruposPrazo),
+    ).catch(() => toast.error("Não foi possível exportar a planilha"));
   }
 
   function alternarSelecao(id: string) {
@@ -282,6 +292,10 @@ export function DiretorioAlunos({
               {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
+          <button className="btn sm ghost" onClick={exportar} disabled={!filtrados.length}>
+            <IconDownload />
+            Exportar
+          </button>
           <div className="search-wrap search-wrap-mobile">
             <div className="search-box">
               <IconSearch />

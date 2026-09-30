@@ -208,3 +208,11 @@ export function IconMoon(props: SVGProps<SVGSVGElement>) {
     </Svg>
   );
 }
+
+export function IconDownload(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16" />
+    </Svg>
+  );
+}

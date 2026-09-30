@@ -8,7 +8,9 @@ import {
 import { Chip, EmptyState, Panel } from "../components/ui";
 import { FilterBar, FilterBarToggle } from "../components/FilterBar";
 import { FilterSelect } from "../components/FilterSelect";
-import { IconChevronDown } from "../components/icons";
+import { IconChevronDown, IconDownload } from "../components/icons";
+import { exportarXlsx, linhasExportacaoAtrasos } from "../lib/exportar-planilha";
+import { toast } from "../lib/toast";
 
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -63,6 +65,13 @@ export function AtrasadosOverview({
     );
   });
 
+  function exportar() {
+    void exportarXlsx(
+      "atrasados.xlsx",
+      linhasExportacaoAtrasos(atrasosFiltrados, alunos, duplas, grupos),
+    ).catch(() => toast.error("Não foi possível exportar a planilha"));
+  }
+
   const arvore = agruparAtrasosPorTurma(atrasosFiltrados, alunos, duplas, grupos, ordenarPor);
   const monitoresEmRisco = listarMonitoresEmAtraso(atrasosFiltrados, ordenarPor).slice(0, 5);
 
@@ -104,6 +113,10 @@ export function AtrasadosOverview({
           <FilterBarToggle filtrosAtivos={filtrosAtivos} onClick={() => setFiltrosAbertos(true)} />
           <button className="btn sm ghost" onClick={limparFiltros} disabled={!filtrosAtivos}>
             Limpar filtros
+          </button>
+          <button className="btn sm ghost" onClick={exportar} disabled={!atrasosFiltrados.length}>
+            <IconDownload />
+            Exportar
           </button>
         </div>
       </div>

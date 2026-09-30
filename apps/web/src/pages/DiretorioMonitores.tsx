@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Aluno, Atraso, DiscordMembro, Dupla, GrupoRevisao, Lista, Monitor } from "../lib/types";
-import { IconEdit, IconPlus, IconSearch, IconTrash } from "../components/icons";
+import { IconDownload, IconEdit, IconPlus, IconSearch, IconTrash } from "../components/icons";
 import { Avatar, Chip, EmptyState, Modal, type ConfirmRequest } from "../components/ui";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { DiscordMemberPicker } from "../components/DiscordMemberPicker";
@@ -9,6 +9,8 @@ import { FilterSelect } from "../components/FilterSelect";
 import { solicitarRemocaoMonitor, solicitarRemocaoVariosMonitores } from "../lib/acoes";
 import { monitorSemanaB } from "../lib/dupla";
 import { normalizarBusca } from "../lib/format";
+import { exportarXlsx, linhasExportacaoMonitores } from "../lib/exportar-planilha";
+import { toast } from "../lib/toast";
 import { ConvidarChefeModal, NovoMonitorModal } from "../components/MonitorAccessModals";
 import { api } from "../lib/api";
 
@@ -351,6 +353,14 @@ export function DiretorioMonitores({
     solicitarRemocaoMonitor({ monitor, token, onRequestConfirm, onReload, onErro: setErro });
   }
 
+  function exportar() {
+    const monitoresParaExportar = selecionadosVisiveis.length ? selecionadosVisiveis : filtrados;
+    void exportarXlsx(
+      "monitores.xlsx",
+      linhasExportacaoMonitores(monitoresParaExportar, duplas, grupos),
+    ).catch(() => toast.error("Não foi possível exportar a planilha"));
+  }
+
   function alternarSelecao(id: string) {
     setSelecionados((atual) => {
       const proximo = new Set(atual);
@@ -516,6 +526,10 @@ export function DiretorioMonitores({
               {selecionadosVisiveis.length === 1 ? "" : "s"}
             </button>
           )}
+          <button className="btn sm ghost" onClick={exportar} disabled={!filtrados.length}>
+            <IconDownload />
+            Exportar
+          </button>
           <div className="search-wrap search-wrap-mobile">
             <div className="search-box">
               <IconSearch />
